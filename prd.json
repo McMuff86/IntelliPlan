@@ -1,0 +1,321 @@
+{
+  "name": "Appointment Management",
+  "branchName": "feature/appointment-management",
+  "description": "Core appointment management system enabling users to create, view, edit, and delete appointments with overlap detection, multiple view options, and role-based access for Admin, Single, and Team users.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Project Setup and Database Schema",
+      "description": "As a developer I want the project initialized with the tech stack and database schema So that I can build features on a solid foundation",
+      "acceptanceCriteria": [
+        "Node.js/Express backend initialized with TypeScript",
+        "React.js frontend initialized with Material-UI and TypeScript",
+        "PostgreSQL database connection configured",
+        "Appointments table created with: id, title, description, start_time, end_time, timezone, user_id, created_at, updated_at",
+        "Users table created with: id, email, name, role (admin/single/team), team_id, created_at",
+        "Teams table created with: id, name, created_at",
+        "Database migrations setup"
+      ],
+      "technicalNotes": "Use UTC for all timestamp storage. Use ISO 8601 format for API responses. Set up ESLint and Prettier.",
+      "dependencies": [],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Create Appointment API Endpoint",
+      "description": "As a user I want to create a new appointment via API So that I can add events to my schedule",
+      "acceptanceCriteria": [
+        "POST /api/appointments endpoint created",
+        "Validates required fields: title, start_time, end_time",
+        "Stores times in UTC",
+        "Returns created appointment with 201 status",
+        "Returns validation errors with 400 status"
+      ],
+      "technicalNotes": "Use express-validator for input validation.",
+      "dependencies": [
+        "US-001"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Read Appointments API Endpoints",
+      "description": "As a user I want to retrieve my appointments via API So that I can view my schedule",
+      "acceptanceCriteria": [
+        "GET /api/appointments returns user's appointments",
+        "GET /api/appointments/:id returns single appointment",
+        "Supports date range filtering (?start=&end=)",
+        "Returns 404 for non-existent appointments",
+        "Respects user ownership (users only see their own)"
+      ],
+      "technicalNotes": "Pagination support for list endpoint.",
+      "dependencies": [
+        "US-001"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Update Appointment API Endpoint",
+      "description": "As a user I want to update an existing appointment via API So that I can modify my schedule",
+      "acceptanceCriteria": [
+        "PUT /api/appointments/:id endpoint created",
+        "Validates ownership before update",
+        "Partial updates supported (PATCH semantics)",
+        "Returns updated appointment with 200 status",
+        "Returns 404 for non-existent appointments",
+        "Returns 403 for unauthorized access"
+      ],
+      "technicalNotes": "",
+      "dependencies": [
+        "US-002",
+        "US-003"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Delete Appointment API Endpoint",
+      "description": "As a user I want to delete an appointment via API So that I can remove events from my schedule",
+      "acceptanceCriteria": [
+        "DELETE /api/appointments/:id endpoint created",
+        "Validates ownership before deletion",
+        "Returns 204 on successful deletion",
+        "Returns 404 for non-existent appointments",
+        "Returns 403 for unauthorized access"
+      ],
+      "technicalNotes": "Soft delete vs hard delete decision (recommend soft delete).",
+      "dependencies": [
+        "US-002"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Overlap Detection Service",
+      "description": "As a user I want to be warned about scheduling conflicts So that I don't accidentally double-book",
+      "acceptanceCriteria": [
+        "Service detects overlapping appointments for same user",
+        "Returns list of conflicting appointments",
+        "Integrated into create/update endpoints",
+        "API returns overlap warnings in response",
+        "Blocked by default, but accepts ?force=true to override"
+      ],
+      "technicalNotes": "Check: new_start < existing_end AND new_end > existing_start.",
+      "dependencies": [
+        "US-002",
+        "US-004"
+      ],
+      "priority": 6,
+      "passes": true
+    },
+    {
+      "id": "US-007",
+      "title": "Appointment Form Component",
+      "description": "As a user I want a form to create/edit appointments So that I can manage my schedule through the UI",
+      "acceptanceCriteria": [
+        "Form with fields: title, description, start date/time, end date/time, timezone",
+        "Date/time pickers using Material-UI",
+        "Form validation with error messages",
+        "Submit creates new appointment via API",
+        "Loading state during submission"
+      ],
+      "technicalNotes": "Use react-hook-form for form management.",
+      "dependencies": [
+        "US-002"
+      ],
+      "priority": 7,
+      "passes": true
+    },
+    {
+      "id": "US-008",
+      "title": "Overlap Warning Dialog",
+      "description": "As a user I want to see a warning when my appointment overlaps with existing ones So that I can decide whether to proceed or modify",
+      "acceptanceCriteria": [
+        "Dialog displays when overlap detected",
+        "Shows list of conflicting appointments",
+        "Cancel button returns to form",
+        "Create Anyway button forces creation",
+        "Clear visual warning styling"
+      ],
+      "technicalNotes": "Material-UI Dialog component.",
+      "dependencies": [
+        "US-006",
+        "US-007"
+      ],
+      "priority": 8,
+      "passes": true
+    },
+    {
+      "id": "US-009",
+      "title": "Appointments List View",
+      "description": "As a user I want to see my appointments in a list So that I can quickly scan my schedule",
+      "acceptanceCriteria": [
+        "List displays appointments sorted by date",
+        "Shows title, date, time for each appointment",
+        "Click opens appointment details",
+        "Delete button with confirmation",
+        "Empty state when no appointments"
+      ],
+      "technicalNotes": "Material-UI List/Table component.",
+      "dependencies": [
+        "US-003"
+      ],
+      "priority": 9,
+      "passes": true
+    },
+    {
+      "id": "US-010",
+      "title": "Appointment Detail View",
+      "description": "As a user I want to view full details of an appointment So that I can see all information",
+      "acceptanceCriteria": [
+        "Displays all appointment fields",
+        "Edit button navigates to edit form",
+        "Delete button with confirmation dialog",
+        "Back navigation to list view"
+      ],
+      "technicalNotes": "Material-UI Card or Paper component.",
+      "dependencies": [
+        "US-003",
+        "US-007"
+      ],
+      "priority": 10,
+      "passes": true
+    },
+    {
+      "id": "US-011",
+      "title": "Calendar View Component",
+      "description": "As a user I want to see my appointments in a calendar view So that I can visualize my schedule over time",
+      "acceptanceCriteria": [
+        "Monthly calendar grid view",
+        "Appointments displayed on their dates",
+        "Navigation between months",
+        "Click on date shows appointments for that day",
+        "Click on appointment opens detail view"
+      ],
+      "technicalNotes": "Consider FullCalendar library or build custom with Material-UI.",
+      "dependencies": [
+        "US-003"
+      ],
+      "priority": 11,
+      "passes": true
+    },
+    {
+      "id": "US-012",
+      "title": "Calendar Week and Day Views",
+      "description": "As a user I want week and day views in the calendar So that I can see detailed time slots",
+      "acceptanceCriteria": [
+        "Week view shows 7-day grid with time slots",
+        "Day view shows single day with time slots",
+        "Toggle between Month/Week/Day views",
+        "Appointments positioned by time",
+        "Time slot visual indicators"
+      ],
+      "technicalNotes": "",
+      "dependencies": [
+        "US-011"
+      ],
+      "priority": 12,
+      "passes": true
+    },
+    {
+      "id": "US-013",
+      "title": "Drag and Drop Rescheduling",
+      "description": "As a user I want to drag appointments to reschedule them So that I can quickly adjust my schedule",
+      "acceptanceCriteria": [
+        "Drag appointment to new date in calendar",
+        "Drag to new time slot in week/day view",
+        "Visual feedback during drag",
+        "Confirmation or immediate save option",
+        "Overlap warning if conflict detected"
+      ],
+      "technicalNotes": "Use react-beautiful-dnd or native drag API.",
+      "dependencies": [
+        "US-011",
+        "US-012",
+        "US-006"
+      ],
+      "priority": 13,
+      "passes": true
+    },
+    {
+      "id": "US-014",
+      "title": "View Toggle Navigation",
+      "description": "As a user I want to switch between List and Calendar views So that I can choose my preferred visualization",
+      "acceptanceCriteria": [
+        "Toggle buttons for List/Calendar views",
+        "Persists view preference in local storage",
+        "Smooth transition between views",
+        "URL reflects current view (/appointments/list, /appointments/calendar)"
+      ],
+      "technicalNotes": "React Router for view routing.",
+      "dependencies": [
+        "US-009",
+        "US-011"
+      ],
+      "priority": 14,
+      "passes": true
+    },
+    {
+      "id": "US-015",
+      "title": "User Role - Admin Access",
+      "description": "As an admin I want to view and manage all users' appointments So that I can oversee the entire organization",
+      "acceptanceCriteria": [
+        "Admin can view all appointments across users",
+        "Filter by user in list/calendar views",
+        "Admin can edit/delete any appointment",
+        "Role check middleware on API endpoints"
+      ],
+      "technicalNotes": "",
+      "dependencies": [
+        "US-003",
+        "US-004",
+        "US-005"
+      ],
+      "priority": 15,
+      "passes": true
+    },
+    {
+      "id": "US-016",
+      "title": "User Role - Team Visibility",
+      "description": "As a team user I want to see my team members' appointments So that I can coordinate schedules",
+      "acceptanceCriteria": [
+        "Team members see each other's appointments (read-only)",
+        "Visual distinction between own and team appointments",
+        "Can only edit/delete own appointments",
+        "Team filter in views"
+      ],
+      "technicalNotes": "",
+      "dependencies": [
+        "US-003",
+        "US-015"
+      ],
+      "priority": 16,
+      "passes": true
+    },
+    {
+      "id": "US-017",
+      "title": "Timezone Display and Selection",
+      "description": "As a user I want to view appointments in my local timezone So that times are meaningful to me",
+      "acceptanceCriteria": [
+        "User can set preferred timezone in settings",
+        "Appointments display in user's timezone",
+        "Timezone selector in appointment form",
+        "Clear timezone indicator on appointments"
+      ],
+      "technicalNotes": "Use date-fns-tz or luxon for timezone handling. Store in UTC, display in local.",
+      "dependencies": [
+        "US-007",
+        "US-009",
+        "US-011"
+      ],
+      "priority": 17,
+      "passes": true
+    }
+  ]
+}

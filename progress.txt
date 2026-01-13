@@ -1,0 +1,29 @@
+# IntelliPlan - Ralph Progress Log
+
+## Codebase Patterns
+<!-- Add reusable patterns here as they are discovered -->
+<!-- Example: Use `sql<number>` template for aggregations -->
+<!-- Example: Always use `IF NOT EXISTS` for migrations -->
+
+---
+
+## Iteration Log
+<!-- Each Ralph iteration appends its progress below -->
+  
+## 2026-01-13 - US-001  
+Thread: https://ampcode.com/threads/T-019bb959-ef98-70d3-8968-161c39a15ead  
+- Backend: Node.js/Express with TypeScript initialized  
+- Frontend: React with Vite, Material-UI, TypeScript initialized  
+- Database: PostgreSQL migrations created (teams, users, appointments)  
+- Migration runner at npm run migrate  
+  
+**Files created:**  
+- backend/ - Full Express API structure  
+- frontend/ - Full React app structure  
+- backend/migrations/ - SQL migration files  
+  
+**Learnings for future iterations:**  
+- Use IF NOT EXISTS for all CREATE TABLE/INDEX statements  
+- Vite requires type-only imports (import type) for verbatimModuleSyntax  
+- ESLint v9 requires flat config but we used legacy .eslintrc.json  
+--- 
