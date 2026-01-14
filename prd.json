@@ -130,7 +130,7 @@
         "US-002"
       ],
       "priority": 7,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",
