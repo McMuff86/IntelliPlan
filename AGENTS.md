@@ -88,8 +88,11 @@ Develop a scalable, user-friendly application for planning, booking, reminders, 
 - Advanced appointment features
 - Security & compliance
 
+
 ## Prerequisites
 
+- Node.js and npm installed
+- PostgreSQL database running
 - [Amp CLI](https://ampcode.com) installed and authenticated
 - `jq` installed (`brew install jq` on macOS, `choco install jq` on Windows)
 - Git repository initialized
@@ -314,6 +317,33 @@ Edit `scripts/ralph/prompt.md` to customize Ralph's behavior for IntelliPlan:
 - Include codebase conventions
 - Add common gotchas for your stack
 - Reference IntelliPlan-specific patterns
+
+
+## Quick Start (Windows)
+
+Run both backend and frontend dev servers at once:
+
+```powershell
+.\start-dev.ps1
+```
+
+This opens two PowerShell windows:
+- **Backend**: http://localhost:3000
+- **Frontend**: http://localhost:5173
+
+### Manual Start
+
+```powershell
+# Terminal 1 - Backend
+cd backend
+npm install
+npm run dev
+
+# Terminal 2 - Frontend
+cd frontend
+npm install
+npm run dev
+```
 
 ## Archiving
 
