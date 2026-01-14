@@ -54,8 +54,10 @@ export async function create(req: Request, res: Response, next: NextFunction): P
 
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = req.headers['x-user-id'] as string || 'temp-user-id';
-    const { start, end, limit, offset } = req.query;
+    const user = req.user;
+    const userId = user?.id || req.headers['x-user-id'] as string || 'temp-user-id';
+    const isAdmin = user?.role === 'admin';
+    const { start, end, limit, offset, userId: filterUserId } = req.query;
 
     const result = await getAppointments({
       userId,
@@ -63,6 +65,8 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       end: end as string | undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
       offset: offset ? parseInt(offset as string, 10) : undefined,
+      isAdmin,
+      filterUserId: filterUserId as string | undefined,
     });
 
     res.status(200).json({
@@ -81,11 +85,13 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
 
 export async function getById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const user = req.user;
     const userIdHeader = req.headers['x-user-id'];
-    const userId = (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const isAdmin = user?.role === 'admin';
     const id = req.params.id as string;
 
-    const appointment = await getAppointmentById(id, userId);
+    const appointment = await getAppointmentById(id, userId, isAdmin);
 
     if (!appointment) {
       res.status(404).json({
@@ -116,8 +122,10 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     }
 
     const id = req.params.id as string;
+    const user = req.user;
     const userIdHeader = req.headers['x-user-id'];
-    const userId = (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const isAdmin = user?.role === 'admin';
 
     const owner = await getAppointmentOwner(id);
 
@@ -129,7 +137,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    if (owner !== userId) {
+    if (owner !== userId && !isAdmin) {
       res.status(403).json({
         success: false,
         error: 'Forbidden: You do not have permission to update this appointment',
@@ -141,13 +149,14 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     const force = req.query.force === 'true';
 
     if (startTime || endTime) {
-      const existingAppointment = await getAppointmentById(id, userId);
+      const appointmentOwnerId = isAdmin ? owner : userId;
+      const existingAppointment = await getAppointmentById(id, appointmentOwnerId, isAdmin);
       if (existingAppointment) {
         const checkStartTime = startTime || existingAppointment.start_time.toISOString();
         const checkEndTime = endTime || existingAppointment.end_time.toISOString();
 
         const overlapResult = await checkOverlap({
-          userId,
+          userId: appointmentOwnerId,
           startTime: checkStartTime,
           endTime: checkEndTime,
           excludeId: id,
@@ -192,8 +201,10 @@ export async function update(req: Request, res: Response, next: NextFunction): P
 export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const id = req.params.id as string;
+    const user = req.user;
     const userIdHeader = req.headers['x-user-id'];
-    const userId = (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const isAdmin = user?.role === 'admin';
 
     const owner = await getAppointmentOwner(id);
 
@@ -205,7 +216,7 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    if (owner !== userId) {
+    if (owner !== userId && !isAdmin) {
       res.status(403).json({
         success: false,
         error: 'Forbidden: You do not have permission to delete this appointment',

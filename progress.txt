@@ -301,3 +301,29 @@ Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8
 - Use useMemo to derive state from URL pathname  
 - Navigate imperatively when URL is base /appointments  
 --- 
+  
+## 2026-01-14 - US-015  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Created user model and userService for role/team lookup  
+- Created roleMiddleware with requireRole and loadUser functions  
+- Updated appointmentService with isAdmin and filterUserId options  
+- Admin can view all appointments via GET /api/appointments  
+- Admin can filter by userId query param  
+- Admin can edit/delete any appointment (bypasses ownership check)  
+- loadUser middleware loads req.user from x-user-id header  
+  
+**Files created:**  
+- backend/src/models/user.ts - User types and response mapper  
+- backend/src/services/userService.ts - getUserById, getUserRole, getUserTeamId  
+- backend/src/middleware/roleMiddleware.ts - requireRole and loadUser middleware  
+  
+**Files modified:**  
+- backend/src/services/appointmentService.ts - Added isAdmin, filterUserId options  
+- backend/src/controllers/appointmentController.ts - Updated all endpoints for admin access  
+- backend/src/routes/appointments.ts - Added loadUser middleware  
+  
+**Learnings:**  
+- Extend Express Request type with declare global for req.user  
+- Use loadUser middleware to optionally populate user context  
+- Admin bypasses ownership checks but still triggers overlap detection for appointment owner  
+--- 

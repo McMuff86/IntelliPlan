@@ -7,6 +7,8 @@ export interface ListAppointmentsOptions {
   end?: string;
   limit?: number;
   offset?: number;
+  isAdmin?: boolean;
+  filterUserId?: string;
 }
 
 export interface PaginatedResult<T> {
@@ -30,10 +32,22 @@ export async function createAppointment(data: CreateAppointmentDTO): Promise<App
 }
 
 export async function getAppointments(options: ListAppointmentsOptions): Promise<PaginatedResult<Appointment>> {
-  const { userId, start, end, limit = 50, offset = 0 } = options;
-  const params: (string | number)[] = [userId];
-  let whereClause = 'WHERE user_id = $1 AND deleted_at IS NULL';
-  let paramIndex = 2;
+  const { userId, start, end, limit = 50, offset = 0, isAdmin = false, filterUserId } = options;
+  const params: (string | number)[] = [];
+  let whereClause = 'WHERE deleted_at IS NULL';
+  let paramIndex = 1;
+
+  if (isAdmin) {
+    if (filterUserId) {
+      whereClause += ` AND user_id = $${paramIndex}`;
+      params.push(filterUserId);
+      paramIndex++;
+    }
+  } else {
+    whereClause += ` AND user_id = $${paramIndex}`;
+    params.push(userId);
+    paramIndex++;
+  }
 
   if (start) {
     whereClause += ` AND start_time >= $${paramIndex}`;
@@ -66,7 +80,15 @@ export async function getAppointments(options: ListAppointmentsOptions): Promise
   };
 }
 
-export async function getAppointmentById(id: string, userId: string): Promise<Appointment | null> {
+export async function getAppointmentById(id: string, userId: string, isAdmin = false): Promise<Appointment | null> {
+  if (isAdmin) {
+    const result = await pool.query<Appointment>(
+      `SELECT * FROM appointments WHERE id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    return result.rows[0] || null;
+  }
+
   const result = await pool.query<Appointment>(
     `SELECT * FROM appointments WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
     [id, userId]
