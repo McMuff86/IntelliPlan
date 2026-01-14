@@ -127,3 +127,12 @@ export async function updateAppointment(
 
   return result.rows[0] || null;
 }
+
+export async function deleteAppointment(id: string): Promise<boolean> {
+  const result = await pool.query(
+    `UPDATE appointments SET deleted_at = NOW(), updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`,
+    [id]
+  );
+
+  return result.rowCount !== null && result.rowCount > 0;
+}

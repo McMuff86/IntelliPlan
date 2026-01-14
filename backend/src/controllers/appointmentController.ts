@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment } from '../services/appointmentService';
+import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment, deleteAppointment } from '../services/appointmentService';
 import { toAppointmentResponse } from '../models/appointment';
 
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -143,6 +143,38 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       success: true,
       data: toAppointmentResponse(updated),
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.params.id as string;
+    const userIdHeader = req.headers['x-user-id'];
+    const userId = (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+
+    const owner = await getAppointmentOwner(id);
+
+    if (!owner) {
+      res.status(404).json({
+        success: false,
+        error: 'Appointment not found',
+      });
+      return;
+    }
+
+    if (owner !== userId) {
+      res.status(403).json({
+        success: false,
+        error: 'Forbidden: You do not have permission to delete this appointment',
+      });
+      return;
+    }
+
+    await deleteAppointment(id);
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

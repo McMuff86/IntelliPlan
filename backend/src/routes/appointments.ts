@@ -8,5 +8,6 @@ router.get('/', appointmentController.list);
 router.get('/:id', appointmentController.getById);
 router.post('/', createAppointmentValidator, appointmentController.create);
 router.put('/:id', updateAppointmentValidator, appointmentController.update);
+router.delete('/:id', appointmentController.remove);
 
 export default router;

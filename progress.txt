@@ -84,3 +84,21 @@ Thread: https://ampcode.com/threads/T-019bbb04-2438-7386-97cc-7c73c53fc01a
 - Check ownership separately from fetching appointment to return proper 403 vs 404
 - ValidationChain type import needed for explicit validator array typing
 ---
+
+## 2026-01-14 - US-005
+Thread: https://ampcode.com/threads/T-019bbb0d-33d6-75bb-84b7-fcc0b79edc4d
+- DELETE /api/appointments/:id endpoint created
+- Validates ownership before deletion (403 if not owner)
+- Returns 204 on successful deletion
+- Returns 404 for non-existent appointments
+- Implements soft delete (sets deleted_at timestamp)
+
+**Files modified:**
+- services/appointmentService.ts - Added deleteAppointment() function
+- controllers/appointmentController.ts - Added remove() handler
+- routes/appointments.ts - Added DELETE /:id route
+
+**Learnings:**
+- Soft delete pattern: UPDATE SET deleted_at = NOW() instead of DELETE
+- All queries already filter with deleted_at IS NULL for consistency
+---
