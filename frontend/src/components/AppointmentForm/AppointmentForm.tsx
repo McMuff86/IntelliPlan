@@ -19,21 +19,7 @@ import OverlapWarningDialog from '../OverlapWarningDialog';
 import { formatISO } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
 import axios from 'axios';
-
-const TIMEZONES = [
-  'UTC',
-  'America/New_York',
-  'America/Chicago',
-  'America/Denver',
-  'America/Los_Angeles',
-  'Europe/London',
-  'Europe/Paris',
-  'Europe/Berlin',
-  'Europe/Zurich',
-  'Asia/Tokyo',
-  'Asia/Shanghai',
-  'Australia/Sydney',
-];
+import { getStoredTimezone, COMMON_TIMEZONES } from '../../hooks/useTimezone';
 
 interface AppointmentFormProps {
   initialData?: Appointment;
@@ -63,7 +49,7 @@ export default function AppointmentForm({
       description: initialData?.description || '',
       startDate: initialData?.startTime ? new Date(initialData.startTime) : null,
       endDate: initialData?.endTime ? new Date(initialData.endTime) : null,
-      timezone: initialData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone: initialData?.timezone || getStoredTimezone(),
     },
   });
 
@@ -242,9 +228,9 @@ export default function AppointmentForm({
                 helperText={errors.timezone?.message}
                 disabled={isSubmitting}
               >
-                {TIMEZONES.map((tz) => (
+                {COMMON_TIMEZONES.map((tz) => (
                   <MenuItem key={tz} value={tz}>
-                    {tz}
+                    {tz.replace(/_/g, ' ')}
                   </MenuItem>
                 ))}
               </TextField>

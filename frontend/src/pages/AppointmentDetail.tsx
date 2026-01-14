@@ -26,10 +26,12 @@ import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../services/appointmentService';
 import type { Appointment } from '../types';
 import AppointmentForm from '../components/AppointmentForm';
+import { useTimezone } from '../hooks/useTimezone';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { timezone: preferredTimezone } = useTimezone();
 
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,9 +60,9 @@ export default function AppointmentDetail() {
     fetchAppointment();
   }, [id]);
 
-  const formatDateTime = (isoString: string, timezone: string) => {
+  const formatDateTime = (isoString: string) => {
     const utcDate = parseISO(isoString);
-    const zonedDate = toZonedTime(utcDate, timezone);
+    const zonedDate = toZonedTime(utcDate, preferredTimezone);
     return format(zonedDate, 'EEEE, MMMM d, yyyy \'at\' h:mm a');
   };
 
@@ -183,7 +185,7 @@ export default function AppointmentDetail() {
               Start
             </Typography>
             <Typography variant="body1">
-              {formatDateTime(appointment.startTime, appointment.timezone)}
+              {formatDateTime(appointment.startTime)}
             </Typography>
           </Box>
 
@@ -192,15 +194,27 @@ export default function AppointmentDetail() {
               End
             </Typography>
             <Typography variant="body1">
-              {formatDateTime(appointment.endTime, appointment.timezone)}
+              {formatDateTime(appointment.endTime)}
             </Typography>
           </Box>
 
           <Box>
             <Typography variant="subtitle2" color="text.secondary">
-              Timezone
+              Appointment Timezone
             </Typography>
-            <Chip label={appointment.timezone} size="small" variant="outlined" />
+            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+              <Chip
+                label={appointment.timezone.replace(/_/g, ' ')}
+                size="small"
+                variant="outlined"
+                color={appointment.timezone === preferredTimezone ? 'primary' : 'default'}
+              />
+              {appointment.timezone !== preferredTimezone && (
+                <Typography variant="caption" color="text.secondary">
+                  (Displayed in {preferredTimezone.replace(/_/g, ' ')})
+                </Typography>
+              )}
+            </Box>
           </Box>
 
           <Divider sx={{ my: 1 }} />

@@ -6,6 +6,7 @@ import Home from './pages/Home';
 import Appointments from './pages/Appointments';
 import CreateAppointment from './pages/CreateAppointment';
 import AppointmentDetail from './pages/AppointmentDetail';
+import Settings from './pages/Settings';
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
             <Route path="/appointments/calendar" element={<Appointments />} />
             <Route path="/appointments/new" element={<CreateAppointment />} />
             <Route path="/appointments/:id" element={<AppointmentDetail />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />
           </Routes>
         </Layout>

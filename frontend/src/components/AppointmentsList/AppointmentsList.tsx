@@ -19,15 +19,18 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  Chip,
 } from '@mui/material';
 import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
 import type { Appointment } from '../../types';
+import { useTimezone } from '../../hooks/useTimezone';
 
 export default function AppointmentsList() {
   const navigate = useNavigate();
+  const { timezone: preferredTimezone } = useTimezone();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,10 +90,15 @@ export default function AppointmentsList() {
     setAppointmentToDelete(null);
   };
 
-  const formatDateTime = (isoString: string, timezone: string) => {
+  const formatDateTime = (isoString: string) => {
     const utcDate = parseISO(isoString);
-    const zonedDate = toZonedTime(utcDate, timezone);
+    const zonedDate = toZonedTime(utcDate, preferredTimezone);
     return format(zonedDate, 'MMM d, yyyy h:mm a');
+  };
+
+  const getShortTimezone = (tz: string) => {
+    const parts = tz.split('/');
+    return parts[parts.length - 1].replace(/_/g, ' ');
   };
 
   if (loading) {
@@ -134,6 +142,7 @@ export default function AppointmentsList() {
               <TableCell>Title</TableCell>
               <TableCell>Start</TableCell>
               <TableCell>End</TableCell>
+              <TableCell>Timezone</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -146,8 +155,16 @@ export default function AppointmentsList() {
                 onClick={() => handleViewClick(appointment.id)}
               >
                 <TableCell>{appointment.title}</TableCell>
-                <TableCell>{formatDateTime(appointment.startTime, appointment.timezone)}</TableCell>
-                <TableCell>{formatDateTime(appointment.endTime, appointment.timezone)}</TableCell>
+                <TableCell>{formatDateTime(appointment.startTime)}</TableCell>
+                <TableCell>{formatDateTime(appointment.endTime)}</TableCell>
+                <TableCell>
+                  <Chip
+                    size="small"
+                    label={getShortTimezone(appointment.timezone)}
+                    variant="outlined"
+                    color={appointment.timezone === preferredTimezone ? 'primary' : 'default'}
+                  />
+                </TableCell>
                 <TableCell align="right">
                   <IconButton
                     size="small"

@@ -347,3 +347,28 @@ Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8
 - JOIN users table to filter by team_id when querying appointments  
 - isOwn flag enables frontend to visually distinguish own vs team appointments  
 --- 
+  
+## 2026-01-14 - US-017  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Created useTimezone hook with localStorage persistence  
+- Created Settings page at /settings for timezone preference  
+- All appointment times display in user preferred timezone  
+- AppointmentForm defaults to preferred timezone for new appointments  
+- Timezone chips show in list and detail views with color indicator  
+- Detail view shows when displaying in different timezone than appointment  
+  
+**Files created:**  
+- frontend/src/hooks/useTimezone.ts - Timezone preference hook with useSyncExternalStore  
+- frontend/src/pages/Settings.tsx - Settings page for timezone preference  
+  
+**Files modified:**  
+- frontend/src/App.tsx - Added /settings route  
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx - Uses stored timezone  
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Displays in preferred tz  
+- frontend/src/pages/AppointmentDetail.tsx - Displays in preferred tz with indicator  
+  
+**Learnings:**  
+- Use useSyncExternalStore for localStorage state to avoid setState-in-effect errors  
+- Chip color primary/default indicates if tz matches preference  
+- getStoredTimezone falls back to browser timezone if not set  
+--- 
