@@ -27,3 +27,22 @@ Thread: https://ampcode.com/threads/T-019bb959-ef98-70d3-8968-161c39a15ead
 - Vite requires type-only imports (import type) for verbatimModuleSyntax  
 - ESLint v9 requires flat config but we used legacy .eslintrc.json  
 --- 
+  
+## 2026-01-14 - US-002  
+Thread: https://ampcode.com/threads/T-019bb959-ef98-70d3-8968-161c39a15ead  
+- POST /api/appointments endpoint created  
+- Validates title, startTime, endTime with express-validator  
+- Returns 201 with created appointment  
+- Returns 400 with validation errors  
+  
+**Files created:**  
+- models/appointment.ts - Types and response mapper  
+- services/appointmentService.ts - Database operations  
+- controllers/appointmentController.ts - Request handling  
+- validators/appointmentValidator.ts - Input validation  
+- routes/appointments.ts - Route definitions  
+  
+**Learnings:**  
+- Use camelCase in API (startTime) but snake_case in DB (start_time)  
+- toAppointmentResponse() maps between formats  
+--- 
