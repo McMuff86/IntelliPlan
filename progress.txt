@@ -281,3 +281,23 @@ Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8
 - Use revert to undo visual change when API call fails  
 - Store pending drop info to allow force update after user confirms overlap  
 --- 
+  
+## 2026-01-14 - US-014  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Created unified Appointments page with List/Calendar view toggle  
+- View preference persisted to localStorage  
+- URLs reflect current view: /appointments/list and /appointments/calendar  
+- /appointments redirects to preferred view, /calendar redirects to /appointments/calendar  
+- Smooth CSS transition between views  
+- Deleted standalone Calendar.tsx page  
+  
+**Files created/modified:**  
+- frontend/src/pages/Appointments.tsx - Added view toggle with localStorage persistence  
+- frontend/src/App.tsx - Updated routes for list/calendar paths  
+- Deleted frontend/src/pages/Calendar.tsx  
+  
+**Learnings:**  
+- Avoid setState in useEffect to prevent cascading renders  
+- Use useMemo to derive state from URL pathname  
+- Navigate imperatively when URL is base /appointments  
+--- 

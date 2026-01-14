@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { lightTheme } from './theme/theme';
 import Layout from './components/Layout/Layout';
@@ -6,7 +6,6 @@ import Home from './pages/Home';
 import Appointments from './pages/Appointments';
 import CreateAppointment from './pages/CreateAppointment';
 import AppointmentDetail from './pages/AppointmentDetail';
-import Calendar from './pages/Calendar';
 
 function App() {
   return (
@@ -17,9 +16,11 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/appointments" element={<Appointments />} />
+            <Route path="/appointments/list" element={<Appointments />} />
+            <Route path="/appointments/calendar" element={<Appointments />} />
             <Route path="/appointments/new" element={<CreateAppointment />} />
             <Route path="/appointments/:id" element={<AppointmentDetail />} />
-            <Route path="/calendar" element={<Calendar />} />
+            <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />
           </Routes>
         </Layout>
       </BrowserRouter>
