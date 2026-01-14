@@ -241,3 +241,23 @@ Thread: https://ampcode.com/threads/T-019bbbb3-962f-706b-af62-ffb8b2e06c9b
 - FullCalendar events need id, title, start, end properties
 - Use dayMaxEvents={3} to limit visible events per day and show "+more" link
 ---
+""  
+"## 2026-01-14 - US-012"  
+"Thread: https://ampcode.com/threads/T-019bbe16-f8e6-709b-87ff-325ed78b969b"  
+"- Added @fullcalendar/timegrid plugin for week and day views"  
+"- Created Month/Week/Day toggle with MUI ToggleButtonGroup"  
+"- Week view shows 7-day grid with time slots (06:00-22:00)"  
+"- Day view shows single day with time slots"  
+"- Appointments positioned by time in timeGrid views"  
+"- Now indicator shows current time in week/day views"  
+""  
+"**Files modified:**"  
+"- frontend/src/components/CalendarView/CalendarView.tsx - Added timeGridPlugin and view toggle"  
+"- frontend/package.json - Added @fullcalendar/timegrid dependency"  
+""  
+"**Learnings:**"  
+"- FullCalendar timeGridPlugin provides timeGridWeek and timeGridDay views"  
+"- Use calendarRef.getApi().changeView() to programmatically switch views"  
+"- slotMinTime/slotMaxTime control visible time range in timeGrid views"  
+"- nowIndicator={true} shows current time line in week/day views"  
+"---" 

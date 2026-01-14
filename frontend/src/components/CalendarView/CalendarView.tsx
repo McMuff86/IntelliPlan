@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
+import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg } from '@fullcalendar/core';
 import type { DateClickArg } from '@fullcalendar/interaction';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { Close as CloseIcon, CalendarMonth, ViewWeek, Today } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
@@ -22,6 +23,8 @@ interface CalendarEvent {
   };
 }
 
+type CalendarViewType = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+
 export default function CalendarView() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -29,6 +32,8 @@ export default function CalendarView() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dayAppointments, setDayAppointments] = useState<Appointment[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentView, setCurrentView] = useState<CalendarViewType>('dayGridMonth');
+  const [calendarRef, setCalendarRef] = useState<FullCalendar | null>(null);
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
@@ -94,11 +99,41 @@ export default function CalendarView() {
     return format(date, 'HH:mm');
   };
 
+  const handleViewChange = (_event: React.MouseEvent<HTMLElement>, newView: CalendarViewType | null) => {
+    if (newView && calendarRef) {
+      setCurrentView(newView);
+      const calendarApi = calendarRef.getApi();
+      calendarApi.changeView(newView);
+    }
+  };
+
   return (
     <Box>
       <Paper sx={{ p: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+          <ToggleButtonGroup
+            value={currentView}
+            exclusive
+            onChange={handleViewChange}
+            size="small"
+          >
+            <ToggleButton value="dayGridMonth" aria-label="month view">
+              <CalendarMonth sx={{ mr: 0.5 }} />
+              Month
+            </ToggleButton>
+            <ToggleButton value="timeGridWeek" aria-label="week view">
+              <ViewWeek sx={{ mr: 0.5 }} />
+              Week
+            </ToggleButton>
+            <ToggleButton value="timeGridDay" aria-label="day view">
+              <Today sx={{ mr: 0.5 }} />
+              Day
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
         <FullCalendar
-          plugins={[dayGridPlugin, interactionPlugin]}
+          ref={(ref) => setCalendarRef(ref)}
+          plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
           events={events}
           eventClick={handleEventClick}
@@ -111,6 +146,10 @@ export default function CalendarView() {
           height="auto"
           eventDisplay="block"
           dayMaxEvents={3}
+          slotMinTime="06:00:00"
+          slotMaxTime="22:00:00"
+          allDaySlot={false}
+          nowIndicator={true}
         />
       </Paper>
 
