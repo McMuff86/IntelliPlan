@@ -261,3 +261,23 @@ Thread: https://ampcode.com/threads/T-019bbbb3-962f-706b-af62-ffb8b2e06c9b
 "- slotMinTime/slotMaxTime control visible time range in timeGrid views"  
 "- nowIndicator={true} shows current time line in week/day views"  
 "---" 
+  
+## 2026-01-14 - US-013  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Enabled drag-and-drop rescheduling in CalendarView  
+- Appointments can be dragged to new date in month view  
+- Appointments can be dragged/resized to new time slots in week/day views  
+- Visual feedback provided by FullCalendar during drag  
+- Immediate save on drop with success/error snackbar feedback  
+- Overlap warning dialog displayed when conflict detected  
+- Reschedule Anyway option to force update despite conflicts  
+  
+**Files modified:**  
+- frontend/src/components/CalendarView/CalendarView.tsx - Added drag-and-drop handlers, overlap dialog, snackbar  
+  
+**Learnings:**  
+- FullCalendar interactionPlugin provides editable=true for drag-and-drop  
+- EventDropArg and EventResizeDoneArg both have event and revert function  
+- Use revert to undo visual change when API call fails  
+- Store pending drop info to allow force update after user confirms overlap  
+--- 

@@ -4,14 +4,16 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import type { EventClickArg } from '@fullcalendar/core';
-import type { DateClickArg } from '@fullcalendar/interaction';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, IconButton, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
+import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert } from '@mui/material';
 import { Close as CloseIcon, CalendarMonth, ViewWeek, Today } from '@mui/icons-material';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
 import type { Appointment } from '../../types';
+import axios from 'axios';
 
 interface CalendarEvent {
   id: string;
@@ -25,6 +27,14 @@ interface CalendarEvent {
 
 type CalendarViewType = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
 
+interface PendingDrop {
+  appointmentId: string;
+  newStart: string;
+  newEnd: string;
+  conflicts: Appointment[];
+  revertFunc: () => void;
+}
+
 export default function CalendarView() {
   const navigate = useNavigate();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -34,6 +44,10 @@ export default function CalendarView() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [currentView, setCurrentView] = useState<CalendarViewType>('dayGridMonth');
   const [calendarRef, setCalendarRef] = useState<FullCalendar | null>(null);
+  const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
+  const [overlapDialogOpen, setOverlapDialogOpen] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
@@ -107,6 +121,77 @@ export default function CalendarView() {
     }
   };
 
+  const handleEventDropOrResize = async (
+    info: EventDropArg | EventResizeDoneArg,
+    forceUpdate = false
+  ) => {
+    const { event, revert } = info;
+    const appointmentId = event.id;
+    const newStart = event.start?.toISOString();
+    const newEnd = event.end?.toISOString();
+
+    if (!newStart || !newEnd) {
+      revert();
+      return;
+    }
+
+    setIsUpdating(true);
+    try {
+      await appointmentService.update(
+        appointmentId,
+        { startTime: newStart, endTime: newEnd },
+        forceUpdate
+      );
+      setSnackbar({ open: true, message: 'Appointment rescheduled successfully', severity: 'success' });
+      loadAppointments();
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 409) {
+        const conflicts = error.response.data.conflicts as Appointment[];
+        setPendingDrop({ appointmentId, newStart, newEnd, conflicts, revertFunc: revert });
+        setOverlapDialogOpen(true);
+      } else {
+        setSnackbar({ open: true, message: 'Failed to reschedule appointment', severity: 'error' });
+        revert();
+      }
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleOverlapCancel = () => {
+    if (pendingDrop) {
+      pendingDrop.revertFunc();
+    }
+    setPendingDrop(null);
+    setOverlapDialogOpen(false);
+  };
+
+  const handleOverlapConfirm = async () => {
+    if (!pendingDrop) return;
+
+    setIsUpdating(true);
+    try {
+      await appointmentService.update(
+        pendingDrop.appointmentId,
+        { startTime: pendingDrop.newStart, endTime: pendingDrop.newEnd },
+        true
+      );
+      setSnackbar({ open: true, message: 'Appointment rescheduled successfully', severity: 'success' });
+      loadAppointments();
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to reschedule appointment', severity: 'error' });
+      pendingDrop.revertFunc();
+    } finally {
+      setIsUpdating(false);
+      setPendingDrop(null);
+      setOverlapDialogOpen(false);
+    }
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
+
   return (
     <Box>
       <Paper sx={{ p: 2 }}>
@@ -138,6 +223,9 @@ export default function CalendarView() {
           events={events}
           eventClick={handleEventClick}
           dateClick={handleDateClick}
+          editable={true}
+          eventDrop={handleEventDropOrResize}
+          eventResize={handleEventDropOrResize}
           headerToolbar={{
             left: 'prev,next today',
             center: 'title',
@@ -185,6 +273,60 @@ export default function CalendarView() {
           )}
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={overlapDialogOpen}
+        onClose={handleOverlapCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <WarningAmberIcon color="warning" />
+            <Typography variant="h6" component="span">
+              Scheduling Conflict Detected
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" gutterBottom>
+            This reschedule overlaps with the following appointments:
+          </Typography>
+          <List sx={{ bgcolor: 'warning.light', borderRadius: 1, mt: 1 }}>
+            {pendingDrop?.conflicts.map((conflict) => (
+              <ListItem key={conflict.id} divider>
+                <ListItemText
+                  primary={conflict.title}
+                  secondary={`${new Date(conflict.startTime).toLocaleString()} - ${new Date(conflict.endTime).toLocaleString()}`}
+                  primaryTypographyProps={{ fontWeight: 'medium' }}
+                />
+              </ListItem>
+            ))}
+          </List>
+          <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
+            Would you like to reschedule anyway?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleOverlapCancel} disabled={isUpdating}>
+            Cancel
+          </Button>
+          <Button onClick={handleOverlapConfirm} variant="contained" color="warning" disabled={isUpdating}>
+            Reschedule Anyway
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
