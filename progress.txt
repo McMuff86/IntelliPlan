@@ -327,3 +327,23 @@ Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8
 - Use loadUser middleware to optionally populate user context  
 - Admin bypasses ownership checks but still triggers overlap detection for appointment owner  
 --- 
+  
+## 2026-01-14 - US-016  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Updated appointmentService to support team queries with includeTeam and teamId options  
+- Team users can view team members appointments via ?includeTeam=true query param  
+- API returns isOwn flag to distinguish own vs team appointments  
+- getAppointmentById supports team visibility (read-only access for team members)  
+- Edit/delete still enforces ownership check (team members cannot edit others)  
+- Added isOwn field to frontend Appointment type  
+  
+**Files modified:**  
+- backend/src/services/appointmentService.ts - Added teamId, includeTeam options, overloaded getAppointmentById  
+- backend/src/controllers/appointmentController.ts - Added isOwn to response, team query support  
+- frontend/src/types/index.ts - Added isOwn optional field  
+  
+**Learnings:**  
+- Use function overloading to maintain backward compatibility while adding new options  
+- JOIN users table to filter by team_id when querying appointments  
+- isOwn flag enables frontend to visually distinguish own vs team appointments  
+--- 

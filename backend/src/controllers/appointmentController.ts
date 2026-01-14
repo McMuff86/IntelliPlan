@@ -57,7 +57,8 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
     const user = req.user;
     const userId = user?.id || req.headers['x-user-id'] as string || 'temp-user-id';
     const isAdmin = user?.role === 'admin';
-    const { start, end, limit, offset, userId: filterUserId } = req.query;
+    const isTeamUser = user?.role === 'team';
+    const { start, end, limit, offset, userId: filterUserId, includeTeam } = req.query;
 
     const result = await getAppointments({
       userId,
@@ -67,11 +68,16 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       offset: offset ? parseInt(offset as string, 10) : undefined,
       isAdmin,
       filterUserId: filterUserId as string | undefined,
+      teamId: user?.team_id || undefined,
+      includeTeam: isTeamUser && includeTeam === 'true',
     });
 
     res.status(200).json({
       success: true,
-      data: result.data.map(toAppointmentResponse),
+      data: result.data.map((apt) => ({
+        ...toAppointmentResponse(apt),
+        isOwn: apt.user_id === userId,
+      })),
       pagination: {
         total: result.total,
         limit: result.limit,
@@ -89,9 +95,15 @@ export async function getById(req: Request, res: Response, next: NextFunction): 
     const userIdHeader = req.headers['x-user-id'];
     const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
     const isAdmin = user?.role === 'admin';
+    const isTeamUser = user?.role === 'team';
     const id = req.params.id as string;
 
-    const appointment = await getAppointmentById(id, userId, isAdmin);
+    const appointment = await getAppointmentById({
+      id,
+      userId,
+      isAdmin,
+      teamId: isTeamUser ? user?.team_id || undefined : undefined,
+    });
 
     if (!appointment) {
       res.status(404).json({
@@ -103,7 +115,10 @@ export async function getById(req: Request, res: Response, next: NextFunction): 
 
     res.status(200).json({
       success: true,
-      data: toAppointmentResponse(appointment),
+      data: {
+        ...toAppointmentResponse(appointment),
+        isOwn: appointment.user_id === userId,
+      },
     });
   } catch (error) {
     next(error);

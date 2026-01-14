@@ -9,6 +9,8 @@ export interface ListAppointmentsOptions {
   offset?: number;
   isAdmin?: boolean;
   filterUserId?: string;
+  teamId?: string;
+  includeTeam?: boolean;
 }
 
 export interface PaginatedResult<T> {
@@ -32,43 +34,49 @@ export async function createAppointment(data: CreateAppointmentDTO): Promise<App
 }
 
 export async function getAppointments(options: ListAppointmentsOptions): Promise<PaginatedResult<Appointment>> {
-  const { userId, start, end, limit = 50, offset = 0, isAdmin = false, filterUserId } = options;
+  const { userId, start, end, limit = 50, offset = 0, isAdmin = false, filterUserId, teamId, includeTeam = false } = options;
   const params: (string | number)[] = [];
-  let whereClause = 'WHERE deleted_at IS NULL';
+  let whereClause = 'WHERE a.deleted_at IS NULL';
   let paramIndex = 1;
+  let joinClause = '';
 
   if (isAdmin) {
     if (filterUserId) {
-      whereClause += ` AND user_id = $${paramIndex}`;
+      whereClause += ` AND a.user_id = $${paramIndex}`;
       params.push(filterUserId);
       paramIndex++;
     }
+  } else if (includeTeam && teamId) {
+    joinClause = ' JOIN users u ON a.user_id = u.id';
+    whereClause += ` AND u.team_id = $${paramIndex}`;
+    params.push(teamId);
+    paramIndex++;
   } else {
-    whereClause += ` AND user_id = $${paramIndex}`;
+    whereClause += ` AND a.user_id = $${paramIndex}`;
     params.push(userId);
     paramIndex++;
   }
 
   if (start) {
-    whereClause += ` AND start_time >= $${paramIndex}`;
+    whereClause += ` AND a.start_time >= $${paramIndex}`;
     params.push(start);
     paramIndex++;
   }
 
   if (end) {
-    whereClause += ` AND end_time <= $${paramIndex}`;
+    whereClause += ` AND a.end_time <= $${paramIndex}`;
     params.push(end);
     paramIndex++;
   }
 
   const countResult = await pool.query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM appointments ${whereClause}`,
+    `SELECT COUNT(*) as count FROM appointments a${joinClause} ${whereClause}`,
     params
   );
 
   params.push(limit, offset);
   const result = await pool.query<Appointment>(
-    `SELECT * FROM appointments ${whereClause} ORDER BY start_time ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+    `SELECT a.* FROM appointments a${joinClause} ${whereClause} ORDER BY a.start_time ASC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
     params
   );
 
@@ -80,11 +88,50 @@ export async function getAppointments(options: ListAppointmentsOptions): Promise
   };
 }
 
-export async function getAppointmentById(id: string, userId: string, isAdmin = false): Promise<Appointment | null> {
+export interface GetAppointmentByIdOptions {
+  id: string;
+  userId: string;
+  isAdmin?: boolean;
+  teamId?: string;
+}
+
+export async function getAppointmentById(options: GetAppointmentByIdOptions): Promise<Appointment | null>;
+export async function getAppointmentById(id: string, userId: string, isAdmin?: boolean): Promise<Appointment | null>;
+export async function getAppointmentById(
+  idOrOptions: string | GetAppointmentByIdOptions,
+  userIdArg?: string,
+  isAdminArg?: boolean
+): Promise<Appointment | null> {
+  let id: string;
+  let userId: string;
+  let isAdmin = false;
+  let teamId: string | undefined;
+
+  if (typeof idOrOptions === 'object') {
+    id = idOrOptions.id;
+    userId = idOrOptions.userId;
+    isAdmin = idOrOptions.isAdmin || false;
+    teamId = idOrOptions.teamId;
+  } else {
+    id = idOrOptions;
+    userId = userIdArg!;
+    isAdmin = isAdminArg || false;
+  }
+
   if (isAdmin) {
     const result = await pool.query<Appointment>(
       `SELECT * FROM appointments WHERE id = $1 AND deleted_at IS NULL`,
       [id]
+    );
+    return result.rows[0] || null;
+  }
+
+  if (teamId) {
+    const result = await pool.query<Appointment>(
+      `SELECT a.* FROM appointments a
+       JOIN users u ON a.user_id = u.id
+       WHERE a.id = $1 AND a.deleted_at IS NULL AND u.team_id = $2`,
+      [id, teamId]
     );
     return result.rows[0] || null;
   }

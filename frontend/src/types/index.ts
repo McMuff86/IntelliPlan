@@ -8,6 +8,7 @@ export interface Appointment {
   userId: string;
   createdAt: string;
   updatedAt: string;
+  isOwn?: boolean;
 }
 
 export interface CreateAppointmentDTO {
