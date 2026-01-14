@@ -1,0 +1,203 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Box,
+  Paper,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  IconButton,
+  Typography,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+} from '@mui/material';
+import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material';
+import { format, parseISO } from 'date-fns';
+import { toZonedTime } from 'date-fns-tz';
+import { appointmentService } from '../../services/appointmentService';
+import type { Appointment } from '../../types';
+
+export default function AppointmentsList() {
+  const navigate = useNavigate();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await appointmentService.getAll();
+      const sorted = [...response.appointments].sort(
+        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+      );
+      setAppointments(sorted);
+    } catch (err) {
+      setError('Failed to load appointments');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const handleViewClick = (id: string) => {
+    navigate(`/appointments/${id}`);
+  };
+
+  const handleDeleteClick = (appointment: Appointment) => {
+    setAppointmentToDelete(appointment);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!appointmentToDelete) return;
+
+    try {
+      setDeleting(true);
+      await appointmentService.delete(appointmentToDelete.id);
+      setAppointments((prev) => prev.filter((a) => a.id !== appointmentToDelete.id));
+      setDeleteDialogOpen(false);
+      setAppointmentToDelete(null);
+    } catch (err) {
+      setError('Failed to delete appointment');
+      console.error(err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setAppointmentToDelete(null);
+  };
+
+  const formatDateTime = (isoString: string, timezone: string) => {
+    const utcDate = parseISO(isoString);
+    const zonedDate = toZonedTime(utcDate, timezone);
+    return format(zonedDate, 'MMM d, yyyy h:mm a');
+  };
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return <Alert severity="error">{error}</Alert>;
+  }
+
+  if (appointments.length === 0) {
+    return (
+      <Paper sx={{ p: 4, textAlign: 'center' }}>
+        <Typography variant="h6" color="text.secondary" gutterBottom>
+          No appointments yet
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Create your first appointment to get started.
+        </Typography>
+        <Button
+          variant="contained"
+          sx={{ mt: 2 }}
+          onClick={() => navigate('/appointments/new')}
+        >
+          Create Appointment
+        </Button>
+      </Paper>
+    );
+  }
+
+  return (
+    <>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Title</TableCell>
+              <TableCell>Start</TableCell>
+              <TableCell>End</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {appointments.map((appointment) => (
+              <TableRow
+                key={appointment.id}
+                hover
+                sx={{ cursor: 'pointer' }}
+                onClick={() => handleViewClick(appointment.id)}
+              >
+                <TableCell>{appointment.title}</TableCell>
+                <TableCell>{formatDateTime(appointment.startTime, appointment.timezone)}</TableCell>
+                <TableCell>{formatDateTime(appointment.endTime, appointment.timezone)}</TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewClick(appointment.id);
+                    }}
+                    aria-label="view"
+                  >
+                    <ViewIcon />
+                  </IconButton>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(appointment);
+                    }}
+                    aria-label="delete"
+                    color="error"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
+        <DialogTitle>Delete Appointment</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{appointmentToDelete?.title}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeleteCancel} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+}

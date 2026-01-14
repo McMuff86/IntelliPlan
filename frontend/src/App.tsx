@@ -3,6 +3,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import { lightTheme } from './theme/theme';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
+import Appointments from './pages/Appointments';
 import CreateAppointment from './pages/CreateAppointment';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Layout>
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/appointments" element={<Appointments />} />
             <Route path="/appointments/new" element={<CreateAppointment />} />
           </Routes>
         </Layout>

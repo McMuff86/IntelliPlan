@@ -166,3 +166,29 @@ Thread: https://ampcode.com/threads/T-019bbb52-fbb3-7116-b81b-c3b722ad34f8
 - MUI Dialog uses DialogTitle, DialogContent, DialogActions structure
 - Use warning.light color for visual warning styling on conflict list
 ---
+
+## 2026-01-14 - US-009
+Thread: https://ampcode.com/threads/T-019bbb6f-4d93-70de-bb8a-862b4582d5a1
+- Created AppointmentsList component using MUI Table
+- List displays appointments sorted by start date
+- Shows title, start time, end time for each appointment
+- Click on row navigates to appointment details (route prepared for US-010)
+- Delete button with confirmation dialog
+- Empty state with message and "Create Appointment" button
+- Added getAll() and delete() methods to appointmentService
+- Added /appointments route with Appointments page
+
+**Files created:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx
+- frontend/src/components/AppointmentsList/index.ts
+- frontend/src/pages/Appointments.tsx
+
+**Files modified:**
+- frontend/src/services/appointmentService.ts - Added getAll() and delete() methods
+- frontend/src/App.tsx - Added /appointments route
+
+**Learnings:**
+- Use toZonedTime() from date-fns-tz to convert UTC to user's timezone for display
+- MUI Table with hover and cursor pointer for clickable rows
+- Stop event propagation on action buttons to prevent row click navigation
+---
