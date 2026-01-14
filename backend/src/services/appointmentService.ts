@@ -1,5 +1,5 @@
 import { pool } from '../config/database';
-import { Appointment, CreateAppointmentDTO } from '../models/appointment';
+import { Appointment, CreateAppointmentDTO, UpdateAppointmentDTO } from '../models/appointment';
 
 export interface ListAppointmentsOptions {
   userId: string;
@@ -70,6 +70,59 @@ export async function getAppointmentById(id: string, userId: string): Promise<Ap
   const result = await pool.query<Appointment>(
     `SELECT * FROM appointments WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`,
     [id, userId]
+  );
+
+  return result.rows[0] || null;
+}
+
+export async function getAppointmentOwner(id: string): Promise<string | null> {
+  const result = await pool.query<{ user_id: string }>(
+    `SELECT user_id FROM appointments WHERE id = $1 AND deleted_at IS NULL`,
+    [id]
+  );
+
+  return result.rows[0]?.user_id || null;
+}
+
+export async function updateAppointment(
+  id: string,
+  data: UpdateAppointmentDTO
+): Promise<Appointment | null> {
+  const fields: string[] = [];
+  const values: (string | undefined)[] = [];
+  let paramIndex = 1;
+
+  if (data.title !== undefined) {
+    fields.push(`title = $${paramIndex++}`);
+    values.push(data.title);
+  }
+  if (data.description !== undefined) {
+    fields.push(`description = $${paramIndex++}`);
+    values.push(data.description);
+  }
+  if (data.start_time !== undefined) {
+    fields.push(`start_time = $${paramIndex++}`);
+    values.push(data.start_time);
+  }
+  if (data.end_time !== undefined) {
+    fields.push(`end_time = $${paramIndex++}`);
+    values.push(data.end_time);
+  }
+  if (data.timezone !== undefined) {
+    fields.push(`timezone = $${paramIndex++}`);
+    values.push(data.timezone);
+  }
+
+  if (fields.length === 0) {
+    return getAppointmentById(id, '');
+  }
+
+  fields.push(`updated_at = NOW()`);
+  values.push(id);
+
+  const result = await pool.query<Appointment>(
+    `UPDATE appointments SET ${fields.join(', ')} WHERE id = $${paramIndex} AND deleted_at IS NULL RETURNING *`,
+    values
   );
 
   return result.rows[0] || null;

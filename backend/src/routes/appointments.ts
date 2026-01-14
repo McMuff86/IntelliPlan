@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import * as appointmentController from '../controllers/appointmentController';
-import { createAppointmentValidator } from '../validators/appointmentValidator';
+import { createAppointmentValidator, updateAppointmentValidator } from '../validators/appointmentValidator';
 
 const router = Router();
 
 router.get('/', appointmentController.list);
 router.get('/:id', appointmentController.getById);
 router.post('/', createAppointmentValidator, appointmentController.create);
+router.put('/:id', updateAppointmentValidator, appointmentController.update);
 
 export default router;

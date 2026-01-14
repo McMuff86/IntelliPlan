@@ -64,3 +64,23 @@ Thread: https://ampcode.com/threads/T-019bbad3-bf06-7019-a96f-5be88384398f
 - req.params.id can be string | string[] in Express types - use `as string` assertion
 - req.headers values can be string | string[] - handle array case with ternary
 ---
+
+## 2026-01-14 - US-004
+Thread: https://ampcode.com/threads/T-019bbb04-2438-7386-97cc-7c73c53fc01a
+- PUT /api/appointments/:id endpoint created
+- Validates ownership before update (returns 403 if not owner)
+- Partial updates supported (only provided fields are updated)
+- Returns 200 with updated appointment, 404 if not found, 403 if unauthorized
+
+**Files modified:**
+- models/appointment.ts - Added UpdateAppointmentDTO interface
+- services/appointmentService.ts - Added getAppointmentOwner() and updateAppointment()
+- controllers/appointmentController.ts - Added update() handler
+- validators/appointmentValidator.ts - Added updateAppointmentValidator (all fields optional)
+- routes/appointments.ts - Added PUT /:id route
+
+**Learnings:**
+- For partial updates, build SQL SET clause dynamically with parameterized index
+- Check ownership separately from fetching appointment to return proper 403 vs 404
+- ValidationChain type import needed for explicit validator array typing
+---

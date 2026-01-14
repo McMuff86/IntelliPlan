@@ -20,6 +20,14 @@ export interface CreateAppointmentDTO {
   user_id: string;
 }
 
+export interface UpdateAppointmentDTO {
+  title?: string;
+  description?: string;
+  start_time?: string;
+  end_time?: string;
+  timezone?: string;
+}
+
 export interface AppointmentResponse {
   id: string;
   title: string;
