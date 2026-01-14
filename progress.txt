@@ -192,3 +192,52 @@ Thread: https://ampcode.com/threads/T-019bbb6f-4d93-70de-bb8a-862b4582d5a1
 - MUI Table with hover and cursor pointer for clickable rows
 - Stop event propagation on action buttons to prevent row click navigation
 ---
+
+## 2026-01-14 - US-010
+Thread: https://ampcode.com/threads/T-019bbb79-fa8f-74cc-b0e7-a50bee78f99d
+- Created AppointmentDetail page component at /appointments/:id
+- Displays all appointment fields (title, description, times, timezone)
+- Edit button navigates to /appointments/:id/edit (route to be added)
+- Delete button with confirmation dialog, navigates back to list after deletion
+- Back navigation to /appointments
+- Added getById() method to frontend appointmentService
+- Added start-dev.ps1 script for running both servers simultaneously
+
+**Files created:**
+- frontend/src/pages/AppointmentDetail.tsx
+- start-dev.ps1
+
+**Files modified:**
+- frontend/src/services/appointmentService.ts - Added getById() method
+- frontend/src/App.tsx - Added /appointments/:id route
+- AGENTS.md - Added development setup documentation
+
+**Learnings:**
+- Use useParams<{ id: string }>() from react-router-dom for typed route params
+- Format dates with date-fns format() after converting from UTC with toZonedTime()
+- start-dev.ps1 uses Start-Process to spawn separate PowerShell windows for backend/frontend
+---
+
+## 2026-01-14 - US-011
+Thread: https://ampcode.com/threads/T-019bbbb3-962f-706b-af62-ffb8b2e06c9b
+- Created CalendarView component using FullCalendar library
+- Monthly grid view with appointment events displayed on dates
+- Previous/Next month navigation with "today" button
+- Click on date opens dialog showing appointments for that day
+- Click on appointment navigates to detail view (/appointments/:id)
+- Added /calendar route with Calendar page
+
+**Files created:**
+- frontend/src/components/CalendarView/CalendarView.tsx
+- frontend/src/components/CalendarView/index.ts
+- frontend/src/pages/Calendar.tsx
+
+**Files modified:**
+- frontend/src/App.tsx - Added /calendar route
+- frontend/package.json - Added FullCalendar dependencies
+
+**Learnings:**
+- FullCalendar: DateClickArg comes from @fullcalendar/interaction, EventClickArg from @fullcalendar/core
+- FullCalendar events need id, title, start, end properties
+- Use dayMaxEvents={3} to limit visible events per day and show "+more" link
+---
