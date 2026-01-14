@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { createAppointment } from '../services/appointmentService';
+import { createAppointment, getAppointments, getAppointmentById } from '../services/appointmentService';
 import { toAppointmentResponse } from '../models/appointment';
 
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -28,6 +28,58 @@ export async function create(req: Request, res: Response, next: NextFunction): P
     });
 
     res.status(201).json({
+      success: true,
+      data: toAppointmentResponse(appointment),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.headers['x-user-id'] as string || 'temp-user-id';
+    const { start, end, limit, offset } = req.query;
+
+    const result = await getAppointments({
+      userId,
+      start: start as string | undefined,
+      end: end as string | undefined,
+      limit: limit ? parseInt(limit as string, 10) : undefined,
+      offset: offset ? parseInt(offset as string, 10) : undefined,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.data.map(toAppointmentResponse),
+      pagination: {
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userIdHeader = req.headers['x-user-id'];
+    const userId = (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const id = req.params.id as string;
+
+    const appointment = await getAppointmentById(id, userId);
+
+    if (!appointment) {
+      res.status(404).json({
+        success: false,
+        error: 'Appointment not found',
+      });
+      return;
+    }
+
+    res.status(200).json({
       success: true,
       data: toAppointmentResponse(appointment),
     });

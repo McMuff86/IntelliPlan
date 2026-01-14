@@ -45,4 +45,22 @@ Thread: https://ampcode.com/threads/T-019bb959-ef98-70d3-8968-161c39a15ead
 **Learnings:**  
 - Use camelCase in API (startTime) but snake_case in DB (start_time)  
 - toAppointmentResponse() maps between formats  
---- 
+---
+
+## 2026-01-14 - US-003
+Thread: https://ampcode.com/threads/T-019bbad3-bf06-7019-a96f-5be88384398f
+- GET /api/appointments endpoint with pagination (limit, offset)
+- GET /api/appointments/:id endpoint for single appointment
+- Date range filtering via ?start=&end= query params
+- 404 response for non-existent appointments
+- User ownership enforced (users only see their own)
+
+**Files modified:**
+- services/appointmentService.ts - Added getAppointments() and getAppointmentById()
+- controllers/appointmentController.ts - Added list() and getById() handlers
+- routes/appointments.ts - Added GET routes
+
+**Learnings:**
+- req.params.id can be string | string[] in Express types - use `as string` assertion
+- req.headers values can be string | string[] - handle array case with ternary
+---
