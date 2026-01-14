@@ -1,5 +1,5 @@
 import { pool } from '../config/database';
-import { Appointment, CreateAppointmentDTO, UpdateAppointmentDTO } from '../models/appointment';
+import { Appointment, CreateAppointmentDTO, UpdateAppointmentDTO, OverlapResult, toAppointmentResponse } from '../models/appointment';
 
 export interface ListAppointmentsOptions {
   userId: string;
@@ -135,4 +135,39 @@ export async function deleteAppointment(id: string): Promise<boolean> {
   );
 
   return result.rowCount !== null && result.rowCount > 0;
+}
+
+export interface CheckOverlapOptions {
+  userId: string;
+  startTime: string;
+  endTime: string;
+  excludeId?: string;
+}
+
+export async function checkOverlap(options: CheckOverlapOptions): Promise<OverlapResult> {
+  const { userId, startTime, endTime, excludeId } = options;
+  
+  const params: string[] = [userId, startTime, endTime];
+  let excludeClause = '';
+  
+  if (excludeId) {
+    excludeClause = ' AND id != $4';
+    params.push(excludeId);
+  }
+
+  const result = await pool.query<Appointment>(
+    `SELECT * FROM appointments 
+     WHERE user_id = $1 
+       AND deleted_at IS NULL
+       AND start_time < $3 
+       AND end_time > $2
+       ${excludeClause}
+     ORDER BY start_time ASC`,
+    params
+  );
+
+  return {
+    hasOverlap: result.rows.length > 0,
+    conflicts: result.rows.map(toAppointmentResponse),
+  };
 }

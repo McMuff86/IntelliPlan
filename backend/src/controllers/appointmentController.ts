@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment, deleteAppointment } from '../services/appointmentService';
+import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment, deleteAppointment, checkOverlap } from '../services/appointmentService';
 import { toAppointmentResponse } from '../models/appointment';
 
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -17,6 +17,22 @@ export async function create(req: Request, res: Response, next: NextFunction): P
     const { title, description, startTime, endTime, timezone } = req.body;
     
     const userId = req.headers['x-user-id'] as string || 'temp-user-id';
+    const force = req.query.force === 'true';
+
+    const overlapResult = await checkOverlap({
+      userId,
+      startTime,
+      endTime,
+    });
+
+    if (overlapResult.hasOverlap && !force) {
+      res.status(409).json({
+        success: false,
+        error: 'Scheduling conflict detected',
+        conflicts: overlapResult.conflicts,
+      });
+      return;
+    }
 
     const appointment = await createAppointment({
       title,
@@ -122,6 +138,31 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     }
 
     const { title, description, startTime, endTime, timezone } = req.body;
+    const force = req.query.force === 'true';
+
+    if (startTime || endTime) {
+      const existingAppointment = await getAppointmentById(id, userId);
+      if (existingAppointment) {
+        const checkStartTime = startTime || existingAppointment.start_time.toISOString();
+        const checkEndTime = endTime || existingAppointment.end_time.toISOString();
+
+        const overlapResult = await checkOverlap({
+          userId,
+          startTime: checkStartTime,
+          endTime: checkEndTime,
+          excludeId: id,
+        });
+
+        if (overlapResult.hasOverlap && !force) {
+          res.status(409).json({
+            success: false,
+            error: 'Scheduling conflict detected',
+            conflicts: overlapResult.conflicts,
+          });
+          return;
+        }
+      }
+    }
 
     const updated = await updateAppointment(id, {
       title,

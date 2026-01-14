@@ -10,6 +10,27 @@ export interface Appointment {
   updatedAt: string;
 }
 
+export interface CreateAppointmentDTO {
+  title: string;
+  description?: string;
+  startTime: string;
+  endTime: string;
+  timezone: string;
+}
+
+export interface AppointmentFormData {
+  title: string;
+  description: string;
+  startDate: Date | null;
+  endDate: Date | null;
+  timezone: string;
+}
+
+export interface OverlapConflict {
+  hasOverlap: boolean;
+  conflicts: Appointment[];
+}
+
 export interface User {
   id: string;
   email: string;

@@ -40,6 +40,11 @@ export interface AppointmentResponse {
   updatedAt: string;
 }
 
+export interface OverlapResult {
+  hasOverlap: boolean;
+  conflicts: AppointmentResponse[];
+}
+
 export function toAppointmentResponse(appointment: Appointment): AppointmentResponse {
   return {
     id: appointment.id,

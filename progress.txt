@@ -102,3 +102,67 @@ Thread: https://ampcode.com/threads/T-019bbb0d-33d6-75bb-84b7-fcc0b79edc4d
 - Soft delete pattern: UPDATE SET deleted_at = NOW() instead of DELETE
 - All queries already filter with deleted_at IS NULL for consistency
 ---
+
+## 2026-01-14 - US-006
+Thread: https://ampcode.com/threads/T-019bbb1f-47ad-75ae-9433-c69c6cb516ac
+- Overlap detection service implemented
+- checkOverlap() function detects conflicts using: start_time < new_end AND end_time > new_start
+- Integrated into POST /api/appointments and PUT /api/appointments/:id
+- Returns 409 Conflict with conflicts array when overlap detected
+- Accepts ?force=true query param to override conflict blocking
+- excludeId parameter used in update to exclude the appointment being updated
+
+**Files modified:**
+- models/appointment.ts - Added OverlapResult interface
+- services/appointmentService.ts - Added checkOverlap() function
+- controllers/appointmentController.ts - Integrated overlap check in create() and update()
+
+**Learnings:**
+- Overlap detection formula: new_start < existing_end AND new_end > existing_start
+- Use excludeId to prevent self-conflict when updating an appointment
+- 409 Conflict is appropriate HTTP status for scheduling conflicts
+---
+
+## 2026-01-14 - US-007
+Thread: https://ampcode.com/threads/T-019bbb3e-1987-7039-9175-a79483176f4b
+- AppointmentForm component created with react-hook-form and MUI date pickers
+- Fields: title (required), description, start date/time, end date/time, timezone
+- Form validation with error messages (required fields, end > start)
+- Loading state during submission (CircularProgress, disabled fields)
+- Handles 409 conflict response to show overlap warning with "Create Anyway" option
+- CreateAppointment page with navigation at /appointments/new
+
+**Files created:**
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx
+- frontend/src/components/AppointmentForm/index.ts
+- frontend/src/pages/CreateAppointment.tsx
+- frontend/src/services/appointmentService.ts
+
+**Files modified:**
+- frontend/src/types/index.ts - Added CreateAppointmentDTO, AppointmentFormData, OverlapConflict
+- frontend/src/App.tsx - Added route for /appointments/new
+
+**Learnings:**
+- Use date-fns-tz's fromZonedTime() to convert local time to UTC for API
+- MUI DateTimePicker uses slotProps.textField for error/helperText display
+- Handle 409 Conflict by showing conflicts and offering force submit
+---
+
+## 2026-01-14 - US-008
+Thread: https://ampcode.com/threads/T-019bbb52-fbb3-7116-b81b-c3b722ad34f8
+- Created OverlapWarningDialog component using MUI Dialog
+- Replaced inline Alert warning with modal dialog
+- Dialog shows warning icon, conflict list, Cancel and "Create Anyway" buttons
+- Integrated into AppointmentForm for both create and edit flows
+
+**Files created:**
+- frontend/src/components/OverlapWarningDialog/OverlapWarningDialog.tsx
+- frontend/src/components/OverlapWarningDialog/index.ts
+
+**Files modified:**
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx - Uses OverlapWarningDialog
+
+**Learnings:**
+- MUI Dialog uses DialogTitle, DialogContent, DialogActions structure
+- Use warning.light color for visual warning styling on conflict list
+---
