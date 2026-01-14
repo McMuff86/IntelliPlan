@@ -5,6 +5,7 @@ import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import Appointments from './pages/Appointments';
 import CreateAppointment from './pages/CreateAppointment';
+import AppointmentDetail from './pages/AppointmentDetail';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/appointments" element={<Appointments />} />
             <Route path="/appointments/new" element={<CreateAppointment />} />
+            <Route path="/appointments/:id" element={<AppointmentDetail />} />
           </Routes>
         </Layout>
       </BrowserRouter>
