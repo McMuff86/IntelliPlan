@@ -389,3 +389,24 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - MUI useMediaQuery with theme.breakpoints.down('md') for mobile detection
 - Drawer with keepMounted for performance
 ---
+
+## 2026-01-15 - US-B002
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created UpcomingAppointments component with Card layout
+- Shows next 5 upcoming appointments from current time
+- Appointments are clickable, navigate to detail view
+- Displays title, date, and time formatted in user's timezone
+- Empty state with "Create Appointment" button
+- "View All" link to appointments list
+
+**Files created:**
+- frontend/src/components/UpcomingAppointments/UpcomingAppointments.tsx
+- frontend/src/components/UpcomingAppointments/index.ts
+
+**Files modified:**
+- frontend/src/pages/Home.tsx - Added Grid layout with UpcomingAppointments widget
+
+**Learnings:**
+- Use start param with current ISO date to fetch only future appointments
+- MUI Grid v7 uses size={{ xs: 12, md: 6 }} instead of xs={12} md={6}
+---

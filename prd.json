@@ -32,7 +32,7 @@
       "technicalNotes": "Neuer API-Call oder gefilterte Daten aus useAppointments. Card-basiertes Layout.",
       "dependencies": ["US-B001"],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B003",

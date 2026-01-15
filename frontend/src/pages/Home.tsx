@@ -1,4 +1,5 @@
-import { Typography, Box, Paper } from '@mui/material';
+import { Typography, Box, Grid } from '@mui/material';
+import UpcomingAppointments from '../components/UpcomingAppointments';
 
 const Home = () => {
   return (
@@ -6,11 +7,11 @@ const Home = () => {
       <Typography variant="h4" component="h1" gutterBottom>
         Welcome to IntelliPlan
       </Typography>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="body1">
-          Your intelligent calendar and scheduling application.
-        </Typography>
-      </Paper>
+      <Grid container spacing={3}>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <UpcomingAppointments />
+        </Grid>
+      </Grid>
     </Box>
   );
 };
