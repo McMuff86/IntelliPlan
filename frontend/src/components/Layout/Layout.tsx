@@ -1,22 +1,149 @@
 import type { ReactNode } from 'react';
-import { Box, AppBar, Toolbar, Typography, Container } from '@mui/material';
+import { useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  Box,
+  AppBar,
+  Toolbar,
+  Typography,
+  Container,
+  Button,
+  IconButton,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import MenuIcon from '@mui/icons-material/Menu';
+import HomeIcon from '@mui/icons-material/Home';
+import EventIcon from '@mui/icons-material/Event';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
+interface NavItem {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+}
+
+const navItems: NavItem[] = [
+  { label: 'Home', path: '/', icon: <HomeIcon /> },
+  { label: 'Appointments', path: '/appointments', icon: <EventIcon /> },
+  { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
+];
+
 const Layout = ({ children }: LayoutProps) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const navigate = useNavigate();
+
+  const handleDrawerToggle = () => {
+    setDrawerOpen(!drawerOpen);
+  };
+
+  const handleLogoClick = () => {
+    navigate('/');
+  };
+
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setDrawerOpen(false);
+  };
+
+  const drawer = (
+    <Box sx={{ width: 250 }} role="presentation">
+      <List>
+        {navItems.map((item) => (
+          <ListItem key={item.path} disablePadding>
+            <ListItemButton
+              onClick={() => handleNavClick(item.path)}
+              sx={{
+                '&.active': {
+                  bgcolor: 'action.selected',
+                },
+              }}
+              component={NavLink}
+              to={item.path}
+              end={item.path === '/'}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
+  );
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static">
         <Toolbar>
-          <CalendarMonthIcon sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            IntelliPlan
-          </Typography>
+          {isMobile && (
+            <IconButton
+              color="inherit"
+              aria-label="open menu"
+              edge="start"
+              onClick={handleDrawerToggle}
+              sx={{ mr: 2 }}
+            >
+              <MenuIcon />
+            </IconButton>
+          )}
+          <Box
+            onClick={handleLogoClick}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              mr: 4,
+            }}
+          >
+            <CalendarMonthIcon sx={{ mr: 1 }} />
+            <Typography variant="h6" component="div">
+              IntelliPlan
+            </Typography>
+          </Box>
+          {!isMobile && (
+            <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+              {navItems.map((item) => (
+                <Button
+                  key={item.path}
+                  component={NavLink}
+                  to={item.path}
+                  end={item.path === '/'}
+                  color="inherit"
+                  startIcon={item.icon}
+                  sx={{
+                    '&.active': {
+                      bgcolor: 'rgba(255, 255, 255, 0.15)',
+                    },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Box>
+          )}
         </Toolbar>
       </AppBar>
+      <Drawer
+        anchor="left"
+        open={drawerOpen}
+        onClose={handleDrawerToggle}
+        ModalProps={{ keepMounted: true }}
+      >
+        {drawer}
+      </Drawer>
       <Container component="main" sx={{ flexGrow: 1, py: 3 }}>
         {children}
       </Container>

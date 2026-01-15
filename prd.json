@@ -16,7 +16,7 @@
       "technicalNotes": "Layout.tsx erweitern. React Router NavLink für aktive States. Material-UI Drawer für Mobile-Menü.",
       "dependencies": [],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B002",

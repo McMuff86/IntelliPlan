@@ -369,6 +369,23 @@ Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8
   
 **Learnings:**  
 - Use useSyncExternalStore for localStorage state to avoid setState-in-effect errors  
-- Chip color primary/default indicates if tz matches preference  
-- getStoredTimezone falls back to browser timezone if not set  
---- 
+- Chip color primary/default indicates if tz matches preference
+- getStoredTimezone falls back to browser timezone if not set
+---
+
+## 2026-01-15 - US-B001
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Added navigation links to Header: Home, Appointments, Settings
+- Active link visually highlighted with rgba(255, 255, 255, 0.15) background
+- Responsive hamburger menu for mobile (< md breakpoint)
+- Logo is clickable and navigates to Home
+- MUI Drawer for mobile navigation menu
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx - Complete navigation overhaul
+
+**Learnings:**
+- Use NavLink component with `end` prop for exact matching on "/" route
+- MUI useMediaQuery with theme.breakpoints.down('md') for mobile detection
+- Drawer with keepMounted for performance
+---
