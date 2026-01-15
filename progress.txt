@@ -544,3 +544,21 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Reusable dialog pattern with destructive prop for delete actions
 - Use color="error" for destructive button styling
 ---
+
+## 2026-01-15 - US-B010
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- AppointmentForm: Responsive button layout (column-reverse on mobile)
+- AppointmentDetail: Responsive header with stacked layout on mobile
+- All forms use fullWidth for mobile-friendly inputs
+- Navigation already has hamburger menu for mobile (US-B001)
+- Calendar/Grid layouts use responsive breakpoints
+
+**Files modified:**
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx - Responsive button layout
+- frontend/src/pages/AppointmentDetail.tsx - Responsive header layout
+
+**Learnings:**
+- Use flexDirection: { xs: 'column-reverse', sm: 'row' } to stack buttons
+- Use p: { xs: 2, sm: 4 } for responsive padding
+- flexGrow: { xs: 1, sm: 0 } for full-width buttons on mobile
+---

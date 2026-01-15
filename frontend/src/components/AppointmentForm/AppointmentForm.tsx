@@ -237,9 +237,17 @@ export default function AppointmentForm({
             )}
           />
 
-          <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+          <Box
+            sx={{
+              mt: 3,
+              display: 'flex',
+              gap: 2,
+              justifyContent: { xs: 'stretch', sm: 'flex-end' },
+              flexDirection: { xs: 'column-reverse', sm: 'row' },
+            }}
+          >
             {onCancel && (
-              <Button onClick={onCancel} disabled={isSubmitting}>
+              <Button onClick={onCancel} disabled={isSubmitting} fullWidth sx={{ display: { xs: 'block', sm: 'inline-flex' } }}>
                 Cancel
               </Button>
             )}
@@ -248,6 +256,8 @@ export default function AppointmentForm({
               variant="contained"
               disabled={isSubmitting}
               startIcon={isSubmitting ? <CircularProgress size={20} /> : undefined}
+              fullWidth
+              sx={{ display: { xs: 'flex', sm: 'inline-flex' } }}
             >
               {isSubmitting ? 'Saving...' : isEditing ? 'Update' : 'Create'}
             </Button>

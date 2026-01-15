@@ -138,8 +138,17 @@ export default function AppointmentDetail() {
         ]}
       />
 
-      <Paper elevation={2} sx={{ p: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
+      <Paper elevation={2} sx={{ p: { xs: 2, sm: 4 } }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            justifyContent: 'space-between',
+            alignItems: { xs: 'stretch', sm: 'flex-start' },
+            gap: 2,
+            mb: 3,
+          }}
+        >
           <Typography variant="h4" component="h1">
             {appointment.title}
           </Typography>
@@ -148,6 +157,8 @@ export default function AppointmentDetail() {
               variant="outlined"
               startIcon={<EditIcon />}
               onClick={() => setIsEditing(true)}
+              fullWidth
+              sx={{ flexGrow: { xs: 1, sm: 0 } }}
             >
               Edit
             </Button>
@@ -156,6 +167,8 @@ export default function AppointmentDetail() {
               color="error"
               startIcon={<DeleteIcon />}
               onClick={() => setDeleteDialogOpen(true)}
+              fullWidth
+              sx={{ flexGrow: { xs: 1, sm: 0 } }}
             >
               Delete
             </Button>

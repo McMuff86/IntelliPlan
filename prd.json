@@ -156,7 +156,7 @@
       "technicalNotes": "Material-UI Breakpoints nutzen. useMediaQuery für conditional rendering.",
       "dependencies": ["US-B001"],
       "priority": 10,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B011",
