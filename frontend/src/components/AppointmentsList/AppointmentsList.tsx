@@ -11,12 +11,6 @@ import {
   IconButton,
   Alert,
   Skeleton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  Button,
   Chip,
 } from '@mui/material';
 import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-material';
@@ -26,6 +20,7 @@ import { appointmentService } from '../../services/appointmentService';
 import type { Appointment } from '../../types';
 import { useTimezone } from '../../hooks/useTimezone';
 import EmptyState from '../EmptyState';
+import ConfirmDialog from '../ConfirmDialog';
 
 export default function AppointmentsList() {
   const navigate = useNavigate();
@@ -209,27 +204,16 @@ export default function AppointmentsList() {
         </Table>
       </TableContainer>
 
-      <Dialog open={deleteDialogOpen} onClose={handleDeleteCancel}>
-        <DialogTitle>Delete Appointment</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete "{appointmentToDelete?.title}"? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleDeleteCancel} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDeleteConfirm}
-            color="error"
-            variant="contained"
-            disabled={deleting}
-          >
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete Appointment"
+        message={`Are you sure you want to delete "${appointmentToDelete?.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        loading={deleting}
+        destructive
+      />
     </>
   );
 }

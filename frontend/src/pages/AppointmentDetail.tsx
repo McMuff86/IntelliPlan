@@ -8,11 +8,6 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
   Divider,
   Chip,
 } from '@mui/material';
@@ -28,6 +23,7 @@ import type { Appointment } from '../types';
 import AppointmentForm from '../components/AppointmentForm';
 import { useTimezone } from '../hooks/useTimezone';
 import Breadcrumbs from '../components/Breadcrumbs';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -240,27 +236,16 @@ export default function AppointmentDetail() {
         </Box>
       </Paper>
 
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete Appointment</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Are you sure you want to delete "{appointment.title}"? This action cannot be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleDelete}
-            color="error"
-            variant="contained"
-            disabled={deleting}
-          >
-            {deleting ? 'Deleting...' : 'Delete'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete Appointment"
+        message={`Are you sure you want to delete "${appointment.title}"? This action cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteDialogOpen(false)}
+        loading={deleting}
+        destructive
+      />
     </Container>
   );
 }

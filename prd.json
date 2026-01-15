@@ -139,7 +139,7 @@
       "technicalNotes": "Wiederverwendbares ConfirmDialog-Component.",
       "dependencies": [],
       "priority": 9,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B010",

@@ -524,3 +524,23 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Use flexDirection: { xs: 'column', sm: 'row' } for responsive flex layouts
 - borderTop: 1 with borderColor: 'divider' for subtle separator
 ---
+
+## 2026-01-15 - US-B009
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created reusable ConfirmDialog component
+- Props: title, message, confirmLabel, cancelLabel, destructive, loading
+- Destructive prop shows confirm button in red (error color)
+- Replaced inline dialogs in AppointmentsList and AppointmentDetail
+
+**Files created:**
+- frontend/src/components/ConfirmDialog/ConfirmDialog.tsx
+- frontend/src/components/ConfirmDialog/index.ts
+
+**Files modified:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Uses ConfirmDialog
+- frontend/src/pages/AppointmentDetail.tsx - Uses ConfirmDialog
+
+**Learnings:**
+- Reusable dialog pattern with destructive prop for delete actions
+- Use color="error" for destructive button styling
+---
