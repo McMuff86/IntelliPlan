@@ -430,3 +430,23 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Use Stack with spacing for vertical button groups
 - sx={{ justifyContent: 'flex-start' }} aligns button content left
 ---
+
+## 2026-01-15 - US-B007
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created reusable EmptyState component with icon, title, description, and action
+- Uses EventBusyIcon as default illustration
+- AppointmentsList uses EmptyState for empty list
+- CalendarView day dialog shows empty state with "Create Appointment" button
+
+**Files created:**
+- frontend/src/components/EmptyState/EmptyState.tsx
+- frontend/src/components/EmptyState/index.ts
+
+**Files modified:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Uses EmptyState
+- frontend/src/components/CalendarView/CalendarView.tsx - Day dialog empty state with CTA
+
+**Learnings:**
+- Reusable EmptyState component takes title, description, actionLabel, onAction props
+- EventBusyIcon works well for calendar empty states
+---

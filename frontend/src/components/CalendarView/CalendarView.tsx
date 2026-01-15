@@ -7,7 +7,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
 import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert } from '@mui/material';
-import { Close as CloseIcon, CalendarMonth, ViewWeek, Today } from '@mui/icons-material';
+import { Close as CloseIcon, CalendarMonth, ViewWeek, Today, Add as AddIcon } from '@mui/icons-material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
@@ -252,9 +252,23 @@ export default function CalendarView() {
         </DialogTitle>
         <DialogContent>
           {dayAppointments.length === 0 ? (
-            <Typography color="text.secondary" sx={{ py: 2 }}>
-              No appointments on this day
-            </Typography>
+            <Box sx={{ py: 2, textAlign: 'center' }}>
+              <Typography color="text.secondary" gutterBottom>
+                No appointments on this day
+              </Typography>
+              <Button
+                variant="contained"
+                size="small"
+                startIcon={<AddIcon />}
+                onClick={() => {
+                  handleDialogClose();
+                  navigate('/appointments/new');
+                }}
+                sx={{ mt: 1 }}
+              >
+                Create Appointment
+              </Button>
+            </Box>
           ) : (
             <List>
               {dayAppointments.map((apt) => (

@@ -63,7 +63,7 @@
       "technicalNotes": "EmptyState-Component erstellen. In AppointmentsList und CalendarView einbinden.",
       "dependencies": [],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B006",

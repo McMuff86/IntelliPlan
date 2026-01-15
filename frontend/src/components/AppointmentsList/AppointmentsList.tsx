@@ -10,7 +10,6 @@ import {
   TableHead,
   TableRow,
   IconButton,
-  Typography,
   CircularProgress,
   Alert,
   Dialog,
@@ -27,6 +26,7 @@ import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
 import type { Appointment } from '../../types';
 import { useTimezone } from '../../hooks/useTimezone';
+import EmptyState from '../EmptyState';
 
 export default function AppointmentsList() {
   const navigate = useNavigate();
@@ -115,20 +115,12 @@ export default function AppointmentsList() {
 
   if (appointments.length === 0) {
     return (
-      <Paper sx={{ p: 4, textAlign: 'center' }}>
-        <Typography variant="h6" color="text.secondary" gutterBottom>
-          No appointments yet
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Create your first appointment to get started.
-        </Typography>
-        <Button
-          variant="contained"
-          sx={{ mt: 2 }}
-          onClick={() => navigate('/appointments/new')}
-        >
-          Create Appointment
-        </Button>
+      <Paper>
+        <EmptyState
+          title="No appointments yet"
+          description="Create your first appointment to get started."
+          onAction={() => navigate('/appointments/new')}
+        />
       </Paper>
     );
   }
