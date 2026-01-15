@@ -450,3 +450,24 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Reusable EmptyState component takes title, description, actionLabel, onAction props
 - EventBusyIcon works well for calendar empty states
 ---
+
+## 2026-01-15 - US-B006
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created Breadcrumbs component using MUI Breadcrumbs
+- Format: Home > [Parent] > [Current Page]
+- All links are clickable except current page (Typography)
+- Added to AppointmentDetail, CreateAppointment, Settings pages
+
+**Files created:**
+- frontend/src/components/Breadcrumbs/Breadcrumbs.tsx
+- frontend/src/components/Breadcrumbs/index.ts
+
+**Files modified:**
+- frontend/src/pages/AppointmentDetail.tsx - Replaced back button with breadcrumbs
+- frontend/src/pages/CreateAppointment.tsx - Added breadcrumbs, fixed navigation to /appointments
+- frontend/src/pages/Settings.tsx - Added breadcrumbs
+
+**Learnings:**
+- MUI Breadcrumbs uses separator prop for custom separator (NavigateNextIcon)
+- Use RouterLink as component for Link to integrate with React Router
+---

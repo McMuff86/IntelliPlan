@@ -1,6 +1,7 @@
 import { Box, Typography, Paper, TextField, MenuItem, Button, Snackbar, Alert } from '@mui/material';
 import { useState } from 'react';
 import { useTimezone } from '../hooks/useTimezone';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function Settings() {
   const { timezone, setTimezone, availableTimezones } = useTimezone();
@@ -14,6 +15,7 @@ export default function Settings() {
 
   return (
     <Box>
+      <Breadcrumbs items={[{ label: 'Settings' }]} />
       <Typography variant="h4" component="h1" gutterBottom>
         Settings
       </Typography>

@@ -27,6 +27,7 @@ import { appointmentService } from '../services/appointmentService';
 import type { Appointment } from '../types';
 import AppointmentForm from '../components/AppointmentForm';
 import { useTimezone } from '../hooks/useTimezone';
+import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -134,13 +135,12 @@ export default function AppointmentDetail() {
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/appointments')}
-        sx={{ mb: 2 }}
-      >
-        Back to Appointments
-      </Button>
+      <Breadcrumbs
+        items={[
+          { label: 'Appointments', path: '/appointments' },
+          { label: appointment.title },
+        ]}
+      />
 
       <Paper elevation={2} sx={{ p: 4 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>

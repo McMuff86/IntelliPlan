@@ -78,7 +78,7 @@
       "technicalNotes": "Neues Breadcrumb-Component. Material-UI Breadcrumbs.",
       "dependencies": ["US-B001"],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B008",
