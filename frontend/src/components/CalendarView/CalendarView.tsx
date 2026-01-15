@@ -6,7 +6,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert } from '@mui/material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert, Skeleton, Grid } from '@mui/material';
 import { Close as CloseIcon, CalendarMonth, ViewWeek, Today, Add as AddIcon } from '@mui/icons-material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { format } from 'date-fns';
@@ -48,6 +48,7 @@ export default function CalendarView() {
   const [overlapDialogOpen, setOverlapDialogOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
+  const [loading, setLoading] = useState(true);
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   useEffect(() => {
@@ -69,10 +70,13 @@ export default function CalendarView() {
 
   const loadAppointments = async () => {
     try {
+      setLoading(true);
       const response = await appointmentService.getAll();
       setAppointments(response.appointments);
     } catch (error) {
       console.error('Failed to load appointments:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -191,6 +195,30 @@ export default function CalendarView() {
   const handleSnackbarClose = () => {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
+
+  if (loading) {
+    return (
+      <Box>
+        <Paper sx={{ p: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+            <Skeleton variant="rounded" width={280} height={40} />
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Skeleton variant="rounded" width={100} height={36} />
+            <Skeleton variant="text" width={200} height={32} />
+            <Box width={100} />
+          </Box>
+          <Grid container spacing={0.5}>
+            {[...Array(35)].map((_, index) => (
+              <Grid key={index} size={{ xs: 12 / 7 }}>
+                <Skeleton variant="rectangular" height={80} sx={{ borderRadius: 0.5 }} />
+              </Grid>
+            ))}
+          </Grid>
+        </Paper>
+      </Box>
+    );
+  }
 
   return (
     <Box>

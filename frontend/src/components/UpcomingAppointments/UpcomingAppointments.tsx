@@ -12,7 +12,7 @@ import {
   Typography,
   Button,
   Box,
-  CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
 import AddIcon from '@mui/icons-material/Add';
@@ -68,9 +68,16 @@ const UpcomingAppointments = () => {
       />
       <CardContent sx={{ pt: 0 }}>
         {loading ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={32} />
-          </Box>
+          <List disablePadding>
+            {[...Array(3)].map((_, index) => (
+              <ListItem key={index} disablePadding sx={{ py: 1 }}>
+                <ListItemText
+                  primary={<Skeleton variant="text" width="70%" />}
+                  secondary={<Skeleton variant="text" width="50%" />}
+                />
+              </ListItem>
+            ))}
+          </List>
         ) : error ? (
           <Typography color="error">{error}</Typography>
         ) : appointments.length === 0 ? (

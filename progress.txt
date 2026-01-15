@@ -471,3 +471,21 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - MUI Breadcrumbs uses separator prop for custom separator (NavigateNextIcon)
 - Use RouterLink as component for Link to integrate with React Router
 ---
+
+## 2026-01-15 - US-B008
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Added Skeleton loaders for AppointmentsList (table structure with 5 rows)
+- Added Skeleton loaders for UpcomingAppointments (list items)
+- Added Skeleton loader for CalendarView (grid of 35 cells for month view)
+- Buttons already have spinner states from previous implementation
+
+**Files modified:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Table skeleton
+- frontend/src/components/UpcomingAppointments/UpcomingAppointments.tsx - List skeleton
+- frontend/src/components/CalendarView/CalendarView.tsx - Calendar grid skeleton
+
+**Learnings:**
+- MUI Skeleton variants: text, circular, rectangular, rounded
+- Use [...Array(n)].map for generating placeholder rows
+- MUI Grid v7 uses size={{ xs: 12/7 }} for equal 7-column layout
+---
