@@ -23,6 +23,8 @@ import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import EventIcon from '@mui/icons-material/Event';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { useHotkeys } from '../../hooks/useHotkeys';
+import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp';
 
 interface LayoutProps {
   children: ReactNode;
@@ -44,7 +46,14 @@ const Layout = ({ children }: LayoutProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
   const navigate = useNavigate();
+
+  useHotkeys([
+    { key: 'n', handler: () => navigate('/appointments/new') },
+    { key: '?', shiftKey: true, handler: () => setShortcutsHelpOpen(true) },
+    { key: 'Escape', handler: () => setShortcutsHelpOpen(false), disabled: !shortcutsHelpOpen },
+  ]);
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
@@ -199,6 +208,10 @@ const Layout = ({ children }: LayoutProps) => {
           </Box>
         </Container>
       </Box>
+      <KeyboardShortcutsHelp
+        open={shortcutsHelpOpen}
+        onClose={() => setShortcutsHelpOpen(false)}
+      />
     </Box>
   );
 };

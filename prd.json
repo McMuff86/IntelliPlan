@@ -188,7 +188,7 @@
       "technicalNotes": "useHotkeys Hook erstellen. Help Modal Component.",
       "dependencies": [],
       "priority": 12,
-      "passes": false
+      "passes": true
     }
   ]
 }

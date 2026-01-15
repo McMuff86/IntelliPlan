@@ -580,3 +580,25 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - focus-visible targets keyboard focus only, not mouse clicks
 - MUI theme components.styleOverrides for global focus styles
 ---
+
+## 2026-01-15 - US-B012
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created useHotkeys hook for keyboard shortcuts
+- Created KeyboardShortcutsHelp modal component
+- N = New Appointment, ? = Show help, Escape = Close dialogs
+- Shortcuts ignore input/textarea focus (except Escape)
+- Help modal shows all available shortcuts
+
+**Files created:**
+- frontend/src/hooks/useHotkeys.ts - Keyboard shortcut hook
+- frontend/src/components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.tsx
+- frontend/src/components/KeyboardShortcutsHelp/index.ts
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx - Integrated hotkeys and help modal
+
+**Learnings:**
+- Check target.tagName to skip hotkeys in input fields
+- Use shiftKey: true for Shift+? shortcut
+- disabled prop in hotkey config to conditionally enable
+---
