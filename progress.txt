@@ -410,3 +410,23 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Use start param with current ISO date to fetch only future appointments
 - MUI Grid v7 uses size={{ xs: 12, md: 6 }} instead of xs={12} md={6}
 ---
+
+## 2026-01-15 - US-B003
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created QuickActions component with Card layout
+- "New Appointment" button (contained/primary)
+- "View Calendar" and "View List" buttons (outlined)
+- All buttons have icons, full width, left-aligned text
+- Hover states provided by MUI Button
+
+**Files created:**
+- frontend/src/components/QuickActions/QuickActions.tsx
+- frontend/src/components/QuickActions/index.ts
+
+**Files modified:**
+- frontend/src/pages/Home.tsx - Added QuickActions card
+
+**Learnings:**
+- Use Stack with spacing for vertical button groups
+- sx={{ justifyContent: 'flex-start' }} aligns button content left
+---
