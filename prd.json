@@ -124,7 +124,7 @@
       "technicalNotes": "Layout.tsx Footer-Bereich erweitern.",
       "dependencies": [],
       "priority": 8,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B009",

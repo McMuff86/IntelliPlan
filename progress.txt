@@ -509,3 +509,18 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Calculate week bounds from Sunday (startOfDay.getDay() gives day of week)
 - Filter appointments by comparing Date objects for Today/Week counts
 ---
+
+## 2026-01-15 - US-B005
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Enhanced footer with quick links: Appointments, Calendar, Settings
+- Responsive layout (column on mobile, row on desktop)
+- Visually distinct with grey background and top border
+- Updated copyright text
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx - Footer redesign
+
+**Learnings:**
+- Use flexDirection: { xs: 'column', sm: 'row' } for responsive flex layouts
+- borderTop: 1 with borderColor: 'divider' for subtle separator
+---

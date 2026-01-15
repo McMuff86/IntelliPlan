@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   AppBar,
@@ -147,10 +147,57 @@ const Layout = ({ children }: LayoutProps) => {
       <Container component="main" sx={{ flexGrow: 1, py: 3 }}>
         {children}
       </Container>
-      <Box component="footer" sx={{ py: 2, bgcolor: 'background.paper', textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          © {new Date().getFullYear()} IntelliPlan
-        </Typography>
+      <Box
+        component="footer"
+        sx={{
+          py: 3,
+          px: 2,
+          bgcolor: 'grey.100',
+          borderTop: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <Container maxWidth="lg">
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', sm: 'row' },
+              justifyContent: 'space-between',
+              alignItems: { xs: 'center', sm: 'flex-start' },
+              gap: 2,
+            }}
+          >
+            <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Button
+                component={RouterLink}
+                to="/appointments"
+                color="inherit"
+                size="small"
+              >
+                Appointments
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/appointments/calendar"
+                color="inherit"
+                size="small"
+              >
+                Calendar
+              </Button>
+              <Button
+                component={RouterLink}
+                to="/settings"
+                color="inherit"
+                size="small"
+              >
+                Settings
+              </Button>
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              © {new Date().getFullYear()} IntelliPlan. All rights reserved.
+            </Typography>
+          </Box>
+        </Container>
       </Box>
     </Box>
   );
