@@ -109,7 +109,7 @@
       "technicalNotes": "Berechnung im Frontend aus vorhandenen Daten. Grid-Layout für Karten.",
       "dependencies": ["US-B002"],
       "priority": 7,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B005",

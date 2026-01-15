@@ -489,3 +489,23 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Use [...Array(n)].map for generating placeholder rows
 - MUI Grid v7 uses size={{ xs: 12/7 }} for equal 7-column layout
 ---
+
+## 2026-01-15 - US-B004
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created StatsCards component with Today, This Week, Total counts
+- Cards are clickable and navigate to calendar or appointments
+- Icons: TodayIcon, DateRangeIcon, EventNoteIcon
+- Skeleton loading states for each card
+- Added to Home page above other widgets
+
+**Files created:**
+- frontend/src/components/StatsCards/StatsCards.tsx
+- frontend/src/components/StatsCards/index.ts
+
+**Files modified:**
+- frontend/src/pages/Home.tsx - Added StatsCards
+
+**Learnings:**
+- Calculate week bounds from Sunday (startOfDay.getDay() gives day of week)
+- Filter appointments by comparing Date objects for Today/Week counts
+---
