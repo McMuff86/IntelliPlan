@@ -562,3 +562,21 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Use p: { xs: 2, sm: 4 } for responsive padding
 - flexGrow: { xs: 1, sm: 0 } for full-width buttons on mobile
 ---
+
+## 2026-01-15 - US-B011
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Added descriptive aria-labels with appointment titles
+- Added focus-visible outline styles for keyboard navigation
+- Theme: MuiButton, MuiIconButton, MuiListItemButton focus styles
+- CalendarView close button now has aria-label
+
+**Files modified:**
+- frontend/src/theme/theme.ts - Focus-visible styles for interactive elements
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Descriptive aria-labels
+- frontend/src/components/CalendarView/CalendarView.tsx - aria-label on close button
+
+**Learnings:**
+- Use aria-label with context (e.g., "Delete appointment: Meeting")
+- focus-visible targets keyboard focus only, not mouse clicks
+- MUI theme components.styleOverrides for global focus styles
+---

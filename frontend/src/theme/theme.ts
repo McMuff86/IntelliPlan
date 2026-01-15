@@ -27,6 +27,33 @@ const getThemeOptions = (mode: 'light' | 'dark'): ThemeOptions => ({
       styleOverrides: {
         root: {
           textTransform: 'none',
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineColor: mode === 'light' ? '#1976d2' : '#90caf9',
+            outlineOffset: 2,
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineColor: mode === 'light' ? '#1976d2' : '#90caf9',
+            outlineOffset: 2,
+          },
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          '&:focus-visible': {
+            outline: '2px solid',
+            outlineColor: mode === 'light' ? '#1976d2' : '#90caf9',
+            outlineOffset: -2,
+          },
         },
       },
     },

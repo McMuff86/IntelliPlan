@@ -172,7 +172,7 @@
       "technicalNotes": "Bestehende Components auditen. aria-* Attribute ergänzen.",
       "dependencies": [],
       "priority": 11,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-B012",

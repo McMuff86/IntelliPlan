@@ -182,7 +182,7 @@ export default function AppointmentsList() {
                       e.stopPropagation();
                       handleViewClick(appointment.id);
                     }}
-                    aria-label="view"
+                    aria-label={`View appointment: ${appointment.title}`}
                   >
                     <ViewIcon />
                   </IconButton>
@@ -192,7 +192,7 @@ export default function AppointmentsList() {
                       e.stopPropagation();
                       handleDeleteClick(appointment);
                     }}
-                    aria-label="delete"
+                    aria-label={`Delete appointment: ${appointment.title}`}
                     color="error"
                   >
                     <DeleteIcon />

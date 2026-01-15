@@ -274,7 +274,7 @@ export default function CalendarView() {
           <Typography variant="h6">
             {selectedDate && format(selectedDate, 'EEEE, MMMM d, yyyy')}
           </Typography>
-          <IconButton onClick={handleDialogClose} size="small">
+          <IconButton onClick={handleDialogClose} size="small" aria-label="close dialog">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
