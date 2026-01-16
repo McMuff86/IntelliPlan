@@ -649,3 +649,29 @@ Thread: N/A (manual)
 **Learnings for future iterations:**
 - Use Docker to standardize local DB environments
 ---
+
+## 2026-01-16 - Dev/Quality: Backend ESLint v9 Fix
+Thread: N/A (Codex)
+- Added ESLint v9 flat config for backend so `npm run lint` works again
+- Fixed backend lint errors (Express Request augmentation and TS overload-friendly no-redeclare config)
+
+**Files modified/created:**
+- backend/eslint.config.js - Flat config replacing legacy `.eslintrc.json` usage
+- backend/src/middleware/roleMiddleware.ts - Module augmentation via `express-serve-static-core`
+
+**Learnings for future iterations:**
+- ESLint v9 requires `eslint.config.js` (flat config); `.eslintrc.*` won’t be picked up by default
+- For TypeScript overload signatures: disable core `no-redeclare` and enable `@typescript-eslint/no-redeclare`
+- Prefer `declare module 'express-serve-static-core'` over `namespace Express` to satisfy `@typescript-eslint/no-namespace`
+---
+
+## 2026-01-16 - Planning: Switch PRD to Appointment Management
+Thread: N/A (Codex)
+- Replaced `prd.json` to track Appointment Management user stories (US-001..US-017)
+- Marked already-implemented stories as `passes: true` based on current backend/frontend code
+
+**Files modified:**
+- prd.json - Now tracks Appointment Management and remaining role stories (US-015/US-016)
+- AGENTS.md - Clarified Docker Postgres as recommended dev DB flow
+- backend/.env.example - Docker default DATABASE_URL and credentials
+---

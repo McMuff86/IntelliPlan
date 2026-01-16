@@ -347,11 +347,18 @@ npm run dev
 
 ### Database (Docker)
 
-Use Docker for a reproducible local Postgres setup.
+Use Docker for a reproducible local Postgres setup (recommended for development).
 
 ```powershell
 # From project root
 docker compose up -d
+```
+
+Optional: create `backend/.env` from `backend/.env.example` (Docker defaults are already filled in) and then run migrations:
+
+```powershell
+cd backend
+npm run migrate
 ```
 
 Backend expects these defaults:
@@ -361,7 +368,7 @@ Backend expects these defaults:
 - `DB_USER=postgres`
 - `DB_PASSWORD=postgres`
 
-Set `DB_PASSWORD` in `backend/.env` to match the Docker password above.
+If you override the Docker password, keep `backend/.env` in sync (or use `DATABASE_URL`).
 
 ### Dev Quickfix: Seed User
 
