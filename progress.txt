@@ -602,3 +602,50 @@ Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
 - Use shiftKey: true for Shift+? shortcut
 - disabled prop in hotkey config to conditionally enable
 ---
+
+## 2026-01-15 - Docs/Debug
+Thread: N/A (manual)
+- Marked all Phase B PRD acceptance criteria as implemented
+- Identified likely appointment creation failure causes:
+  - Missing x-user-id header creates invalid UUID for appointments.user_id
+  - Frontend default API base URL targets port 3001, backend runs on 3000
+  - Frontend error display reads response.message, backend returns error/errors
+
+**Files modified:**
+- tasks/prd-ui-ux-phase-b.md - Marked Phase B user stories as complete
+
+**Learnings for future iterations:**
+- Appointment creation requires a real UUID user_id or seeded user
+- Keep VITE_API_URL aligned with backend port to avoid silent network errors
+- Align frontend error parsing with backend response shape
+---
+
+## 2026-01-15 - Quickfix Seed User
+Thread: N/A (manual)
+- Added seed user script for backend and npm script
+- Frontend now sends x-user-id if present in localStorage or VITE_USER_ID
+- Documented seed user flow in AGENTS.md
+
+**Files modified:**
+- backend/src/scripts/seedUser.ts - Seed user script
+- backend/package.json - Added seed:user script
+- frontend/src/services/api.ts - Adds x-user-id header when available
+- AGENTS.md - Seed user quickfix instructions
+
+**Learnings for future iterations:**
+- Keep a dev seed user flow documented for API auth placeholders
+- Prefer localStorage userId or VITE_USER_ID in dev for x-user-id
+---
+
+## 2026-01-15 - Docker DB Setup
+Thread: N/A (manual)
+- Added docker-compose for Postgres
+- Documented Docker database setup in AGENTS.md
+
+**Files modified:**
+- docker-compose.yml - Postgres service for local development
+- AGENTS.md - Docker setup instructions
+
+**Learnings for future iterations:**
+- Use Docker to standardize local DB environments
+---

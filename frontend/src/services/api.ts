@@ -13,6 +13,10 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    const userId = localStorage.getItem('userId') || import.meta.env.VITE_USER_ID;
+    if (userId) {
+      config.headers['x-user-id'] = userId;
+    }
     return config;
   },
   (error) => {

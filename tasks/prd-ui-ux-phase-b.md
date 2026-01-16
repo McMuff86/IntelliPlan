@@ -2,6 +2,7 @@
 
 ## Overview
 Verbesserung der Benutzerführung und Navigation in IntelliPlan. Aktuell fehlen grundlegende UI-Elemente wie Header-Navigation, Quick-Actions auf der Home-Seite und eine intuitive Benutzerführung.
+Status: Implementiert (Jan 2026)
 
 ## Problem Statement
 Nutzer können die App nicht bedienen, weil:
@@ -30,10 +31,10 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich schnell zwischen Seiten wechseln kann
 
 **Acceptance Criteria:**
-- [ ] Navigation Links im Header: Home, Appointments, Settings
-- [ ] Aktiver Link ist visuell hervorgehoben
-- [ ] Responsive: Hamburger-Menü auf kleinen Bildschirmen
-- [ ] Logo klickbar, führt zu Home
+- [x] Navigation Links im Header: Home, Appointments, Settings
+- [x] Aktiver Link ist visuell hervorgehoben
+- [x] Responsive: Hamburger-Menü auf kleinen Bildschirmen
+- [x] Logo klickbar, führt zu Home
 
 **Technical Notes:**
 - Layout.tsx erweitern
@@ -48,11 +49,11 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich sofort weiss, was ansteht
 
 **Acceptance Criteria:**
-- [ ] Widget "Upcoming Appointments" zeigt nächste 5 Termine
-- [ ] Termine sind klickbar (navigiert zu Detail-Ansicht)
-- [ ] Zeigt Datum, Uhrzeit, Titel
-- [ ] Empty State wenn keine Termine
-- [ ] "View All" Link zu Appointments-Seite
+- [x] Widget "Upcoming Appointments" zeigt nächste 5 Termine
+- [x] Termine sind klickbar (navigiert zu Detail-Ansicht)
+- [x] Zeigt Datum, Uhrzeit, Titel
+- [x] Empty State wenn keine Termine
+- [x] "View All" Link zu Appointments-Seite
 
 **Technical Notes:**
 - Neuer API-Call oder gefilterte Daten aus useAppointments
@@ -66,11 +67,11 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich häufige Aktionen schnell ausführen kann
 
 **Acceptance Criteria:**
-- [ ] Button "New Appointment" prominent platziert
-- [ ] Button "View Calendar" 
-- [ ] Button "View List"
-- [ ] Buttons mit Icons und klarem Text
-- [ ] Hover-States und visuelle Feedback
+- [x] Button "New Appointment" prominent platziert
+- [x] Button "View Calendar" 
+- [x] Button "View List"
+- [x] Buttons mit Icons und klarem Text
+- [x] Hover-States und visuelle Feedback
 
 **Technical Notes:**
 - Material-UI Button/Card components
@@ -84,11 +85,11 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich meine Planung im Blick habe
 
 **Acceptance Criteria:**
-- [ ] Karte "Today": Anzahl Termine heute
-- [ ] Karte "This Week": Anzahl Termine diese Woche
-- [ ] Karte "Total": Gesamtanzahl Termine
-- [ ] Karten sind klickbar (filter Ansicht)
-- [ ] Visuelles Design mit Icons
+- [x] Karte "Today": Anzahl Termine heute
+- [x] Karte "This Week": Anzahl Termine diese Woche
+- [x] Karte "Total": Gesamtanzahl Termine
+- [x] Karten sind klickbar (filter Ansicht)
+- [x] Visuelles Design mit Icons
 
 **Technical Notes:**
 - Berechnung im Frontend aus vorhandenen Daten
@@ -102,10 +103,10 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich schnell zu wichtigen Links gelange
 
 **Acceptance Criteria:**
-- [ ] Quick Links: Appointments, Calendar, Settings
-- [ ] Copyright-Text aktuell
-- [ ] Responsive Layout
-- [ ] Visuell abgesetzt vom Content
+- [x] Quick Links: Appointments, Calendar, Settings
+- [x] Copyright-Text aktuell
+- [x] Responsive Layout
+- [x] Visuell abgesetzt vom Content
 
 **Technical Notes:**
 - Layout.tsx Footer-Bereich erweitern
@@ -118,10 +119,10 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich weiss wo ich bin und schnell zurück navigieren kann
 
 **Acceptance Criteria:**
-- [ ] Breadcrumbs auf: Appointment Detail, Create Appointment, Settings
-- [ ] Format: Home > Appointments > [Titel]
-- [ ] Klickbare Links
-- [ ] Konsistentes Styling
+- [x] Breadcrumbs auf: Appointment Detail, Create Appointment, Settings
+- [x] Format: Home > Appointments > [Titel]
+- [x] Klickbare Links
+- [x] Konsistentes Styling
 
 **Technical Notes:**
 - Neues Breadcrumb-Component
@@ -135,10 +136,10 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich weiss was ich tun kann wenn keine Daten vorhanden sind
 
 **Acceptance Criteria:**
-- [ ] Appointments List: "No appointments yet" + Create Button
-- [ ] Calendar View: "No appointments this month" + Create Button
-- [ ] Illustration oder Icon für leere Zustände
-- [ ] Konsistenter Stil
+- [x] Appointments List: "No appointments yet" + Create Button
+- [x] Calendar View: "No appointments this month" + Create Button
+- [x] Illustration oder Icon für leere Zustände
+- [x] Konsistenter Stil
 
 **Technical Notes:**
 - EmptyState-Component erstellen
@@ -152,10 +153,10 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich weiss dass die App arbeitet
 
 **Acceptance Criteria:**
-- [ ] Skeleton Loader für Appointments-Liste
-- [ ] Skeleton Loader für Calendar
-- [ ] Spinner für Buttons während Actions
-- [ ] Konsistentes Loading-Pattern
+- [x] Skeleton Loader für Appointments-Liste
+- [x] Skeleton Loader für Calendar
+- [x] Spinner für Buttons während Actions
+- [x] Konsistentes Loading-Pattern
 
 **Technical Notes:**
 - Material-UI Skeleton Component
@@ -169,10 +170,10 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich versehentliche Aktionen verhindern kann
 
 **Acceptance Criteria:**
-- [ ] Delete Confirmation Dialog standardisiert
-- [ ] Klare Beschreibung was gelöscht wird
-- [ ] Cancel und Confirm Buttons
-- [ ] Destructive Actions in Rot
+- [x] Delete Confirmation Dialog standardisiert
+- [x] Klare Beschreibung was gelöscht wird
+- [x] Cancel und Confirm Buttons
+- [x] Destructive Actions in Rot
 
 **Technical Notes:**
 - Wiederverwendbares ConfirmDialog-Component
@@ -185,12 +186,12 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich flexibel bin
 
 **Acceptance Criteria:**
-- [ ] Mobile Breakpoint (< 600px) getestet
-- [ ] Tablet Breakpoint (600-900px) getestet
-- [ ] Desktop (> 900px) getestet
-- [ ] Appointments Form responsive
-- [ ] Calendar View responsive
-- [ ] Navigation Mobile-friendly
+- [x] Mobile Breakpoint (< 600px) getestet
+- [x] Tablet Breakpoint (600-900px) getestet
+- [x] Desktop (> 900px) getestet
+- [x] Appointments Form responsive
+- [x] Calendar View responsive
+- [x] Navigation Mobile-friendly
 
 **Technical Notes:**
 - Material-UI Breakpoints nutzen
@@ -204,11 +205,11 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich alle Funktionen erreichen kann
 
 **Acceptance Criteria:**
-- [ ] Alle Buttons haben aria-labels
-- [ ] Tab-Navigation funktioniert
-- [ ] Fokus-Styles sichtbar
-- [ ] Farbkontraste ausreichend (WCAG AA)
-- [ ] Screen Reader friendly Labels
+- [x] Alle Buttons haben aria-labels
+- [x] Tab-Navigation funktioniert
+- [x] Fokus-Styles sichtbar
+- [x] Farbkontraste ausreichend (WCAG AA)
+- [x] Screen Reader friendly Labels
 
 **Technical Notes:**
 - Bestehende Components auditen
@@ -222,11 +223,11 @@ Nutzer können die App nicht bedienen, weil:
 **So that** ich schneller arbeiten kann
 
 **Acceptance Criteria:**
-- [ ] N = New Appointment
-- [ ] Escape = Dialog schliessen/Abbrechen
-- [ ] Enter = Bestätigen in Dialogs
-- [ ] ? = Shortcut-Hilfe anzeigen
-- [ ] Shortcuts-Hilfe Modal
+- [x] N = New Appointment
+- [x] Escape = Dialog schliessen/Abbrechen
+- [x] Enter = Bestätigen in Dialogs
+- [x] ? = Shortcut-Hilfe anzeigen
+- [x] Shortcuts-Hilfe Modal
 
 **Technical Notes:**
 - useHotkeys Hook erstellen

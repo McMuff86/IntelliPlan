@@ -345,6 +345,47 @@ npm install
 npm run dev
 ```
 
+### Database (Docker)
+
+Use Docker for a reproducible local Postgres setup.
+
+```powershell
+# From project root
+docker compose up -d
+```
+
+Backend expects these defaults:
+- `DB_HOST=localhost`
+- `DB_PORT=5432`
+- `DB_NAME=intelliplan`
+- `DB_USER=postgres`
+- `DB_PASSWORD=postgres`
+
+Set `DB_PASSWORD` in `backend/.env` to match the Docker password above.
+
+### Dev Quickfix: Seed User
+
+If appointment creation fails, create a seed user and send `x-user-id` from the frontend.
+
+```powershell
+# Run migrations first (if not already done)
+cd backend
+npm run migrate
+
+# Create/update a demo user
+npm run seed:user
+```
+
+Copy the printed `User ID` and set it for the frontend:
+
+```powershell
+# Option A: set once in browser console
+localStorage.setItem('userId', '<PASTE_USER_ID>');
+
+# Option B: set via env for dev (frontend)
+# VITE_USER_ID=<PASTE_USER_ID>
+```
+
 ## Archiving
 
 Ralph automatically archives previous runs when you start a new feature (different `branchName`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
