@@ -1,12 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Request, Response, NextFunction } from 'express';
 import { getUserById } from '../services/userService';
-import { User, UserRole } from '../models/user';
+import type { User } from '../models/user';
+import { UserRole } from '../models/user';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User;
-    }
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: User;
   }
 }
 

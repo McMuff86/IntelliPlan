@@ -347,7 +347,7 @@ npm run dev
 
 ### Database (Docker)
 
-Use Docker for a reproducible local Postgres setup.
+Use Docker for a reproducible local Postgres setup (recommended for development).
 
 ```powershell
 # From project root
