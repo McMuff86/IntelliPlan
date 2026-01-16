@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardActionArea, CardContent, Typography, Grid, Box, Skeleton, useTheme } from '@mui/material';
+import { Card, CardContent, Typography, Grid, Box, Skeleton, useTheme, ButtonBase } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import TodayIcon from '@mui/icons-material/Today';
 import DateRangeIcon from '@mui/icons-material/DateRange';
@@ -21,6 +21,43 @@ const StatCard = ({ title, count, icon, onClick, loading, accentColor }: StatCar
   const theme = useTheme();
   const tone = accentColor || theme.palette.primary.main;
 
+  const content = (
+    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+      <Box
+        sx={{
+          width: 54,
+          height: 54,
+          borderRadius: 2.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: alpha(tone, 0.14),
+          color: tone,
+          boxShadow: `0 10px 24px ${alpha(tone, 0.25)}`,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box>
+        {loading ? (
+          <>
+            <Skeleton variant="text" width={48} height={36} />
+            <Skeleton variant="text" width={110} />
+          </>
+        ) : (
+          <>
+            <Typography variant="h4" component="div">
+              {count}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {title}
+            </Typography>
+          </>
+        )}
+      </Box>
+    </CardContent>
+  );
+
   return (
     <Card
       elevation={0}
@@ -36,6 +73,7 @@ const StatCard = ({ title, count, icon, onClick, loading, accentColor }: StatCar
           inset: 0,
           background: `linear-gradient(135deg, ${alpha(tone, 0.12)}, transparent 60%)`,
           opacity: 0,
+          pointerEvents: 'none',
           transition: 'opacity 0.2s ease',
         },
         ...(onClick && {
@@ -46,46 +84,25 @@ const StatCard = ({ title, count, icon, onClick, loading, accentColor }: StatCar
         }),
       }}
     >
-      <CardActionArea
-        onClick={onClick}
-        disabled={!onClick}
-        sx={{ height: '100%', p: 0 }}
-      >
-        <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
-          <Box
-            sx={{
-              width: 54,
-              height: 54,
-              borderRadius: 2.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: alpha(tone, 0.14),
-              color: tone,
-              boxShadow: `0 10px 24px ${alpha(tone, 0.25)}`,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box>
-            {loading ? (
-              <>
-                <Skeleton variant="text" width={48} height={36} />
-                <Skeleton variant="text" width={110} />
-              </>
-            ) : (
-              <>
-                <Typography variant="h4" component="div">
-                  {count}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {title}
-                </Typography>
-              </>
-            )}
-          </Box>
-        </CardContent>
-      </CardActionArea>
+      {onClick ? (
+        <ButtonBase
+          onClick={onClick}
+          sx={{
+            width: '100%',
+            height: '100%',
+            textAlign: 'left',
+            alignItems: 'stretch',
+            borderRadius: 'inherit',
+          }}
+          aria-label={`${title} appointments`}
+        >
+          {content}
+        </ButtonBase>
+      ) : (
+        <Box sx={{ width: '100%', height: '100%' }}>
+          {content}
+        </Box>
+      )}
     </Card>
   );
 };
