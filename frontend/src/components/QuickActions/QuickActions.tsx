@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Card, CardHeader, CardContent, Button, Stack } from '@mui/material';
+import { Card, CardHeader, CardContent, Button, Stack, Box } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ListIcon from '@mui/icons-material/List';
@@ -9,10 +9,30 @@ const QuickActions = () => {
   const navigate = useNavigate();
 
   return (
-    <Card>
+    <Card
+      sx={{
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.75))',
+      }}
+    >
       <CardHeader
-        avatar={<FlashOnIcon color="primary" />}
+        avatar={
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 2,
+              bgcolor: 'rgba(15, 118, 110, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'primary.main',
+            }}
+          >
+            <FlashOnIcon />
+          </Box>
+        }
         title="Quick Actions"
+        subheader="Jump into your most used actions"
         titleTypographyProps={{ variant: 'h6' }}
       />
       <CardContent>
@@ -33,7 +53,7 @@ const QuickActions = () => {
             startIcon={<CalendarMonthIcon />}
             onClick={() => navigate('/appointments/calendar')}
             fullWidth
-            sx={{ justifyContent: 'flex-start' }}
+            sx={{ justifyContent: 'flex-start', borderWidth: 2 }}
           >
             View Calendar
           </Button>
@@ -43,7 +63,7 @@ const QuickActions = () => {
             startIcon={<ListIcon />}
             onClick={() => navigate('/appointments/list')}
             fullWidth
-            sx={{ justifyContent: 'flex-start' }}
+            sx={{ justifyContent: 'flex-start', borderWidth: 2 }}
           >
             View List
           </Button>

@@ -354,6 +354,11 @@ Use Docker for a reproducible local Postgres setup.
 docker compose up -d
 ```
 
+Create local env files before running migrations:
+
+- `backend/.env` from `backend/.env.example`
+- `frontend/.env` from `frontend/.env.example`
+
 Backend expects these defaults:
 - `DB_HOST=localhost`
 - `DB_PORT=5432`
@@ -362,6 +367,16 @@ Backend expects these defaults:
 - `DB_PASSWORD=postgres`
 
 Set `DB_PASSWORD` in `backend/.env` to match the Docker password above.
+
+Run migrations to create tables and enable required extensions:
+
+```powershell
+cd backend
+npm run migrate
+```
+
+The migration `backend/migrations/000_enable_pgcrypto.sql` enables `pgcrypto`, which is required for `gen_random_uuid()`.
+If you already have a database volume, re-run `npm run migrate` to apply the new migration.
 
 ### Dev Quickfix: Seed User
 

@@ -11,6 +11,12 @@ services:
       POSTGRES_DB: intelliplan
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d intelliplan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     volumes:
       - intelliplan-postgres-data:/var/lib/postgresql/data
 

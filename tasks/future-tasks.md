@@ -8,25 +8,26 @@ Track upcoming features and PRDs to be created.
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| Appointment Management | CRUD, views, overlap detection, roles | ✅ PRD Created |
-| Reminders | Add reminders, templates, ICS import | ⏳ Pending |
+| Appointment Management | CRUD, views, overlap detection, roles | In progress (CRUD + calendar views done; roles/auth pending) |
+| Reminders | Add reminders, templates, ICS import | Pending |
+| Auth & Access | OAuth (Google/Microsoft), sessions, roles, teams | Not started |
 
 ### Medium Priority
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| External Calendar Integration | Google/Outlook OAuth, bidirectional sync | ⏳ Pending |
-| Search & Filtering | Text search, date/time filters, advanced filters | ⏳ Pending |
-| User Interface | Themes, responsive design, accessibility | ⏳ Pending |
-| Data Persistence | Local storage, backup, sync | ⏳ Pending |
-| Timezones & Time Management | UTC storage, ISO 8601, geolocation detection | ⏳ Pending |
+| External Calendar Integration | Google/Outlook OAuth, bidirectional sync | Pending |
+| Search & Filtering | Text search, date/time filters, advanced filters | Pending |
+| User Interface | Themes, responsive design, accessibility | In progress (Phase B done; visual refresh ongoing) |
+| Data Persistence | Local storage, backup, sync | Pending |
+| Timezones & Time Management | UTC storage, ISO 8601, geolocation detection | Partial (UTC storage done; user settings pending) |
 
 ### API & Technical Goals
 
 | Feature | Description | Status |
 |---------|-------------|--------|
-| RESTful API Design | Idempotency, versioning, documentation | ⏳ Pending |
-| API Prediction Endpoints | ML-based suggestions (Phase 2 AI) | ⏳ Pending |
+| RESTful API Design | Idempotency, versioning, documentation | Pending |
+| API Prediction Endpoints | ML-based suggestions (Phase 2 AI) | Pending |
 
 ## AI Extensions (Phase 2)
 
@@ -34,13 +35,13 @@ These extend core features with ML capabilities:
 
 | Feature | AI Extension | Status |
 |---------|--------------|--------|
-| Appointment Management | ML-based conflict resolution | ⏳ Pending |
-| Reminders | Personalized timing via ML | ⏳ Pending |
-| Timezones | Geolocation-based detection | ⏳ Pending |
-| Calendar Integration | ML merge conflict resolution | ⏳ Pending |
-| Search | Semantic search (BERT models) | ⏳ Pending |
-| UI | Adaptive layout (ML user behavior) | ⏳ Pending |
-| Data Persistence | ML backup suggestions | ⏳ Pending |
+| Appointment Management | ML-based conflict resolution | Pending |
+| Reminders | Personalized timing via ML | Pending |
+| Timezones | Geolocation-based detection | Pending |
+| Calendar Integration | ML merge conflict resolution | Pending |
+| Search | Semantic search (BERT models) | Pending |
+| UI | Adaptive layout (ML user behavior) | Pending |
+| Data Persistence | ML backup suggestions | Pending |
 
 ## Nice-to-Have (Long-term)
 
@@ -58,6 +59,15 @@ These extend core features with ML capabilities:
 - Security & compliance
 
 ---
+
+## Next Implementation Order (Recommended)
+
+1) Authentication + OAuth (Google/Microsoft) with session or JWT handling
+2) Role-based access (admin/team) and team visibility rules
+3) Search and filtering across appointments (text + date range)
+4) Reminders (templates, scheduling, notifications)
+5) External calendar sync (ICS + Google/Outlook bidirectional)
+6) Observability: structured logs, error tracking, and basic CI tests
 
 ## How to Create a New PRD
 

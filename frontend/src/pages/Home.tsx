@@ -6,9 +6,26 @@ import StatsCards from '../components/StatsCards';
 const Home = () => {
   return (
     <Box>
-      <Typography variant="h4" component="h1" gutterBottom>
-        Welcome to IntelliPlan
-      </Typography>
+      <Box
+        sx={{
+          mb: 3,
+          p: { xs: 2.5, md: 3.5 },
+          borderRadius: 3,
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7))',
+          border: '1px solid rgba(15, 23, 42, 0.08)',
+          boxShadow: '0 18px 40px rgba(15, 23, 42, 0.08)',
+        }}
+      >
+        <Typography variant="overline" color="text.secondary">
+          Your week at a glance
+        </Typography>
+        <Typography variant="h3" component="h1" sx={{ mb: 1 }}>
+          Welcome back to IntelliPlan
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          Focus on what matters next. Review upcoming appointments, jump into new meetings, and stay ahead of your schedule.
+        </Typography>
+      </Box>
       <Box sx={{ mb: 3 }}>
         <StatsCards />
       </Box>

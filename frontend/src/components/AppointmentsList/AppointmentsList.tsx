@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Paper,
   Table,
@@ -24,6 +24,7 @@ import ConfirmDialog from '../ConfirmDialog';
 
 export default function AppointmentsList() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { timezone: preferredTimezone } = useTimezone();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,11 +33,33 @@ export default function AppointmentsList() {
   const [appointmentToDelete, setAppointmentToDelete] = useState<Appointment | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const range = searchParams.get('range') || 'all';
+
+  const getRangeParams = () => {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    if (range === 'today') {
+      const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
+      return { start: startOfDay.toISOString(), end: endOfDay.toISOString() };
+    }
+
+    if (range === 'week') {
+      const startOfWeek = new Date(startOfDay);
+      startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
+      const endOfWeek = new Date(startOfWeek.getTime() + 7 * 24 * 60 * 60 * 1000);
+      return { start: startOfWeek.toISOString(), end: endOfWeek.toISOString() };
+    }
+
+    return null;
+  };
+
   const fetchAppointments = async () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await appointmentService.getAll();
+      const rangeParams = getRangeParams();
+      const response = await appointmentService.getAll(rangeParams || undefined);
       const sorted = [...response.appointments].sort(
         (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
       );
@@ -51,7 +74,7 @@ export default function AppointmentsList() {
 
   useEffect(() => {
     fetchAppointments();
-  }, []);
+  }, [range]);
 
   const handleViewClick = (id: string) => {
     navigate(`/appointments/${id}`);

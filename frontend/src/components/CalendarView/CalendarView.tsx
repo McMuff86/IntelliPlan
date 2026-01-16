@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert, Skeleton, Grid } from '@mui/material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert, Skeleton, Grid, Stack, Chip } from '@mui/material';
 import { Close as CloseIcon, CalendarMonth, ViewWeek, Today, Add as AddIcon } from '@mui/icons-material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { format } from 'date-fns';
@@ -37,12 +37,19 @@ interface PendingDrop {
 
 export default function CalendarView() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dayAppointments, setDayAppointments] = useState<Appointment[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [currentView, setCurrentView] = useState<CalendarViewType>('dayGridMonth');
+  const resolvedView = useMemo<CalendarViewType>(() => {
+    const viewParam = searchParams.get('view');
+    if (viewParam === 'day') return 'timeGridDay';
+    if (viewParam === 'week') return 'timeGridWeek';
+    return 'dayGridMonth';
+  }, [searchParams]);
+  const [currentView, setCurrentView] = useState<CalendarViewType>(resolvedView);
   const [calendarRef, setCalendarRef] = useState<FullCalendar | null>(null);
   const [pendingDrop, setPendingDrop] = useState<PendingDrop | null>(null);
   const [overlapDialogOpen, setOverlapDialogOpen] = useState(false);
@@ -54,6 +61,22 @@ export default function CalendarView() {
   useEffect(() => {
     loadAppointments();
   }, []);
+
+  useEffect(() => {
+    if (!calendarRef) return;
+    const calendarApi = calendarRef.getApi();
+    if (resolvedView !== currentView) {
+      setCurrentView(resolvedView);
+      calendarApi.changeView(resolvedView);
+    }
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      const parsed = new Date(dateParam);
+      if (!Number.isNaN(parsed.getTime())) {
+        calendarApi.gotoDate(parsed);
+      }
+    }
+  }, [calendarRef, currentView, resolvedView, searchParams]);
 
   useEffect(() => {
     const calendarEvents: CalendarEvent[] = appointments.map((apt) => ({
@@ -122,6 +145,10 @@ export default function CalendarView() {
       setCurrentView(newView);
       const calendarApi = calendarRef.getApi();
       calendarApi.changeView(newView);
+      const viewParam = newView === 'timeGridDay' ? 'day' : newView === 'timeGridWeek' ? 'week' : 'month';
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('view', viewParam);
+      setSearchParams(nextParams, { replace: true });
     }
   };
 
@@ -222,7 +249,13 @@ export default function CalendarView() {
 
   return (
     <Box>
-      <Paper sx={{ p: 2 }}>
+      <Paper
+        sx={{
+          p: 2,
+          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.8))',
+          borderRadius: 3,
+        }}
+      >
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
           <ToggleButtonGroup
             value={currentView}
@@ -280,9 +313,12 @@ export default function CalendarView() {
         </DialogTitle>
         <DialogContent>
           {dayAppointments.length === 0 ? (
-            <Box sx={{ py: 2, textAlign: 'center' }}>
+            <Box sx={{ py: 2.5, textAlign: 'center' }}>
               <Typography color="text.secondary" gutterBottom>
                 No appointments on this day
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Add a meeting to keep your schedule moving.
               </Typography>
               <Button
                 variant="contained"
@@ -292,26 +328,50 @@ export default function CalendarView() {
                   handleDialogClose();
                   navigate('/appointments/new');
                 }}
-                sx={{ mt: 1 }}
               >
                 Create Appointment
               </Button>
             </Box>
           ) : (
-            <List>
+            <Stack spacing={1.5}>
               {dayAppointments.map((apt) => (
-                <ListItem
+                <Paper
                   key={apt.id}
                   onClick={() => handleAppointmentClick(apt.id)}
-                  sx={{ cursor: 'pointer', '&:hover': { bgcolor: 'action.hover' }, borderRadius: 1 }}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    cursor: 'pointer',
+                    border: '1px solid rgba(15, 23, 42, 0.08)',
+                    background: 'rgba(255, 255, 255, 0.8)',
+                    '&:hover': {
+                      background: 'rgba(15, 118, 110, 0.08)',
+                    },
+                  }}
                 >
-                  <ListItemText
-                    primary={apt.title}
-                    secondary={`${formatTime(apt.startTime)} - ${formatTime(apt.endTime)}`}
+                  <Box
+                    sx={{
+                      width: 6,
+                      height: 44,
+                      borderRadius: 999,
+                      background: 'linear-gradient(180deg, rgba(15, 118, 110, 0.8), rgba(14, 165, 233, 0.8))',
+                    }}
                   />
-                </ListItem>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="subtitle1" fontWeight={600}>
+                      {apt.title}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {formatTime(apt.startTime)} - {formatTime(apt.endTime)}
+                    </Typography>
+                  </Box>
+                  <Chip label="Open" size="small" variant="outlined" />
+                </Paper>
               ))}
-            </List>
+            </Stack>
           )}
         </DialogContent>
       </Dialog>

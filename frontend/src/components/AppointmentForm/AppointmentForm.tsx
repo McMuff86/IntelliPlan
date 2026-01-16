@@ -87,7 +87,15 @@ export default function AppointmentForm({
           conflicts: err.response.data.conflicts || [],
         });
       } else if (axios.isAxiosError(err)) {
-        setError(err.response?.data?.message || 'An error occurred');
+        const data = err.response?.data as
+          | { error?: { message?: string } | string; errors?: Array<{ msg?: string; message?: string }> }
+          | undefined;
+        const message =
+          (typeof data?.error === 'string' ? data.error : data?.error?.message) ||
+          data?.errors?.[0]?.msg ||
+          data?.errors?.[0]?.message ||
+          err.message;
+        setError(message || 'An error occurred');
       } else {
         setError('An unexpected error occurred');
       }

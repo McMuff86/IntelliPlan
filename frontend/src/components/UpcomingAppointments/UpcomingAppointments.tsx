@@ -60,10 +60,30 @@ const UpcomingAppointments = () => {
   };
 
   return (
-    <Card>
+    <Card
+      sx={{
+        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.75))',
+      }}
+    >
       <CardHeader
-        avatar={<EventIcon color="primary" />}
+        avatar={
+          <Box
+            sx={{
+              width: 44,
+              height: 44,
+              borderRadius: 2,
+              bgcolor: 'rgba(37, 99, 235, 0.12)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#2563eb',
+            }}
+          >
+            <EventIcon />
+          </Box>
+        }
         title="Upcoming Appointments"
+        subheader="Your next five meetings"
         titleTypographyProps={{ variant: 'h6' }}
       />
       <CardContent sx={{ pt: 0 }}>
@@ -96,8 +116,18 @@ const UpcomingAppointments = () => {
         ) : (
           <List disablePadding>
             {appointments.map((appointment) => (
-              <ListItem key={appointment.id} disablePadding>
-                <ListItemButton onClick={() => handleAppointmentClick(appointment.id)}>
+              <ListItem key={appointment.id} disablePadding sx={{ mb: 1 }}>
+                <ListItemButton
+                  onClick={() => handleAppointmentClick(appointment.id)}
+                  sx={{
+                    borderRadius: 2,
+                    border: '1px solid rgba(15, 23, 42, 0.08)',
+                    background: 'rgba(255, 255, 255, 0.7)',
+                    '&:hover': {
+                      background: 'rgba(15, 118, 110, 0.08)',
+                    },
+                  }}
+                >
                   <ListItemText
                     primary={appointment.title}
                     secondary={formatDateTime(appointment.startTime)}

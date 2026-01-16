@@ -95,54 +95,59 @@ const Layout = ({ children }: LayoutProps) => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
-      <AppBar position="static">
-        <Toolbar>
-          {isMobile && (
-            <IconButton
-              color="inherit"
-              aria-label="open menu"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2 }}
+      <AppBar position="sticky" elevation={0}>
+        <Toolbar sx={{ minHeight: { xs: 64, md: 72 } }}>
+          <Container maxWidth="lg" disableGutters sx={{ display: 'flex', alignItems: 'center' }}>
+            {isMobile && (
+              <IconButton
+                color="inherit"
+                aria-label="open menu"
+                edge="start"
+                onClick={handleDrawerToggle}
+                sx={{ mr: 2 }}
+              >
+                <MenuIcon />
+              </IconButton>
+            )}
+            <Box
+              onClick={handleLogoClick}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                mr: 4,
+                gap: 1,
+              }}
             >
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Box
-            onClick={handleLogoClick}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              cursor: 'pointer',
-              mr: 4,
-            }}
-          >
-            <CalendarMonthIcon sx={{ mr: 1 }} />
-            <Typography variant="h6" component="div">
-              IntelliPlan
-            </Typography>
-          </Box>
-          {!isMobile && (
-            <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
-              {navItems.map((item) => (
-                <Button
-                  key={item.path}
-                  component={NavLink}
-                  to={item.path}
-                  end={item.path === '/'}
-                  color="inherit"
-                  startIcon={item.icon}
-                  sx={{
-                    '&.active': {
-                      bgcolor: 'rgba(255, 255, 255, 0.15)',
-                    },
-                  }}
-                >
-                  {item.label}
-                </Button>
-              ))}
+              <CalendarMonthIcon />
+              <Typography variant="h6" component="div">
+                IntelliPlan
+              </Typography>
             </Box>
-          )}
+            {!isMobile && (
+              <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+                {navItems.map((item) => (
+                  <Button
+                    key={item.path}
+                    component={NavLink}
+                    to={item.path}
+                    end={item.path === '/'}
+                    color="inherit"
+                    startIcon={item.icon}
+                    sx={{
+                      borderRadius: 999,
+                      px: 2,
+                      '&.active': {
+                        bgcolor: 'rgba(255, 255, 255, 0.16)',
+                      },
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </Box>
+            )}
+          </Container>
         </Toolbar>
       </AppBar>
       <Drawer
@@ -153,7 +158,11 @@ const Layout = ({ children }: LayoutProps) => {
       >
         {drawer}
       </Drawer>
-      <Container component="main" sx={{ flexGrow: 1, py: 3 }}>
+      <Container
+        component="main"
+        maxWidth="lg"
+        sx={{ flexGrow: 1, py: { xs: 3, md: 4 }, animation: 'ip-fade-up 0.4s ease both' }}
+      >
         {children}
       </Container>
       <Box
@@ -161,9 +170,9 @@ const Layout = ({ children }: LayoutProps) => {
         sx={{
           py: 3,
           px: 2,
-          bgcolor: 'grey.100',
-          borderTop: 1,
-          borderColor: 'divider',
+          bgcolor: 'rgba(255, 255, 255, 0.75)',
+          borderTop: '1px solid rgba(15, 23, 42, 0.08)',
+          backdropFilter: 'blur(8px)',
         }}
       >
         <Container maxWidth="lg">

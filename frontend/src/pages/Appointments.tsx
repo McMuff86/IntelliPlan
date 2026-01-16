@@ -1,5 +1,5 @@
-import { useMemo, useCallback } from 'react';
-import { Box, Typography, Button, ToggleButtonGroup, ToggleButton } from '@mui/material';
+import { useMemo, useCallback, useEffect } from 'react';
+import { Box, Typography, Button, ToggleButtonGroup, ToggleButton, CircularProgress } from '@mui/material';
 import { Add as AddIcon, ViewList, CalendarMonth } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppointmentsList from '../components/AppointmentsList';
@@ -25,11 +25,11 @@ export default function Appointments() {
     if (newView && newView !== viewMode) {
       localStorage.setItem(VIEW_STORAGE_KEY, newView);
       const targetPath = newView === 'calendar' ? '/appointments/calendar' : '/appointments/list';
-      navigate(targetPath);
+      navigate({ pathname: targetPath, search: location.search });
     }
-  }, [navigate, viewMode]);
+  }, [location.search, navigate, viewMode]);
 
-  const handleRedirect = useCallback(() => {
+  useEffect(() => {
     if (location.pathname === '/appointments') {
       const stored = localStorage.getItem(VIEW_STORAGE_KEY);
       const targetPath = stored === 'calendar' ? '/appointments/calendar' : '/appointments/list';
@@ -38,8 +38,11 @@ export default function Appointments() {
   }, [location.pathname, navigate]);
 
   if (location.pathname === '/appointments') {
-    handleRedirect();
-    return null;
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="40vh">
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (
