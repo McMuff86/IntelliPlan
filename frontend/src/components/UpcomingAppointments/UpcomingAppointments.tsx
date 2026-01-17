@@ -52,7 +52,7 @@ const UpcomingAppointments = () => {
 
   const formatDateTime = (isoString: string) => {
     const date = toZonedTime(isoString, timezone);
-    return format(date, 'EEE, MMM d · h:mm a');
+    return format(date, 'EEE, MMM d | h:mm a');
   };
 
   const handleAppointmentClick = (id: string) => {
@@ -62,7 +62,9 @@ const UpcomingAppointments = () => {
   return (
     <Card
       sx={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.75))',
+        background: 'var(--ip-surface-elevated)',
+        border: '1px solid var(--ip-outline)',
+        boxShadow: 'var(--ip-shadow)',
       }}
     >
       <CardHeader
@@ -117,17 +119,17 @@ const UpcomingAppointments = () => {
           <List disablePadding>
             {appointments.map((appointment) => (
               <ListItem key={appointment.id} disablePadding sx={{ mb: 1 }}>
-                <ListItemButton
-                  onClick={() => handleAppointmentClick(appointment.id)}
-                  sx={{
-                    borderRadius: 2,
-                    border: '1px solid rgba(15, 23, 42, 0.08)',
-                    background: 'rgba(255, 255, 255, 0.7)',
-                    '&:hover': {
-                      background: 'rgba(15, 118, 110, 0.08)',
-                    },
-                  }}
-                >
+              <ListItemButton
+                onClick={() => handleAppointmentClick(appointment.id)}
+                sx={{
+                  borderRadius: 2,
+                  border: '1px solid var(--ip-outline)',
+                  background: 'var(--ip-surface)',
+                  '&:hover': {
+                    background: 'rgba(15, 118, 110, 0.12)',
+                  },
+                }}
+              >
                   <ListItemText
                     primary={appointment.title}
                     secondary={formatDateTime(appointment.startTime)}
@@ -150,3 +152,5 @@ const UpcomingAppointments = () => {
 };
 
 export default UpcomingAppointments;
+
+

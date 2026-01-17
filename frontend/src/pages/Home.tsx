@@ -11,9 +11,9 @@ const Home = () => {
           mb: 3,
           p: { xs: 2.5, md: 3.5 },
           borderRadius: 3,
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0.7))',
-          border: '1px solid rgba(15, 23, 42, 0.08)',
-          boxShadow: '0 18px 40px rgba(15, 23, 42, 0.08)',
+          background: 'var(--ip-surface-elevated)',
+          border: '1px solid var(--ip-outline)',
+          boxShadow: 'var(--ip-shadow)',
         }}
       >
         <Typography variant="overline" color="text.secondary">

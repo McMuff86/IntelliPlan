@@ -19,7 +19,6 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  SelectChangeEvent,
   FormControlLabel,
   Switch,
   Alert,
@@ -28,6 +27,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material';
+import type { SelectChangeEvent } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
@@ -172,9 +172,13 @@ export default function Projects() {
     }
   };
 
-  const handleProjectFilterChange = (event: SelectChangeEvent<string[]>) => {
+  const handleProjectFilterChange = (event: SelectChangeEvent<unknown>) => {
     const value = event.target.value;
-    setProjectFilter(typeof value === 'string' ? value.split(',') : value);
+    if (typeof value === 'string') {
+      setProjectFilter(value.split(','));
+      return;
+    }
+    setProjectFilter(value as string[]);
   };
 
   const handleCalendarEventClick = (info: EventClickArg) => {
@@ -342,9 +346,9 @@ export default function Projects() {
               select
               label="Filter projects"
               value={projectFilter}
-              onChange={handleProjectFilterChange}
               SelectProps={{
                 multiple: true,
+                onChange: handleProjectFilterChange,
                 renderValue: (selected) => {
                   const ids = selected as string[];
                   if (ids.length === 0) return 'All projects';

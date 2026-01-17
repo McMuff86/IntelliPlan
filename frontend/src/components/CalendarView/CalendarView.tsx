@@ -374,7 +374,7 @@ export default function CalendarView() {
       <Paper
         sx={{
           p: 2,
-          background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.8))',
+          background: 'var(--ip-surface-elevated)',
           borderRadius: 3,
         }}
       >

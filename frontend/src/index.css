@@ -19,6 +19,20 @@
   --ip-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
 }
 
+:root[data-theme='codex'] {
+  color-scheme: dark;
+  --ip-ink: #e2e8f0;
+  --ip-muted: #94a3b8;
+  --ip-bg: #0b0f14;
+  --ip-surface: #111827;
+  --ip-surface-elevated: rgba(17, 24, 39, 0.92);
+  --ip-primary: #10a37f;
+  --ip-secondary: #eab308;
+  --ip-link: #22d3ee;
+  --ip-outline: rgba(148, 163, 184, 0.16);
+  --ip-shadow: 0 24px 48px rgba(0, 0, 0, 0.55);
+}
+
 *,
 *::before,
 *::after {
@@ -50,6 +64,13 @@ body::before {
     radial-gradient(circle at 90% 20%, rgba(249, 115, 22, 0.18), transparent 45%),
     radial-gradient(circle at 50% 90%, rgba(56, 189, 248, 0.12), transparent 50%);
   pointer-events: none;
+}
+
+body[data-theme='codex']::before {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(16, 163, 127, 0.18), transparent 45%),
+    radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.14), transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(148, 163, 184, 0.08), transparent 50%);
 }
 
 a {
@@ -131,4 +152,61 @@ a:hover {
 
 .fc .fc-event-title {
   font-weight: 600;
+}
+
+body[data-theme='codex'] .fc {
+  color: var(--ip-ink);
+}
+
+body[data-theme='codex'] .fc .fc-toolbar-title {
+  color: var(--ip-ink);
+}
+
+body[data-theme='codex'] .fc-theme-standard .fc-scrollgrid,
+body[data-theme='codex'] .fc-theme-standard td,
+body[data-theme='codex'] .fc-theme-standard th {
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+body[data-theme='codex'] .fc .fc-col-header-cell {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+body[data-theme='codex'] .fc .fc-daygrid-day-frame,
+body[data-theme='codex'] .fc .fc-timegrid-slot,
+body[data-theme='codex'] .fc .fc-timegrid-col-frame {
+  background: rgba(15, 23, 42, 0.55);
+}
+
+body[data-theme='codex'] .fc .fc-daygrid-day-number,
+body[data-theme='codex'] .fc .fc-timegrid-axis-cushion,
+body[data-theme='codex'] .fc .fc-col-header-cell-cushion {
+  color: var(--ip-ink);
+}
+
+body[data-theme='codex'] .fc .fc-day-today {
+  background: rgba(16, 163, 127, 0.12);
+}
+
+body[data-theme='codex'] .fc .fc-button {
+  border-color: rgba(148, 163, 184, 0.24);
+  background: rgba(15, 23, 42, 0.75);
+  color: var(--ip-ink);
+}
+
+body[data-theme='codex'] .fc .fc-button:hover {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+body[data-theme='codex'] .fc .fc-button-primary:not(:disabled).fc-button-active,
+body[data-theme='codex'] .fc .fc-button-primary:not(:disabled):active {
+  background: rgba(16, 163, 127, 0.2);
+  border-color: rgba(16, 163, 127, 0.4);
+  color: var(--ip-ink);
+}
+
+body[data-theme='codex'] .fc .fc-daygrid-event,
+body[data-theme='codex'] .fc .fc-timegrid-event {
+  background: linear-gradient(135deg, rgba(16, 163, 127, 0.95), rgba(14, 116, 144, 0.95));
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.45);
 }

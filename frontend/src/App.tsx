@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
 import { lightTheme, codexTheme } from './theme/theme';
@@ -16,6 +17,11 @@ import TaskDetail from './pages/TaskDetail';
 function App() {
   const { theme } = useThemePreference();
   const activeTheme = theme === 'codex' ? codexTheme : lightTheme;
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    document.body.dataset.theme = theme;
+  }, [theme]);
 
   return (
     <ThemeProvider theme={activeTheme}>

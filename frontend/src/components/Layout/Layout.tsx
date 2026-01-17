@@ -172,8 +172,8 @@ const Layout = ({ children }: LayoutProps) => {
         sx={{
           py: 3,
           px: 2,
-          bgcolor: 'rgba(255, 255, 255, 0.75)',
-          borderTop: '1px solid rgba(15, 23, 42, 0.08)',
+          bgcolor: 'var(--ip-surface-elevated)',
+          borderTop: '1px solid var(--ip-outline)',
           backdropFilter: 'blur(8px)',
         }}
       >
@@ -222,7 +222,7 @@ const Layout = ({ children }: LayoutProps) => {
               </Button>
             </Box>
             <Typography variant="body2" color="text.secondary">
-              © {new Date().getFullYear()} IntelliPlan. All rights reserved.
+              (c) {new Date().getFullYear()} IntelliPlan. All rights reserved.
             </Typography>
           </Box>
         </Container>
@@ -236,3 +236,5 @@ const Layout = ({ children }: LayoutProps) => {
 };
 
 export default Layout;
+
+

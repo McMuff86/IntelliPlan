@@ -12,7 +12,9 @@ const QuickActions = () => {
   return (
     <Card
       sx={{
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.75))',
+        background: 'var(--ip-surface-elevated)',
+        border: '1px solid var(--ip-outline)',
+        boxShadow: 'var(--ip-shadow)',
       }}
     >
       <CardHeader

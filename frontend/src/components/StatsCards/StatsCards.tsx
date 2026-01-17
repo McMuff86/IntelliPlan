@@ -66,7 +66,9 @@ const StatCard = ({ title, count, icon, onClick, loading, accentColor }: StatCar
         position: 'relative',
         overflow: 'hidden',
         borderRadius: 3,
-        background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.7))',
+        background: 'var(--ip-surface-elevated)',
+        border: '1px solid var(--ip-outline)',
+        boxShadow: 'var(--ip-shadow)',
         '&::after': {
           content: '""',
           position: 'absolute',
