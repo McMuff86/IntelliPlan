@@ -20,5 +20,13 @@ services:
     volumes:
       - intelliplan-postgres-data:/var/lib/postgresql/data
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: intelliplan-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   intelliplan-postgres-data:

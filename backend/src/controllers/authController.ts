@@ -10,6 +10,7 @@ import {
   updateUserPassword,
 } from '../services/userService';
 import { generateToken, hashPassword, hashToken, signToken, verifyPassword } from '../services/authService';
+import { sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService';
 import { toUserResponse } from '../models/user';
 
 const APP_BASE_URL = process.env.APP_BASE_URL || 'http://localhost:5173';
@@ -47,7 +48,15 @@ export async function register(req: Request, res: Response, next: NextFunction):
     });
 
     if (!EMAIL_VERIFY_BYPASS) {
-      console.log(`Verify email: ${verificationLink}`);
+      const emailSent = await sendVerificationEmail({
+        to: user.email,
+        name: user.name,
+        verificationLink,
+      });
+
+      if (!emailSent) {
+        console.log(`Verify email: ${verificationLink}`);
+      }
     }
 
     const token = EMAIL_VERIFY_BYPASS ? signToken(user.id) : null;
@@ -134,7 +143,15 @@ export async function requestPasswordReset(req: Request, res: Response, next: Ne
       const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
       const resetLink = `${APP_BASE_URL}/auth?action=reset&token=${rawToken}`;
       await setPasswordResetToken(user.id, token, expiresAt);
-      console.log(`Password reset: ${resetLink}`);
+      const emailSent = await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetLink,
+      });
+
+      if (!emailSent) {
+        console.log(`Password reset: ${resetLink}`);
+      }
     }
 
     res.status(200).json({ success: true, data: { message: 'If the email exists, a reset link was sent.' } });

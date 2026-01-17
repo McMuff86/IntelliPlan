@@ -23,6 +23,7 @@
     "helmet": "^8.0.0",
     "bcryptjs": "^2.4.3",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.13",
     "pg": "^8.13.3"
   },
   "devDependencies": {
@@ -30,6 +31,7 @@
     "@types/express": "^5.0.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5",
+    "@types/nodemailer": "^6.4.15",
     "@types/node": "^22.10.7",
     "@types/pg": "^8.11.11",
     "@typescript-eslint/eslint-plugin": "^8.21.0",
