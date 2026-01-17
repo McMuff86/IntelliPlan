@@ -709,3 +709,29 @@ Thread: N/A (manual)
 - Cascade uses recursive dependency lookup (finish/start types not yet differentiated)
 - Shift uses deltaDays for manual scheduling
 ---
+
+## 2026-01-17 - Project Gantt + Project Shift
+Thread: N/A (Codex)
+- Added Projects Gantt view with project-level schedule bars derived from task work slots
+- Added drag-to-shift project schedule by days (calls POST /projects/:id/shift)
+- Gantt view includes project filter and weekend toggle, plus schedule summary per project
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+
+**Learnings for future iterations:**
+- Project-level shifts reuse /projects/:id/shift to move all tasks and work slots by delta days
+---
+
+## 2026-01-17 - Project Calendar DnD + Gantt Enhancements
+Thread: N/A (Codex)
+- Added project bars overlay to Projects calendar view with drag-to-shift by days
+- Added undo snackbar for project shifts
+- Added unscheduled projects list under the Gantt view
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+
+**Learnings for future iterations:**
+- Project bars use all-day events in FullCalendar to support day-level drag
+---

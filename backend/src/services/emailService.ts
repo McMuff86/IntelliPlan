@@ -22,19 +22,24 @@ function getTransporter(): nodemailer.Transporter | null {
     return cachedTransporter;
   }
 
-  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+  if (!SMTP_HOST) {
     cachedTransporter = null;
     return cachedTransporter;
   }
+
+  const auth =
+    SMTP_USER && SMTP_PASS
+      ? {
+          user: SMTP_USER,
+          pass: SMTP_PASS,
+        }
+      : undefined;
 
   cachedTransporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
     secure: SMTP_SECURE,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
+    auth,
   });
 
   return cachedTransporter;
