@@ -30,3 +30,26 @@ export const loginValidator: ValidationChain[] = [
     .notEmpty()
     .withMessage('password is required'),
 ];
+
+export const verifyEmailValidator: ValidationChain[] = [
+  body('token')
+    .optional()
+    .notEmpty()
+    .withMessage('token is required'),
+];
+
+export const requestPasswordResetValidator: ValidationChain[] = [
+  body('email')
+    .trim()
+    .isEmail()
+    .withMessage('email must be a valid email'),
+];
+
+export const resetPasswordValidator: ValidationChain[] = [
+  body('token')
+    .notEmpty()
+    .withMessage('token is required'),
+  body('password')
+    .isLength({ min: 8 })
+    .withMessage('password must be at least 8 characters'),
+];

@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import jwt, { type Secret } from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-insecure-secret';
+const JWT_SECRET: Secret = process.env.JWT_SECRET || 'dev-insecure-secret';
 const TOKEN_EXPIRY = process.env.JWT_EXPIRY || '7d';
 
 export function hashPassword(password: string): Promise<string> {
@@ -13,7 +14,7 @@ export function verifyPassword(password: string, hash: string): Promise<boolean>
 }
 
 export function signToken(userId: string): string {
-  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
+  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: TOKEN_EXPIRY } as jwt.SignOptions);
 }
 
 export function verifyToken(token: string): string | null {
@@ -23,4 +24,12 @@ export function verifyToken(token: string): string | null {
   } catch {
     return null;
   }
+}
+
+export function generateToken(): string {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+export function hashToken(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex');
 }

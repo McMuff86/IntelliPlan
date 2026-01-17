@@ -39,6 +39,7 @@ export interface User {
   role: 'admin' | 'single' | 'team';
   teamId?: string;
   timezone: string;
+  emailVerified?: boolean;
   createdAt: string;
 }
 

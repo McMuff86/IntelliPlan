@@ -8,6 +8,11 @@ export interface User {
   team_id: string | null;
   timezone: string;
   password_hash?: string | null;
+  email_verified_at?: Date | null;
+  email_verification_token?: string | null;
+  email_verification_expires_at?: Date | null;
+  password_reset_token?: string | null;
+  password_reset_expires_at?: Date | null;
   created_at: Date;
   updated_at: Date;
 }
@@ -19,6 +24,7 @@ export interface UserResponse {
   role: UserRole;
   teamId: string | null;
   timezone: string;
+  emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +37,7 @@ export function toUserResponse(user: User): UserResponse {
     role: user.role,
     teamId: user.team_id,
     timezone: user.timezone,
+    emailVerified: Boolean(user.email_verified_at),
     createdAt: user.created_at.toISOString(),
     updatedAt: user.updated_at.toISOString(),
   };

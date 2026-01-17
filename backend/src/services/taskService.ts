@@ -1,5 +1,13 @@
 import { pool } from '../config/database';
-import type { CreateTaskDTO, Task, TaskDependency, TaskWorkSlot, UpdateTaskDTO, DependencyType } from '../models/task';
+import type {
+  CreateTaskDTO,
+  Task,
+  TaskDependency,
+  TaskWorkSlot,
+  UpdateTaskDTO,
+  DependencyType,
+  ResourceType,
+} from '../models/task';
 
 export interface TaskWorkSlotCalendar {
   id: string;
@@ -48,7 +56,11 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
   return result.rows[0];
 }
 
-type TaskWithBlocked = Task & { is_blocked?: boolean; resource_name?: string | null; resource_type?: string | null };
+type TaskWithBlocked = Task & {
+  is_blocked?: boolean;
+  resource_name?: string | null;
+  resource_type?: ResourceType | null;
+};
 
 export async function listTasksByProject(projectId: string, ownerId: string): Promise<TaskWithBlocked[]> {
   const result = await pool.query<TaskWithBlocked>(
