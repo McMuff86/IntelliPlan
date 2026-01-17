@@ -17,6 +17,7 @@ import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-materia
 import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
+import axios from 'axios';
 import type { Appointment } from '../../types';
 import { useTimezone } from '../../hooks/useTimezone';
 import EmptyState from '../EmptyState';
@@ -65,7 +66,13 @@ export default function AppointmentsList() {
       );
       setAppointments(sorted);
     } catch (err) {
-      setError('Failed to load appointments');
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to load appointments');
+      } else {
+        setError('Failed to load appointments');
+      }
       console.error(err);
     } finally {
       setLoading(false);

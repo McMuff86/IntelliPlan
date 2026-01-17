@@ -686,3 +686,15 @@ Thread: N/A (manual)
 - Use owner_id from x-user-id to scope project/task access
 - Work slots represent manual scheduling blocks for multi-day tasks
 ---
+
+## 2026-01-16 - Task Planning UI
+Thread: N/A (manual)
+- Added Projects, Project Detail, and Task Detail pages
+- Added project/task services and types for API integration
+- Added dependencies and work slots UI with basic start/done actions
+- Added Projects routes and navigation links
+
+**Learnings for future iterations:**
+- Projects/Tasks use x-user-id for scoping (same as appointments)
+- Task dependencies and work slots are managed via /tasks endpoints
+---

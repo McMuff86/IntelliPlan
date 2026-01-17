@@ -17,17 +17,17 @@ import { getProjectById } from '../services/projectService';
 import { toTaskDependencyResponse, toTaskResponse, toTaskWorkSlotResponse } from '../models/task';
 
 const getUserId = (req: Request): string | null => {
-  const user = req.user;
-  const header = req.headers['x-user-id'];
-  const userId = user?.id || (Array.isArray(header) ? header[0] : header);
-  return userId || null;
+  if (!req.user) {
+    return null;
+  }
+  return req.user.id;
 };
 
 export async function listByProject(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -55,7 +55,7 @@ export async function createInProject(req: Request, res: Response, next: NextFun
 
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -89,7 +89,7 @@ export async function getById(req: Request, res: Response, next: NextFunction): 
   try {
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -115,7 +115,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
 
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -145,7 +145,7 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
   try {
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -165,7 +165,7 @@ export async function listTaskDependencies(req: Request, res: Response, next: Ne
   try {
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -186,7 +186,7 @@ export async function createTaskDependency(req: Request, res: Response, next: Ne
 
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -213,7 +213,7 @@ export async function removeTaskDependency(req: Request, res: Response, next: Ne
   try {
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 
@@ -233,7 +233,7 @@ export async function listTaskWorkSlots(req: Request, res: Response, next: NextF
   try {
     const userId = getUserId(req);
     if (!userId) {
-      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
 

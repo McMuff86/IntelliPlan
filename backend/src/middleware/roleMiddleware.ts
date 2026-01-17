@@ -6,7 +6,34 @@ import { UserRole } from '../models/user';
 declare module 'express-serve-static-core' {
   interface Request {
     user?: User;
+    userId?: string;
   }
+}
+
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function requireUserId(req: Request, res: Response, next: NextFunction): void {
+  const userIdHeader = req.headers['x-user-id'];
+  const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+
+  if (!userId) {
+    res.status(401).json({
+      success: false,
+      error: 'Unauthorized: User ID required',
+    });
+    return;
+  }
+
+  if (!uuidRegex.test(userId)) {
+    res.status(400).json({
+      success: false,
+      error: 'Invalid user id format',
+    });
+    return;
+  }
+
+  req.userId = userId;
+  next();
 }
 
 export function requireRole(...allowedRoles: UserRole[]) {

@@ -1,5 +1,10 @@
 import axios from 'axios';
 
+const envUserId = import.meta.env.VITE_USER_ID;
+if (envUserId && !localStorage.getItem('userId')) {
+  localStorage.setItem('userId', envUserId);
+}
+
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   headers: {

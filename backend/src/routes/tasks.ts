@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import * as taskController from '../controllers/taskController';
-import { loadUser } from '../middleware/roleMiddleware';
+import { loadUser, requireUserId } from '../middleware/roleMiddleware';
 import { createDependencyValidator, createWorkSlotValidator, updateTaskValidator } from '../validators/taskValidator';
 
 const router = Router();
 
+router.use(requireUserId);
 router.use(loadUser);
 
 router.get('/:id', taskController.getById);

@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import * as projectController from '../controllers/projectController';
 import * as taskController from '../controllers/taskController';
-import { loadUser } from '../middleware/roleMiddleware';
+import { loadUser, requireUserId } from '../middleware/roleMiddleware';
 import { createProjectValidator, updateProjectValidator } from '../validators/projectValidator';
 import { createTaskValidator } from '../validators/taskValidator';
 
 const router = Router();
 
+router.use(requireUserId);
 router.use(loadUser);
 
 router.get('/', projectController.list);

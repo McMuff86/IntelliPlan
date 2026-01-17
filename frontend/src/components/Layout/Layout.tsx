@@ -22,6 +22,7 @@ import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import EventIcon from '@mui/icons-material/Event';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp';
@@ -39,6 +40,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Home', path: '/', icon: <HomeIcon /> },
   { label: 'Appointments', path: '/appointments', icon: <EventIcon /> },
+  { label: 'Projects', path: '/projects', icon: <AccountTreeIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 
@@ -186,6 +188,14 @@ const Layout = ({ children }: LayoutProps) => {
             }}
           >
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', justifyContent: 'center' }}>
+              <Button
+                component={RouterLink}
+                to="/projects"
+                color="inherit"
+                size="small"
+              >
+                Projects
+              </Button>
               <Button
                 component={RouterLink}
                 to="/appointments"

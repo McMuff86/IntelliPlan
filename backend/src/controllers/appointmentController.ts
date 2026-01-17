@@ -15,8 +15,15 @@ export async function create(req: Request, res: Response, next: NextFunction): P
     }
 
     const { title, description, startTime, endTime, timezone } = req.body;
-    
-    const userId = req.headers['x-user-id'] as string || 'temp-user-id';
+    const userId = req.user?.id || req.userId;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User not found',
+      });
+      return;
+    }
     const force = req.query.force === 'true';
 
     const overlapResult = await checkOverlap({
@@ -55,7 +62,14 @@ export async function create(req: Request, res: Response, next: NextFunction): P
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const user = req.user;
-    const userId = user?.id || req.headers['x-user-id'] as string || 'temp-user-id';
+    const userId = user?.id || req.userId;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User not found',
+      });
+      return;
+    }
     const isAdmin = user?.role === 'admin';
     const isTeamUser = user?.role === 'team';
     const { start, end, limit, offset, userId: filterUserId, includeTeam } = req.query;
@@ -92,8 +106,14 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
 export async function getById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const user = req.user;
-    const userIdHeader = req.headers['x-user-id'];
-    const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const userId = user?.id || req.userId;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User not found',
+      });
+      return;
+    }
     const isAdmin = user?.role === 'admin';
     const isTeamUser = user?.role === 'team';
     const id = req.params.id as string;
@@ -138,8 +158,14 @@ export async function update(req: Request, res: Response, next: NextFunction): P
 
     const id = req.params.id as string;
     const user = req.user;
-    const userIdHeader = req.headers['x-user-id'];
-    const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const userId = user?.id || req.userId;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User not found',
+      });
+      return;
+    }
     const isAdmin = user?.role === 'admin';
 
     const owner = await getAppointmentOwner(id);
@@ -217,8 +243,14 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
   try {
     const id = req.params.id as string;
     const user = req.user;
-    const userIdHeader = req.headers['x-user-id'];
-    const userId = user?.id || (Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader) || 'temp-user-id';
+    const userId = user?.id || req.userId;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized: User not found',
+      });
+      return;
+    }
     const isAdmin = user?.role === 'admin';
 
     const owner = await getAppointmentOwner(id);
