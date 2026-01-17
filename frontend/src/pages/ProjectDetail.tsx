@@ -15,6 +15,7 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import TimelineIcon from '@mui/icons-material/Timeline';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -167,9 +168,18 @@ export default function ProjectDetail() {
             {project.includeWeekends ? 'Weekends included' : 'Weekdays only'} · {project.workdayStart} - {project.workdayEnd}
           </Typography>
         </Box>
-        <Button variant="outlined" onClick={() => navigate('/projects')}>
-          All Projects
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" onClick={() => navigate('/projects')}>
+            All Projects
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<TimelineIcon />}
+            onClick={() => navigate(`/projects/${project.id}/timeline`)}
+          >
+            Timeline
+          </Button>
+        </Stack>
       </Box>
 
       {project.description && (
@@ -290,6 +300,9 @@ export default function ProjectDetail() {
                   </Typography>
                   <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                     <Chip size="small" label={statusLabel(task.status)} color={statusColor(task.status)} />
+                    {task.isBlocked && task.status !== 'done' && task.status !== 'blocked' && (
+                      <Chip size="small" label="Blocked" color="warning" />
+                    )}
                     {task.startDate && (
                       <Chip size="small" label={`Start: ${format(new Date(task.startDate), 'MMM d, yyyy')}`} variant="outlined" />
                     )}

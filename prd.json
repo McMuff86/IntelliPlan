@@ -91,7 +91,7 @@
       "technicalNotes": "",
       "dependencies": ["US-TP-005"],
       "priority": 6,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-TP-007",
@@ -105,7 +105,7 @@
       "technicalNotes": "Phase 1 can be basic; Phase 2 should differentiate dependency types.",
       "dependencies": ["US-TP-004", "US-TP-005"],
       "priority": 7,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-TP-008",
@@ -148,7 +148,7 @@
       "technicalNotes": "",
       "dependencies": ["US-TP-008"],
       "priority": 10,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-TP-011",

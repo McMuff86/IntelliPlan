@@ -8,6 +8,7 @@ import {
   deleteTask,
   deleteWorkSlot,
   getTaskById,
+  isTaskBlocked,
   listDependencies,
   listTasksByProject,
   listWorkSlots,
@@ -121,6 +122,13 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     }
 
     const { title, description, status, schedulingMode, durationMinutes, startDate, dueDate } = req.body;
+    if (status === 'in_progress') {
+      const blocked = await isTaskBlocked(req.params.id as string, userId);
+      if (blocked) {
+        res.status(409).json({ success: false, error: 'Task is blocked by unfinished dependencies' });
+        return;
+      }
+    }
     const updated = await updateTask(req.params.id as string, userId, {
       title,
       description,
@@ -316,8 +324,9 @@ export async function shiftSchedule(req: Request, res: Response, next: NextFunct
     const taskId = req.params.id as string;
     const deltaDays = Number(req.body.deltaDays);
     const cascade = Boolean(req.body.cascade);
+    const shiftBlock = Boolean(req.body.shiftBlock);
 
-    const shiftResult = await shiftTaskWithDependents(taskId, userId, deltaDays, cascade);
+    const shiftResult = await shiftTaskWithDependents(taskId, userId, deltaDays, cascade, shiftBlock);
 
     res.status(200).json({
       success: true,

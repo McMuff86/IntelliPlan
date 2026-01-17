@@ -113,4 +113,8 @@ export const shiftTaskValidator: ValidationChain[] = [
     .optional()
     .isBoolean()
     .withMessage('cascade must be boolean'),
+  body('shiftBlock')
+    .optional()
+    .isBoolean()
+    .withMessage('shiftBlock must be boolean'),
 ];

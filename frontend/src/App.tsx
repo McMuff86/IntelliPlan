@@ -9,6 +9,7 @@ import AppointmentDetail from './pages/AppointmentDetail';
 import Settings from './pages/Settings';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
+import ProjectTimeline from './pages/ProjectTimeline';
 import TaskDetail from './pages/TaskDetail';
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
             <Route path="/appointments/:id" element={<AppointmentDetail />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
+            <Route path="/projects/:id/timeline" element={<ProjectTimeline />} />
             <Route path="/tasks/:id" element={<TaskDetail />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />

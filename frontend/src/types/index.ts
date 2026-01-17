@@ -77,6 +77,7 @@ export interface Task {
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
+  isBlocked?: boolean;
 }
 
 export interface TaskDependency {

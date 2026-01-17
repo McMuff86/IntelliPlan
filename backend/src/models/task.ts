@@ -30,6 +30,7 @@ export interface TaskResponse {
   dueDate: string | null;
   createdAt: string;
   updatedAt: string;
+  isBlocked?: boolean;
 }
 
 export interface CreateTaskDTO {
@@ -90,7 +91,7 @@ export interface TaskWorkSlotResponse {
   updatedAt: string;
 }
 
-export const toTaskResponse = (task: Task): TaskResponse => ({
+export const toTaskResponse = (task: Task & { is_blocked?: boolean | null }): TaskResponse => ({
   id: task.id,
   projectId: task.project_id,
   ownerId: task.owner_id,
@@ -103,6 +104,7 @@ export const toTaskResponse = (task: Task): TaskResponse => ({
   dueDate: task.due_date,
   createdAt: task.created_at,
   updatedAt: task.updated_at,
+  isBlocked: task.is_blocked ?? undefined,
 });
 
 export const toTaskDependencyResponse = (dependency: TaskDependency): TaskDependencyResponse => ({

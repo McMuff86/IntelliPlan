@@ -21,6 +21,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { format } from 'date-fns';
+import axios from 'axios';
 import type {
   DependencyType,
   Task,
@@ -73,6 +74,7 @@ export default function TaskDetail() {
   const [slotFixed, setSlotFixed] = useState(false);
   const [shiftDays, setShiftDays] = useState<number | ''>('');
   const [cascadeShift, setCascadeShift] = useState(true);
+  const [shiftBlock, setShiftBlock] = useState(false);
 
   const loadTask = async () => {
     if (!id) return;
@@ -113,6 +115,7 @@ export default function TaskDetail() {
       return !depTask || depTask.status !== 'done';
     });
   }, [dependencies, dependencyMap]);
+  const blockedNow = task?.isBlocked ?? isBlocked;
 
   const handleStartTask = async () => {
     if (!task) return;
@@ -122,7 +125,13 @@ export default function TaskDetail() {
       setTask(updated);
     } catch (err) {
       console.error(err);
-      setError('Failed to start task');
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to start task');
+      } else {
+        setError('Failed to start task');
+      }
     } finally {
       setActionLoading(false);
     }
@@ -199,7 +208,11 @@ export default function TaskDetail() {
     if (!task || shiftDays === '' || Number.isNaN(shiftDays)) return;
     try {
       setActionLoading(true);
-      await taskService.shiftSchedule(task.id, { deltaDays: Number(shiftDays), cascade: cascadeShift });
+      await taskService.shiftSchedule(task.id, {
+        deltaDays: Number(shiftDays),
+        cascade: cascadeShift,
+        shiftBlock,
+      });
       await loadTask();
       setShiftDays('');
     } catch (err) {
@@ -263,6 +276,9 @@ export default function TaskDetail() {
           </Typography>
           <Stack direction="row" spacing={1} alignItems="center" mt={1}>
             <Chip size="small" label={statusLabel(task.status)} color={statusColor(task.status)} />
+            {blockedNow && task.status !== 'done' && task.status !== 'blocked' && (
+              <Chip size="small" label="Blocked" color="warning" />
+            )}
             {task.schedulingMode === 'auto' ? (
               <Chip size="small" label="Auto scheduling" variant="outlined" />
             ) : (
@@ -275,7 +291,7 @@ export default function TaskDetail() {
         </Button>
       </Box>
 
-      {isBlocked && task.status !== 'done' && (
+      {blockedNow && task.status !== 'done' && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           This task is blocked by unfinished dependencies.
         </Alert>
@@ -286,7 +302,7 @@ export default function TaskDetail() {
           <Button
             variant="contained"
             onClick={handleStartTask}
-            disabled={isBlocked || actionLoading}
+            disabled={blockedNow || actionLoading}
           >
             Start Task
           </Button>
@@ -462,9 +478,25 @@ export default function TaskDetail() {
               <Switch
                 checked={cascadeShift}
                 onChange={(event) => setCascadeShift(event.target.checked)}
+                disabled={shiftBlock}
               />
             }
             label="Shift dependent tasks"
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={shiftBlock}
+                onChange={(event) => {
+                  const checked = event.target.checked;
+                  setShiftBlock(checked);
+                  if (checked) {
+                    setCascadeShift(false);
+                  }
+                }}
+              />
+            }
+            label="Shift entire dependency block"
           />
           <Button
             variant="contained"

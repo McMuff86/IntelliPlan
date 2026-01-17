@@ -31,18 +31,33 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
   return result.rows[0];
 }
 
-export async function listTasksByProject(projectId: string, ownerId: string): Promise<Task[]> {
-  const result = await pool.query<Task>(
-    `SELECT * FROM tasks WHERE project_id = $1 AND owner_id = $2 ORDER BY created_at DESC`,
+type TaskWithBlocked = Task & { is_blocked?: boolean };
+
+export async function listTasksByProject(projectId: string, ownerId: string): Promise<TaskWithBlocked[]> {
+  const result = await pool.query<TaskWithBlocked>(
+    `SELECT t.*,
+            COALESCE(BOOL_OR(dep.status <> 'done'), false) AS is_blocked
+     FROM tasks t
+     LEFT JOIN task_dependencies td ON td.task_id = t.id
+     LEFT JOIN tasks dep ON td.depends_on_task_id = dep.id
+     WHERE t.project_id = $1 AND t.owner_id = $2
+     GROUP BY t.id
+     ORDER BY t.created_at DESC`,
     [projectId, ownerId]
   );
 
   return result.rows;
 }
 
-export async function getTaskById(taskId: string, ownerId: string): Promise<Task | null> {
-  const result = await pool.query<Task>(
-    `SELECT * FROM tasks WHERE id = $1 AND owner_id = $2`,
+export async function getTaskById(taskId: string, ownerId: string): Promise<TaskWithBlocked | null> {
+  const result = await pool.query<TaskWithBlocked>(
+    `SELECT t.*,
+            COALESCE(BOOL_OR(dep.status <> 'done'), false) AS is_blocked
+     FROM tasks t
+     LEFT JOIN task_dependencies td ON td.task_id = t.id
+     LEFT JOIN tasks dep ON td.depends_on_task_id = dep.id
+     WHERE t.id = $1 AND t.owner_id = $2
+     GROUP BY t.id`,
     [taskId, ownerId]
   );
 
@@ -141,6 +156,19 @@ export async function listDependencies(taskId: string, ownerId: string): Promise
   );
 
   return result.rows;
+}
+
+export async function isTaskBlocked(taskId: string, ownerId: string): Promise<boolean> {
+  const result = await pool.query<{ is_blocked: boolean }>(
+    `SELECT COALESCE(BOOL_OR(dep.status <> 'done'), false) AS is_blocked
+     FROM task_dependencies td
+     JOIN tasks t ON td.task_id = t.id
+     JOIN tasks dep ON td.depends_on_task_id = dep.id
+     WHERE t.id = $1 AND t.owner_id = $2`,
+    [taskId, ownerId]
+  );
+
+  return result.rows[0]?.is_blocked ?? false;
 }
 
 export async function deleteDependency(dependencyId: string, ownerId: string): Promise<boolean> {
@@ -273,6 +301,33 @@ const getDependentEdges = async (taskId: string, ownerId: string): Promise<Depen
   return result.rows;
 };
 
+const getConnectedTaskIds = async (taskId: string, ownerId: string): Promise<string[]> => {
+  const result = await pool.query<{ id: string }>(
+    `WITH RECURSIVE edges AS (
+        SELECT td.task_id, td.depends_on_task_id
+        FROM task_dependencies td
+        JOIN tasks t1 ON td.task_id = t1.id
+        JOIN tasks t2 ON td.depends_on_task_id = t2.id
+        WHERE t1.owner_id = $2 AND t2.owner_id = $2
+      ),
+      connected AS (
+        SELECT $1::uuid AS id
+        UNION
+        SELECT e.task_id
+        FROM edges e
+        JOIN connected c ON e.depends_on_task_id = c.id
+        UNION
+        SELECT e.depends_on_task_id
+        FROM edges e
+        JOIN connected c ON e.task_id = c.id
+      )
+     SELECT DISTINCT id FROM connected`,
+    [taskId, ownerId]
+  );
+
+  return result.rows.map((row) => row.id);
+};
+
 const getTaskScheduleSnapshots = async (
   taskIds: string[],
   ownerId: string
@@ -314,8 +369,19 @@ export const shiftTaskWithDependents = async (
   taskId: string,
   ownerId: string,
   deltaDays: number,
-  cascade: boolean
+  cascade: boolean,
+  shiftBlock = false
 ): Promise<ShiftResult> => {
+  if (shiftBlock) {
+    const blockIds = await getConnectedTaskIds(taskId, ownerId);
+    await shiftTaskSchedule(blockIds, ownerId, deltaDays);
+    return {
+      shiftedTaskIds: blockIds,
+      deltaDays,
+      shiftedTasks: blockIds.map((id) => ({ taskId: id, deltaDays })),
+    };
+  }
+
   const shiftMap = new Map<string, number>();
   shiftMap.set(taskId, deltaDays);
 
