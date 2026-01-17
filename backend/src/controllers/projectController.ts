@@ -1,0 +1,133 @@
+import { Request, Response, NextFunction } from 'express';
+import { validationResult } from 'express-validator';
+import { createProject, deleteProject, getProjectById, listProjects, updateProject } from '../services/projectService';
+import { toProjectResponse } from '../models/project';
+
+const getUserId = (req: Request): string | null => {
+  const user = req.user;
+  const header = req.headers['x-user-id'];
+  const userId = user?.id || (Array.isArray(header) ? header[0] : header);
+  return userId || null;
+};
+
+export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      return;
+    }
+
+    const projects = await listProjects(userId);
+    res.status(200).json({
+      success: true,
+      data: projects.map(toProjectResponse),
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      return;
+    }
+
+    const { name, description, includeWeekends, workdayStart, workdayEnd } = req.body;
+    const project = await createProject({
+      name,
+      description,
+      owner_id: userId,
+      include_weekends: includeWeekends,
+      workday_start: workdayStart,
+      workday_end: workdayEnd,
+    });
+
+    res.status(201).json({ success: true, data: toProjectResponse(project) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      return;
+    }
+
+    const project = await getProjectById(req.params.id as string, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: toProjectResponse(project) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function update(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      return;
+    }
+
+    const { name, description, includeWeekends, workdayStart, workdayEnd } = req.body;
+    const updated = await updateProject(req.params.id as string, userId, {
+      name,
+      description,
+      include_weekends: includeWeekends,
+      workday_start: workdayStart,
+      workday_end: workdayEnd,
+    });
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: toProjectResponse(updated) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function remove(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      return;
+    }
+
+    const deleted = await deleteProject(req.params.id as string, userId);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}

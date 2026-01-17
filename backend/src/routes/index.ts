@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import appointmentsRouter from './appointments';
+import projectsRouter from './projects';
+import tasksRouter from './tasks';
 
 const router = Router();
 
@@ -12,5 +14,7 @@ router.get('/health', (_req, res) => {
 });
 
 router.use('/appointments', appointmentsRouter);
+router.use('/projects', projectsRouter);
+router.use('/tasks', tasksRouter);
 
 export default router;

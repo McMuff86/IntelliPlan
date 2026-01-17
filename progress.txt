@@ -675,3 +675,14 @@ Thread: N/A (Codex)
 - AGENTS.md - Clarified Docker Postgres as recommended dev DB flow
 - backend/.env.example - Docker default DATABASE_URL and credentials
 ---
+
+## 2026-01-16 - Task Planning (PRD + Backend Skeleton)
+Thread: N/A (manual)
+- Created PRD for task planning and project scheduling
+- Added migrations for projects, tasks, dependencies, and work slots
+- Added backend models, services, controllers, and routes for project/task planning APIs
+
+**Learnings for future iterations:**
+- Use owner_id from x-user-id to scope project/task access
+- Work slots represent manual scheduling blocks for multi-day tasks
+---
