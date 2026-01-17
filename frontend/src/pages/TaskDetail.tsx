@@ -71,6 +71,8 @@ export default function TaskDetail() {
   const [slotStart, setSlotStart] = useState<Date | null>(null);
   const [slotEnd, setSlotEnd] = useState<Date | null>(null);
   const [slotFixed, setSlotFixed] = useState(false);
+  const [shiftDays, setShiftDays] = useState<number | ''>('');
+  const [cascadeShift, setCascadeShift] = useState(true);
 
   const loadTask = async () => {
     if (!id) return;
@@ -188,6 +190,21 @@ export default function TaskDetail() {
     } catch (err) {
       console.error(err);
       setError('Failed to add work slot');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleShiftSchedule = async () => {
+    if (!task || shiftDays === '' || Number.isNaN(shiftDays)) return;
+    try {
+      setActionLoading(true);
+      await taskService.shiftSchedule(task.id, { deltaDays: Number(shiftDays), cascade: cascadeShift });
+      await loadTask();
+      setShiftDays('');
+    } catch (err) {
+      console.error(err);
+      setError('Failed to shift schedule');
     } finally {
       setActionLoading(false);
     }
@@ -421,6 +438,42 @@ export default function TaskDetail() {
             </Button>
           </Stack>
         </LocalizationProvider>
+      </Paper>
+
+      <Paper sx={{ p: 2.5, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Shift Schedule
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+          <TextField
+            label="Shift by (days)"
+            type="number"
+            value={shiftDays}
+            onChange={(event) => {
+              const value = event.target.value;
+              setShiftDays(value === '' ? '' : Number(value));
+            }}
+            helperText="Use negative numbers to move earlier"
+            fullWidth
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                checked={cascadeShift}
+                onChange={(event) => setCascadeShift(event.target.checked)}
+              />
+            }
+            label="Shift dependent tasks"
+          />
+          <Button
+            variant="contained"
+            onClick={handleShiftSchedule}
+            disabled={shiftDays === '' || actionLoading}
+          >
+            Shift Schedule
+          </Button>
+        </Stack>
       </Paper>
     </Box>
   );

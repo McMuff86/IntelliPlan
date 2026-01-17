@@ -698,3 +698,14 @@ Thread: N/A (manual)
 - Projects/Tasks use x-user-id for scoping (same as appointments)
 - Task dependencies and work slots are managed via /tasks endpoints
 ---
+
+## 2026-01-17 - Task Cascading
+Thread: N/A (manual)
+- Added task schedule shift endpoint with optional cascade to dependent tasks
+- Shift updates task work slots and task start/due dates by delta days
+- Added Task Detail UI for shifting schedule with dependent toggle
+
+**Learnings for future iterations:**
+- Cascade uses recursive dependency lookup (finish/start types not yet differentiated)
+- Shift uses deltaDays for manual scheduling
+---

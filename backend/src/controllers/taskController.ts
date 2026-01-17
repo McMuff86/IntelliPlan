@@ -12,6 +12,7 @@ import {
   listTasksByProject,
   listWorkSlots,
   updateTask,
+  shiftTaskWithDependents,
 } from '../services/taskService';
 import { getProjectById } from '../services/projectService';
 import { toTaskDependencyResponse, toTaskResponse, toTaskWorkSlotResponse } from '../models/task';
@@ -293,6 +294,35 @@ export async function removeTaskWorkSlot(req: Request, res: Response, next: Next
     }
 
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function shiftSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const taskId = req.params.id as string;
+    const deltaDays = Number(req.body.deltaDays);
+    const cascade = Boolean(req.body.cascade);
+
+    const shiftResult = await shiftTaskWithDependents(taskId, userId, deltaDays, cascade);
+
+    res.status(200).json({
+      success: true,
+      data: shiftResult,
+    });
   } catch (error) {
     next(error);
   }

@@ -193,3 +193,84 @@ export async function deleteWorkSlot(slotId: string, ownerId: string): Promise<b
 
   return result.rowCount !== null && result.rowCount > 0;
 }
+
+export interface ShiftResult {
+  shiftedTaskIds: string[];
+  deltaDays: number;
+}
+
+const shiftTaskSchedule = async (taskIds: string[], ownerId: string, deltaDays: number): Promise<void> => {
+  if (taskIds.length === 0 || deltaDays === 0) {
+    return;
+  }
+
+  await pool.query(
+    `UPDATE task_work_slots
+     SET start_time = start_time + ($1 || ' days')::interval,
+         end_time = end_time + ($1 || ' days')::interval,
+         updated_at = NOW()
+     WHERE task_id = ANY($2::uuid[])
+       AND task_id IN (SELECT id FROM tasks WHERE owner_id = $3)`,
+    [deltaDays, taskIds, ownerId]
+  );
+
+  await pool.query(
+    `UPDATE tasks
+     SET start_date = CASE
+           WHEN start_date IS NULL THEN NULL
+           ELSE (start_date + ($1 || ' days')::interval)::date
+         END,
+         due_date = CASE
+           WHEN due_date IS NULL THEN NULL
+           ELSE (due_date + ($1 || ' days')::interval)::date
+         END,
+         updated_at = NOW()
+     WHERE id = ANY($2::uuid[])
+       AND owner_id = $3`,
+    [deltaDays, taskIds, ownerId]
+  );
+};
+
+const getDependentTaskIds = async (taskId: string, ownerId: string): Promise<string[]> => {
+  const result = await pool.query<{ task_id: string }>(
+    `WITH RECURSIVE deps AS (
+        SELECT td.task_id
+        FROM task_dependencies td
+        JOIN tasks t ON td.task_id = t.id
+        WHERE td.depends_on_task_id = $1 AND t.owner_id = $2
+      UNION
+        SELECT td.task_id
+        FROM task_dependencies td
+        JOIN tasks t ON td.task_id = t.id
+        JOIN deps d ON td.depends_on_task_id = d.task_id
+        WHERE t.owner_id = $2
+     )
+     SELECT DISTINCT task_id FROM deps`,
+    [taskId, ownerId]
+  );
+
+  return result.rows.map((row) => row.task_id);
+};
+
+export const shiftTaskWithDependents = async (
+  taskId: string,
+  ownerId: string,
+  deltaDays: number,
+  cascade: boolean
+): Promise<ShiftResult> => {
+  const shiftedIds = new Set<string>();
+  shiftedIds.add(taskId);
+
+  if (cascade) {
+    const dependentIds = await getDependentTaskIds(taskId, ownerId);
+    dependentIds.forEach((id) => shiftedIds.add(id));
+  }
+
+  const ids = Array.from(shiftedIds);
+  await shiftTaskSchedule(ids, ownerId, deltaDays);
+
+  return {
+    shiftedTaskIds: ids,
+    deltaDays,
+  };
+};

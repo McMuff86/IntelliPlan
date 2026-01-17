@@ -102,3 +102,15 @@ export const createWorkSlotValidator: ValidationChain[] = [
     .isBoolean()
     .withMessage('isFixed must be boolean'),
 ];
+
+export const shiftTaskValidator: ValidationChain[] = [
+  body('deltaDays')
+    .notEmpty()
+    .withMessage('deltaDays is required')
+    .isInt({ min: -3650, max: 3650 })
+    .withMessage('deltaDays must be an integer between -3650 and 3650'),
+  body('cascade')
+    .optional()
+    .isBoolean()
+    .withMessage('cascade must be boolean'),
+];

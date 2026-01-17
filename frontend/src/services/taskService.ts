@@ -65,4 +65,9 @@ export const taskService = {
   async deleteWorkSlot(taskId: string, slotId: string): Promise<void> {
     await api.delete(`/tasks/${taskId}/work-slots/${slotId}`);
   },
+
+  async shiftSchedule(taskId: string, data: { deltaDays: number; cascade?: boolean }): Promise<{ shiftedTaskIds: string[]; deltaDays: number }> {
+    const response = await api.post<ApiResponse<{ shiftedTaskIds: string[]; deltaDays: number }>>(`/tasks/${taskId}/shift`, data);
+    return response.data.data;
+  },
 };

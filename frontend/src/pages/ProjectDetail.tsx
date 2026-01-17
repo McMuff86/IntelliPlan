@@ -23,6 +23,7 @@ import type { Project, Task, TaskStatus, SchedulingMode } from '../types';
 import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
 import Breadcrumbs from '../components/Breadcrumbs';
+import axios from 'axios';
 
 const statusOptions: TaskStatus[] = ['planned', 'in_progress', 'blocked', 'done'];
 const schedulingOptions: SchedulingMode[] = ['manual', 'auto'];
@@ -101,20 +102,27 @@ export default function ProjectDetail() {
     try {
       setCreating(true);
       setError(null);
-      const created = await taskService.createInProject(project.id, {
+      const payload = {
         title: title.trim(),
         description: description.trim() || undefined,
         status,
         schedulingMode,
-        durationMinutes: durationMinutes === '' ? null : durationMinutes,
-        startDate: startDate ? formatISO(startDate, { representation: 'date' }) : null,
-        dueDate: dueDate ? formatISO(dueDate, { representation: 'date' }) : null,
-      });
+        durationMinutes: durationMinutes === '' ? undefined : durationMinutes,
+        startDate: startDate ? formatISO(startDate, { representation: 'date' }) : undefined,
+        dueDate: dueDate ? formatISO(dueDate, { representation: 'date' }) : undefined,
+      };
+      const created = await taskService.createInProject(project.id, payload);
       setTasks((prev) => [created, ...prev]);
       resetForm();
     } catch (err) {
       console.error(err);
-      setError('Failed to create task');
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to create task');
+      } else {
+        setError('Failed to create task');
+      }
     } finally {
       setCreating(false);
     }
