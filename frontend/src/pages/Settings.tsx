@@ -1,15 +1,19 @@
-import { Box, Typography, Paper, TextField, MenuItem, Button, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Paper, TextField, MenuItem, Button, Snackbar, Alert, Divider } from '@mui/material';
 import { useState } from 'react';
 import { useTimezone } from '../hooks/useTimezone';
+import { useThemePreference } from '../hooks/useThemePreference';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function Settings() {
   const { timezone, setTimezone, availableTimezones } = useTimezone();
+  const { theme, setTheme, themeOptions } = useThemePreference();
   const [selectedTimezone, setSelectedTimezone] = useState(timezone);
+  const [selectedTheme, setSelectedTheme] = useState(theme);
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     setTimezone(selectedTimezone);
+    setTheme(selectedTheme);
     setSaved(true);
   };
 
@@ -39,6 +43,30 @@ export default function Settings() {
           {availableTimezones.map((tz) => (
             <MenuItem key={tz} value={tz}>
               {tz.replace(/_/g, ' ')}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <Divider sx={{ my: 3 }} />
+
+        <Typography variant="h6" gutterBottom>
+          Appearance
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Choose a theme preset for the overall look and feel.
+        </Typography>
+
+        <TextField
+          select
+          label="Theme"
+          value={selectedTheme}
+          onChange={(e) => setSelectedTheme(e.target.value as typeof selectedTheme)}
+          fullWidth
+          sx={{ mb: 2 }}
+        >
+          {themeOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
             </MenuItem>
           ))}
         </TextField>

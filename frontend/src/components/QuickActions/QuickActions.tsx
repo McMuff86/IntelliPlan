@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import ListIcon from '@mui/icons-material/List';
 import FlashOnIcon from '@mui/icons-material/FlashOn';
+import TimelineIcon from '@mui/icons-material/Timeline';
 
 const QuickActions = () => {
   const navigate = useNavigate();
@@ -66,6 +67,16 @@ const QuickActions = () => {
             sx={{ justifyContent: 'flex-start', borderWidth: 2 }}
           >
             View List
+          </Button>
+          <Button
+            variant="outlined"
+            size="large"
+            startIcon={<TimelineIcon />}
+            onClick={() => navigate('/projects?view=calendar')}
+            fullWidth
+            sx={{ justifyContent: 'flex-start', borderWidth: 2 }}
+          >
+            Project Calendar
           </Button>
         </Stack>
       </CardContent>

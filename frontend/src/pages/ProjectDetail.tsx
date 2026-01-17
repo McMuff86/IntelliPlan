@@ -75,7 +75,9 @@ export default function ProjectDetail() {
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [shiftDays, setShiftDays] = useState<number | ''>('');
-  const [taskSortOrder, setTaskSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [taskSortOrder, setTaskSortOrder] = useState<
+    'title_asc' | 'title_desc' | 'start_asc' | 'start_desc' | 'due_asc' | 'due_desc' | 'created_asc' | 'created_desc'
+  >('title_asc');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [layoutOrder, setLayoutOrder] = useState<LayoutSectionKey[]>([...defaultLayoutOrder]);
@@ -167,8 +169,38 @@ export default function ProjectDetail() {
   const sortedTasks = useMemo(() => {
     const list = [...tasks];
     list.sort((a, b) => {
-      const result = a.title.localeCompare(b.title);
-      return taskSortOrder === 'asc' ? result : -result;
+      switch (taskSortOrder) {
+        case 'title_asc':
+          return a.title.localeCompare(b.title);
+        case 'title_desc':
+          return b.title.localeCompare(a.title);
+        case 'start_asc': {
+          const aTime = a.startDate ? new Date(a.startDate).getTime() : Number.POSITIVE_INFINITY;
+          const bTime = b.startDate ? new Date(b.startDate).getTime() : Number.POSITIVE_INFINITY;
+          return aTime - bTime;
+        }
+        case 'start_desc': {
+          const aTime = a.startDate ? new Date(a.startDate).getTime() : Number.NEGATIVE_INFINITY;
+          const bTime = b.startDate ? new Date(b.startDate).getTime() : Number.NEGATIVE_INFINITY;
+          return bTime - aTime;
+        }
+        case 'due_asc': {
+          const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.POSITIVE_INFINITY;
+          const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.POSITIVE_INFINITY;
+          return aTime - bTime;
+        }
+        case 'due_desc': {
+          const aTime = a.dueDate ? new Date(a.dueDate).getTime() : Number.NEGATIVE_INFINITY;
+          const bTime = b.dueDate ? new Date(b.dueDate).getTime() : Number.NEGATIVE_INFINITY;
+          return bTime - aTime;
+        }
+        case 'created_asc':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'created_desc':
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        default:
+          return 0;
+      }
     });
     return list;
   }, [tasks, taskSortOrder]);
@@ -374,11 +406,29 @@ export default function ProjectDetail() {
         label="Sort"
         size="small"
         value={taskSortOrder}
-        onChange={(event) => setTaskSortOrder(event.target.value as 'asc' | 'desc')}
+        onChange={(event) =>
+          setTaskSortOrder(
+            event.target.value as
+              | 'title_asc'
+              | 'title_desc'
+              | 'start_asc'
+              | 'start_desc'
+              | 'due_asc'
+              | 'due_desc'
+              | 'created_asc'
+              | 'created_desc'
+          )
+        }
         sx={{ minWidth: 160 }}
       >
-        <MenuItem value="asc">Title A-Z</MenuItem>
-        <MenuItem value="desc">Title Z-A</MenuItem>
+        <MenuItem value="title_asc">Title A-Z</MenuItem>
+        <MenuItem value="title_desc">Title Z-A</MenuItem>
+        <MenuItem value="start_asc">Start date (oldest)</MenuItem>
+        <MenuItem value="start_desc">Start date (newest)</MenuItem>
+        <MenuItem value="due_asc">Due date (oldest)</MenuItem>
+        <MenuItem value="due_desc">Due date (newest)</MenuItem>
+        <MenuItem value="created_asc">Created (oldest)</MenuItem>
+        <MenuItem value="created_desc">Created (newest)</MenuItem>
       </TextField>
     ),
   };

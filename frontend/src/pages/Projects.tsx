@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -18,6 +18,8 @@ import {
   DialogContent,
   DialogActions,
   TextField,
+  MenuItem,
+  SelectChangeEvent,
   FormControlLabel,
   Switch,
   Alert,
@@ -38,8 +40,18 @@ import axios from 'axios';
 const defaultWorkdayStart = '08:00';
 const defaultWorkdayEnd = '17:00';
 
+const formatDuration = (minutes?: number | null) => {
+  if (!minutes) return '';
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  if (hours && mins) return `${hours}h ${mins}m`;
+  if (hours) return `${hours}h`;
+  return `${mins}m`;
+};
+
 export default function Projects() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,10 +62,15 @@ export default function Projects() {
   const [includeWeekends, setIncludeWeekends] = useState(true);
   const [workdayStart, setWorkdayStart] = useState(defaultWorkdayStart);
   const [workdayEnd, setWorkdayEnd] = useState(defaultWorkdayEnd);
-  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>('grid');
+  const resolvedView = useMemo<'grid' | 'calendar'>(() => {
+    return searchParams.get('view') === 'calendar' ? 'calendar' : 'grid';
+  }, [searchParams]);
+  const [viewMode, setViewMode] = useState<'grid' | 'calendar'>(resolvedView);
   const [taskSlots, setTaskSlots] = useState<TaskWorkSlotCalendar[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [showWeekends, setShowWeekends] = useState(true);
+  const [projectFilter, setProjectFilter] = useState<string[]>([]);
 
   const loadProjects = async () => {
     try {
@@ -78,6 +95,10 @@ export default function Projects() {
   useEffect(() => {
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    setViewMode(resolvedView);
+  }, [resolvedView]);
 
   const resetForm = () => {
     setName('');
@@ -107,18 +128,20 @@ export default function Projects() {
     }
   }, [viewMode]);
 
-  const formatDuration = (minutes?: number | null) => {
-    if (!minutes) return '';
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours && mins) return `${hours}h ${mins}m`;
-    if (hours) return `${hours}h`;
-    return `${mins}m`;
-  };
+  const projectNameById = useMemo(() => {
+    return new Map(projects.map((project) => [project.id, project.name]));
+  }, [projects]);
+
+  const filteredSlots = useMemo(() => {
+    if (projectFilter.length === 0) {
+      return taskSlots;
+    }
+    return taskSlots.filter((slot) => projectFilter.includes(slot.projectId));
+  }, [projectFilter, taskSlots]);
 
   const calendarEvents = useMemo(
     () =>
-      taskSlots.map((slot) => {
+      filteredSlots.map((slot) => {
         const durationLabel = slot.taskDurationMinutes
           ? ` | ${formatDuration(slot.taskDurationMinutes)}`
           : '';
@@ -137,13 +160,21 @@ export default function Projects() {
           },
         };
       }),
-    [taskSlots]
+    [filteredSlots]
   );
 
   const handleViewModeChange = (_event: React.MouseEvent<HTMLElement>, nextView: 'grid' | 'calendar' | null) => {
     if (nextView) {
       setViewMode(nextView);
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.set('view', nextView);
+      setSearchParams(nextParams, { replace: true });
     }
+  };
+
+  const handleProjectFilterChange = (event: SelectChangeEvent<string[]>) => {
+    const value = event.target.value;
+    setProjectFilter(typeof value === 'string' ? value.split(',') : value);
   };
 
   const handleCalendarEventClick = (info: EventClickArg) => {
@@ -300,6 +331,53 @@ export default function Projects() {
               Shows task work slots across all projects (appointments are hidden).
             </Typography>
           </Stack>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={2}
+            alignItems={{ xs: 'stretch', md: 'center' }}
+            justifyContent="space-between"
+            sx={{ mb: 2 }}
+          >
+            <TextField
+              select
+              label="Filter projects"
+              value={projectFilter}
+              onChange={handleProjectFilterChange}
+              SelectProps={{
+                multiple: true,
+                renderValue: (selected) => {
+                  const ids = selected as string[];
+                  if (ids.length === 0) return 'All projects';
+                  return ids.map((id) => projectNameById.get(id) ?? 'Unknown').join(', ');
+                },
+              }}
+              fullWidth
+            >
+              {projects.map((project) => (
+                <MenuItem key={project.id} value={project.id}>
+                  {project.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+              <Button
+                variant="outlined"
+                onClick={() => setProjectFilter([])}
+                disabled={projectFilter.length === 0}
+              >
+                Clear Filter
+              </Button>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={showWeekends}
+                    onChange={(event) => setShowWeekends(event.target.checked)}
+                  />
+                }
+                label="Show weekends"
+              />
+            </Stack>
+          </Stack>
           {calendarError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {calendarError}
@@ -322,6 +400,7 @@ export default function Projects() {
               eventDisplay="block"
               displayEventEnd={true}
               dayMaxEvents={3}
+              weekends={showWeekends}
             />
           )}
         </Paper>

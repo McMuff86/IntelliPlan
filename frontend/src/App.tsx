@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, CssBaseline } from '@mui/material';
-import { lightTheme } from './theme/theme';
+import { lightTheme, codexTheme } from './theme/theme';
+import { useThemePreference } from './hooks/useThemePreference';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
 import Appointments from './pages/Appointments';
@@ -13,8 +14,11 @@ import ProjectTimeline from './pages/ProjectTimeline';
 import TaskDetail from './pages/TaskDetail';
 
 function App() {
+  const { theme } = useThemePreference();
+  const activeTheme = theme === 'codex' ? codexTheme : lightTheme;
+
   return (
-    <ThemeProvider theme={lightTheme}>
+    <ThemeProvider theme={activeTheme}>
       <CssBaseline />
       <BrowserRouter>
         <Layout>
