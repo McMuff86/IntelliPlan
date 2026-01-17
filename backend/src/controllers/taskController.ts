@@ -7,22 +7,63 @@ import {
   deleteDependency,
   deleteTask,
   deleteWorkSlot,
+  getDependencyById,
   getTaskById,
+  getWorkSlotById,
   isTaskBlocked,
   listDependencies,
   listTasksByProject,
   listWorkSlots,
+  listWorkSlotsForCalendar,
   updateTask,
   shiftTaskWithDependents,
 } from '../services/taskService';
 import { getProjectById } from '../services/projectService';
 import { toTaskDependencyResponse, toTaskResponse, toTaskWorkSlotResponse } from '../models/task';
+import type { Task } from '../models/task';
+import { createProjectActivity } from '../services/activityService';
 
 const getUserId = (req: Request): string | null => {
   if (!req.user) {
     return null;
   }
   return req.user.id;
+};
+
+const formatValue = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined || value === '') {
+    return 'unset';
+  }
+  return String(value);
+};
+
+const buildTaskUpdateSummary = (before: Task, after: Task): string | null => {
+  const changes: string[] = [];
+
+  if (before.title !== after.title) {
+    changes.push(`title "${before.title}" -> "${after.title}"`);
+  }
+  if (before.status !== after.status) {
+    changes.push(`status ${before.status} -> ${after.status}`);
+  }
+  if (before.start_date !== after.start_date) {
+    changes.push(`start ${formatValue(before.start_date)} -> ${formatValue(after.start_date)}`);
+  }
+  if (before.due_date !== after.due_date) {
+    changes.push(`due ${formatValue(before.due_date)} -> ${formatValue(after.due_date)}`);
+  }
+  if (before.duration_minutes !== after.duration_minutes) {
+    changes.push(`duration ${formatValue(before.duration_minutes)} -> ${formatValue(after.duration_minutes)}`);
+  }
+  if (before.scheduling_mode !== after.scheduling_mode) {
+    changes.push(`mode ${before.scheduling_mode} -> ${after.scheduling_mode}`);
+  }
+
+  if (changes.length === 0) {
+    return null;
+  }
+
+  return `Task updated: ${after.title} (${changes.join(', ')})`;
 };
 
 export async function listByProject(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -81,6 +122,15 @@ export async function createInProject(req: Request, res: Response, next: NextFun
       due_date: dueDate ?? null,
     });
 
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'task',
+      action: 'created',
+      summary: `Task created: ${task.title}`,
+      metadata: { taskId: task.id, projectId },
+    });
+
     res.status(201).json({ success: true, data: toTaskResponse(task) });
   } catch (error) {
     next(error);
@@ -121,6 +171,12 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
+    const existingTask = await getTaskById(req.params.id as string, userId);
+    if (!existingTask) {
+      res.status(404).json({ success: false, error: 'Task not found' });
+      return;
+    }
+
     const { title, description, status, schedulingMode, durationMinutes, startDate, dueDate } = req.body;
     if (status === 'in_progress') {
       const blocked = await isTaskBlocked(req.params.id as string, userId);
@@ -144,6 +200,18 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
+    const summary = buildTaskUpdateSummary(existingTask as Task, updated);
+    if (summary) {
+      await createProjectActivity({
+        project_id: existingTask.project_id,
+        actor_user_id: userId,
+        entity_type: 'task',
+        action: 'updated',
+        summary,
+        metadata: { taskId: updated.id, projectId: existingTask.project_id },
+      });
+    }
+
     res.status(200).json({ success: true, data: toTaskResponse(updated) });
   } catch (error) {
     next(error);
@@ -158,11 +226,26 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
+    const existingTask = await getTaskById(req.params.id as string, userId);
+    if (!existingTask) {
+      res.status(404).json({ success: false, error: 'Task not found' });
+      return;
+    }
+
     const deleted = await deleteTask(req.params.id as string, userId);
     if (!deleted) {
       res.status(404).json({ success: false, error: 'Task not found' });
       return;
     }
+
+    await createProjectActivity({
+      project_id: existingTask.project_id,
+      actor_user_id: userId,
+      entity_type: 'task',
+      action: 'deleted',
+      summary: `Task deleted: ${existingTask.title}`,
+      metadata: { taskId: existingTask.id, projectId: existingTask.project_id },
+    });
 
     res.status(204).send();
   } catch (error) {
@@ -212,6 +295,24 @@ export async function createTaskDependency(req: Request, res: Response, next: Ne
       return;
     }
 
+    const task = await getTaskById(req.params.id as string, userId);
+    const dependsOnTask = await getTaskById(dependsOnTaskId, userId);
+    if (task && dependsOnTask) {
+      await createProjectActivity({
+        project_id: task.project_id,
+        actor_user_id: userId,
+        entity_type: 'dependency',
+        action: 'created',
+        summary: `Dependency added: ${task.title} depends on ${dependsOnTask.title} (${dependencyType})`,
+        metadata: {
+          taskId: task.id,
+          dependsOnTaskId,
+          dependencyType,
+          projectId: task.project_id,
+        },
+      });
+    }
+
     res.status(201).json({ success: true, data: toTaskDependencyResponse(dependency) });
   } catch (error) {
     next(error);
@@ -226,10 +327,31 @@ export async function removeTaskDependency(req: Request, res: Response, next: Ne
       return;
     }
 
+    const existingDependency = await getDependencyById(req.params.dependencyId as string, userId);
     const deleted = await deleteDependency(req.params.dependencyId as string, userId);
     if (!deleted) {
       res.status(404).json({ success: false, error: 'Dependency not found' });
       return;
+    }
+
+    if (existingDependency) {
+      const task = await getTaskById(existingDependency.task_id, userId);
+      const dependsOnTask = await getTaskById(existingDependency.depends_on_task_id, userId);
+      if (task && dependsOnTask) {
+        await createProjectActivity({
+          project_id: task.project_id,
+          actor_user_id: userId,
+          entity_type: 'dependency',
+          action: 'deleted',
+          summary: `Dependency removed: ${task.title} no longer depends on ${dependsOnTask.title} (${existingDependency.dependency_type})`,
+          metadata: {
+            taskId: task.id,
+            dependsOnTaskId: existingDependency.depends_on_task_id,
+            dependencyType: existingDependency.dependency_type,
+            projectId: task.project_id,
+          },
+        });
+      }
     }
 
     res.status(204).send();
@@ -248,6 +370,32 @@ export async function listTaskWorkSlots(req: Request, res: Response, next: NextF
 
     const slots = await listWorkSlots(req.params.id as string, userId);
     res.status(200).json({ success: true, data: slots.map(toTaskWorkSlotResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listCalendarWorkSlots(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const slots = await listWorkSlotsForCalendar(userId);
+    const response = slots.map((slot) => ({
+      id: slot.id,
+      taskId: slot.task_id,
+      taskTitle: slot.task_title,
+      projectId: slot.project_id,
+      projectName: slot.project_name,
+      startTime: slot.start_time,
+      endTime: slot.end_time,
+      isFixed: slot.is_fixed,
+    }));
+
+    res.status(200).json({ success: true, data: response });
   } catch (error) {
     next(error);
   }
@@ -281,6 +429,25 @@ export async function createTaskWorkSlot(req: Request, res: Response, next: Next
       return;
     }
 
+    const task = await getTaskById(req.params.id as string, userId);
+    if (task) {
+      await createProjectActivity({
+        project_id: task.project_id,
+        actor_user_id: userId,
+        entity_type: 'work_slot',
+        action: 'created',
+        summary: `Work slot added: ${task.title} (${startTime} - ${endTime})`,
+        metadata: {
+          taskId: task.id,
+          workSlotId: slot.id,
+          startTime,
+          endTime,
+          isFixed: slot.is_fixed,
+          projectId: task.project_id,
+        },
+      });
+    }
+
     res.status(201).json({ success: true, data: toTaskWorkSlotResponse(slot) });
   } catch (error) {
     next(error);
@@ -295,10 +462,32 @@ export async function removeTaskWorkSlot(req: Request, res: Response, next: Next
       return;
     }
 
+    const existingSlot = await getWorkSlotById(req.params.slotId as string, userId);
     const deleted = await deleteWorkSlot(req.params.slotId as string, userId);
     if (!deleted) {
       res.status(404).json({ success: false, error: 'Work slot not found' });
       return;
+    }
+
+    if (existingSlot) {
+      const task = await getTaskById(existingSlot.task_id, userId);
+      if (task) {
+        await createProjectActivity({
+          project_id: task.project_id,
+          actor_user_id: userId,
+          entity_type: 'work_slot',
+          action: 'deleted',
+          summary: `Work slot removed: ${task.title} (${existingSlot.start_time} - ${existingSlot.end_time})`,
+          metadata: {
+            taskId: task.id,
+            workSlotId: existingSlot.id,
+            startTime: existingSlot.start_time,
+            endTime: existingSlot.end_time,
+            isFixed: existingSlot.is_fixed,
+            projectId: task.project_id,
+          },
+        });
+      }
     }
 
     res.status(204).send();
@@ -327,6 +516,25 @@ export async function shiftSchedule(req: Request, res: Response, next: NextFunct
     const shiftBlock = Boolean(req.body.shiftBlock);
 
     const shiftResult = await shiftTaskWithDependents(taskId, userId, deltaDays, cascade, shiftBlock);
+
+    const task = await getTaskById(taskId, userId);
+    if (task) {
+      const shiftMode = shiftBlock ? 'block' : cascade ? 'cascade' : 'single';
+      await createProjectActivity({
+        project_id: task.project_id,
+        actor_user_id: userId,
+        entity_type: 'task',
+        action: 'shifted',
+        summary: `Task schedule shifted: ${task.title} by ${deltaDays} days (${shiftMode})`,
+        metadata: {
+          taskId,
+          deltaDays,
+          shiftMode,
+          shiftedTaskIds: shiftResult.shiftedTaskIds,
+          projectId: task.project_id,
+        },
+      });
+    }
 
     res.status(200).json({
       success: true,

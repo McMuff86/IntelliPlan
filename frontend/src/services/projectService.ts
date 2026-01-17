@@ -1,4 +1,4 @@
-import type { CreateProjectDTO, Project } from '../types';
+import type { CreateProjectDTO, Project, ProjectActivity } from '../types';
 import api from './api';
 
 interface ApiResponse<T> {
@@ -29,5 +29,20 @@ export const projectService = {
 
   async delete(id: string): Promise<void> {
     await api.delete(`/projects/${id}`);
+  },
+
+  async shiftSchedule(
+    id: string,
+    data: { deltaDays: number }
+  ): Promise<{ shiftedTaskIds: string[]; deltaDays: number; shiftedTasks?: { taskId: string; deltaDays: number }[] }> {
+    const response = await api.post<
+      ApiResponse<{ shiftedTaskIds: string[]; deltaDays: number; shiftedTasks?: { taskId: string; deltaDays: number }[] }>
+    >(`/projects/${id}/shift`, data);
+    return response.data.data;
+  },
+
+  async getActivity(id: string): Promise<ProjectActivity[]> {
+    const response = await api.get<ApiResponse<ProjectActivity[]>>(`/projects/${id}/activity`);
+    return response.data.data;
   },
 };

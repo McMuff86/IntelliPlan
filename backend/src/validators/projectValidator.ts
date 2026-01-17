@@ -52,3 +52,11 @@ export const updateProjectValidator: ValidationChain[] = [
     .matches(/^\d{2}:\d{2}$/)
     .withMessage('workdayEnd must be in HH:MM format'),
 ];
+
+export const shiftProjectValidator: ValidationChain[] = [
+  body('deltaDays')
+    .notEmpty()
+    .withMessage('deltaDays is required')
+    .isInt({ min: -3650, max: 3650 })
+    .withMessage('deltaDays must be an integer between -3650 and 3650'),
+];

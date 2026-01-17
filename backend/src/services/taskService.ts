@@ -1,6 +1,17 @@
 import { pool } from '../config/database';
 import type { CreateTaskDTO, Task, TaskDependency, TaskWorkSlot, UpdateTaskDTO, DependencyType } from '../models/task';
 
+export interface TaskWorkSlotCalendar {
+  id: string;
+  task_id: string;
+  task_title: string;
+  project_id: string;
+  project_name: string;
+  start_time: string;
+  end_time: string;
+  is_fixed: boolean;
+}
+
 export async function createTask(data: CreateTaskDTO): Promise<Task> {
   const result = await pool.query<Task>(
     `INSERT INTO tasks (
@@ -212,6 +223,27 @@ export async function listWorkSlots(taskId: string, ownerId: string): Promise<Ta
   return result.rows;
 }
 
+export async function listWorkSlotsForCalendar(ownerId: string): Promise<TaskWorkSlotCalendar[]> {
+  const result = await pool.query<TaskWorkSlotCalendar>(
+    `SELECT tws.id,
+            tws.task_id,
+            t.title AS task_title,
+            t.project_id,
+            p.name AS project_name,
+            tws.start_time,
+            tws.end_time,
+            tws.is_fixed
+     FROM task_work_slots tws
+     JOIN tasks t ON tws.task_id = t.id
+     JOIN projects p ON t.project_id = p.id
+     WHERE t.owner_id = $1
+     ORDER BY tws.start_time ASC`,
+    [ownerId]
+  );
+
+  return result.rows;
+}
+
 export async function deleteWorkSlot(slotId: string, ownerId: string): Promise<boolean> {
   const result = await pool.query(
     `DELETE FROM task_work_slots
@@ -220,6 +252,33 @@ export async function deleteWorkSlot(slotId: string, ownerId: string): Promise<b
   );
 
   return result.rowCount !== null && result.rowCount > 0;
+}
+
+export async function getWorkSlotById(slotId: string, ownerId: string): Promise<TaskWorkSlot | null> {
+  const result = await pool.query<TaskWorkSlot>(
+    `SELECT tws.*
+     FROM task_work_slots tws
+     JOIN tasks t ON tws.task_id = t.id
+     WHERE tws.id = $1 AND t.owner_id = $2`,
+    [slotId, ownerId]
+  );
+
+  return result.rows[0] || null;
+}
+
+export async function getDependencyById(
+  dependencyId: string,
+  ownerId: string
+): Promise<TaskDependency | null> {
+  const result = await pool.query<TaskDependency>(
+    `SELECT td.*
+     FROM task_dependencies td
+     JOIN tasks t ON td.task_id = t.id
+     WHERE td.id = $1 AND t.owner_id = $2`,
+    [dependencyId, ownerId]
+  );
+
+  return result.rows[0] || null;
 }
 
 export interface ShiftResult {
@@ -279,6 +338,34 @@ const shiftTaskSchedule = async (taskIds: string[], ownerId: string, deltaDays: 
     [deltaDays, taskIds, ownerId]
   );
 };
+
+export async function shiftProjectSchedule(
+  projectId: string,
+  ownerId: string,
+  deltaDays: number
+): Promise<ShiftResult> {
+  if (deltaDays === 0) {
+    return { shiftedTaskIds: [], deltaDays, shiftedTasks: [] };
+  }
+
+  const result = await pool.query<{ id: string }>(
+    `SELECT id FROM tasks WHERE project_id = $1 AND owner_id = $2`,
+    [projectId, ownerId]
+  );
+
+  const ids = result.rows.map((row) => row.id);
+  if (ids.length === 0) {
+    return { shiftedTaskIds: [], deltaDays, shiftedTasks: [] };
+  }
+
+  await shiftTaskSchedule(ids, ownerId, deltaDays);
+
+  return {
+    shiftedTaskIds: ids,
+    deltaDays,
+    shiftedTasks: ids.map((id) => ({ taskId: id, deltaDays })),
+  };
+}
 
 const getDependentEdges = async (taskId: string, ownerId: string): Promise<DependencyEdge[]> => {
   const result = await pool.query<DependencyEdge>(

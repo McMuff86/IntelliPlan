@@ -98,6 +98,17 @@ export interface TaskWorkSlot {
   updatedAt: string;
 }
 
+export interface TaskWorkSlotCalendar {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  projectId: string;
+  projectName: string;
+  startTime: string;
+  endTime: string;
+  isFixed: boolean;
+}
+
 export interface CreateProjectDTO {
   name: string;
   description?: string;
@@ -125,4 +136,15 @@ export interface CreateWorkSlotDTO {
   startTime: string;
   endTime: string;
   isFixed?: boolean;
+}
+
+export interface ProjectActivity {
+  id: string;
+  projectId: string;
+  actorUserId: string | null;
+  entityType: 'project' | 'task' | 'work_slot' | 'dependency';
+  action: string;
+  summary: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
 }

@@ -8,6 +8,7 @@ const router = Router();
 router.use(requireUserId);
 router.use(loadUser);
 
+router.get('/work-slots', taskController.listCalendarWorkSlots);
 router.get('/:id', taskController.getById);
 router.put('/:id', updateTaskValidator, taskController.update);
 router.delete('/:id', taskController.remove);

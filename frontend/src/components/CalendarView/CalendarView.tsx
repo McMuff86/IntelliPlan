@@ -6,13 +6,14 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import type { DateClickArg, EventResizeDoneArg } from '@fullcalendar/interaction';
-import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert, Skeleton, Grid, Stack, Chip } from '@mui/material';
+import { Box, Paper, Typography, List, ListItem, ListItemText, Dialog, DialogTitle, DialogContent, DialogActions, IconButton, ToggleButtonGroup, ToggleButton, Button, Snackbar, Alert, Skeleton, Grid, Stack, Chip, FormControlLabel, Switch, Tooltip } from '@mui/material';
 import { Close as CloseIcon, CalendarMonth, ViewWeek, Today, Add as AddIcon } from '@mui/icons-material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { format } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
-import type { Appointment } from '../../types';
+import { taskService } from '../../services/taskService';
+import type { Appointment, TaskWorkSlotCalendar } from '../../types';
 import axios from 'axios';
 
 interface CalendarEvent {
@@ -20,12 +21,29 @@ interface CalendarEvent {
   title: string;
   start: string;
   end: string;
+  allDay?: boolean;
+  backgroundColor?: string;
+  borderColor?: string;
+  textColor?: string;
   extendedProps: {
-    appointment: Appointment;
+    type: 'appointment' | 'task';
+    appointment?: Appointment;
+    taskSlot?: TaskWorkSlotCalendar;
   };
 }
 
 type CalendarViewType = 'dayGridMonth' | 'timeGridWeek' | 'timeGridDay';
+
+interface DayEntry {
+  id: string;
+  type: 'appointment' | 'task';
+  title: string;
+  startTime: string;
+  endTime: string;
+  appointmentId?: string;
+  taskId?: string;
+  projectName?: string;
+}
 
 interface PendingDrop {
   appointmentId: string;
@@ -41,8 +59,10 @@ export default function CalendarView() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [dayAppointments, setDayAppointments] = useState<Appointment[]>([]);
+  const [dayEntries, setDayEntries] = useState<DayEntry[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [showTaskOverlay, setShowTaskOverlay] = useState(false);
+  const [taskSlots, setTaskSlots] = useState<TaskWorkSlotCalendar[]>([]);
   const resolvedView = useMemo<CalendarViewType>(() => {
     const viewParam = searchParams.get('view');
     if (viewParam === 'day') return 'timeGridDay';
@@ -63,6 +83,12 @@ export default function CalendarView() {
   }, []);
 
   useEffect(() => {
+    if (showTaskOverlay) {
+      loadTaskSlots();
+    }
+  }, [showTaskOverlay]);
+
+  useEffect(() => {
     if (!calendarRef) return;
     const calendarApi = calendarRef.getApi();
     if (resolvedView !== currentView) {
@@ -79,17 +105,37 @@ export default function CalendarView() {
   }, [calendarRef, currentView, resolvedView, searchParams]);
 
   useEffect(() => {
-    const calendarEvents: CalendarEvent[] = appointments.map((apt) => ({
+    const appointmentEvents: CalendarEvent[] = appointments.map((apt) => ({
       id: apt.id,
       title: apt.title,
       start: apt.startTime,
       end: apt.endTime,
+      allDay: false,
       extendedProps: {
+        type: 'appointment',
         appointment: apt,
       },
     }));
-    setEvents(calendarEvents);
-  }, [appointments]);
+
+    const taskEvents: CalendarEvent[] = showTaskOverlay
+      ? taskSlots.map((slot) => ({
+          id: `task-${slot.id}`,
+          title: `${slot.taskTitle} · ${slot.projectName}`,
+          start: slot.startTime,
+          end: slot.endTime,
+          allDay: false,
+          backgroundColor: 'rgba(249, 115, 22, 0.85)',
+          borderColor: 'rgba(234, 88, 12, 0.9)',
+          textColor: '#ffffff',
+          extendedProps: {
+            type: 'task',
+            taskSlot: slot,
+          },
+        }))
+      : [];
+
+    setEvents([...appointmentEvents, ...taskEvents]);
+  }, [appointments, showTaskOverlay, taskSlots]);
 
   const loadAppointments = async () => {
     try {
@@ -103,36 +149,92 @@ export default function CalendarView() {
     }
   };
 
+  const loadTaskSlots = async () => {
+    try {
+      const response = await taskService.getWorkSlotsForCalendar();
+      setTaskSlots(response);
+    } catch (error) {
+      console.error('Failed to load task work slots:', error);
+    }
+  };
+
   const handleEventClick = (info: EventClickArg) => {
+    const { type, appointment, taskSlot } = info.event.extendedProps as CalendarEvent['extendedProps'];
+    if (type === 'task' && taskSlot?.taskId) {
+      navigate(`/tasks/${taskSlot.taskId}`);
+      return;
+    }
+    if (appointment?.id) {
+      navigate(`/appointments/${appointment.id}`);
+      return;
+    }
     navigate(`/appointments/${info.event.id}`);
   };
 
   const handleDateClick = (info: DateClickArg) => {
     const clickedDate = info.date;
     setSelectedDate(clickedDate);
-    
-    const dayApts = appointments.filter((apt) => {
+
+    const dayItems: DayEntry[] = [];
+    appointments.forEach((apt) => {
       const aptDate = toZonedTime(new Date(apt.startTime), userTimezone);
-      return (
+      if (
         aptDate.getFullYear() === clickedDate.getFullYear() &&
         aptDate.getMonth() === clickedDate.getMonth() &&
         aptDate.getDate() === clickedDate.getDate()
-      );
+      ) {
+        dayItems.push({
+          id: apt.id,
+          type: 'appointment',
+          title: apt.title,
+          startTime: apt.startTime,
+          endTime: apt.endTime,
+          appointmentId: apt.id,
+        });
+      }
     });
-    
-    setDayAppointments(dayApts);
+
+    if (showTaskOverlay) {
+      taskSlots.forEach((slot) => {
+        const slotDate = toZonedTime(new Date(slot.startTime), userTimezone);
+        if (
+          slotDate.getFullYear() === clickedDate.getFullYear() &&
+          slotDate.getMonth() === clickedDate.getMonth() &&
+          slotDate.getDate() === clickedDate.getDate()
+        ) {
+          dayItems.push({
+            id: slot.id,
+            type: 'task',
+            title: slot.taskTitle,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            taskId: slot.taskId,
+            projectName: slot.projectName,
+          });
+        }
+      });
+    }
+
+    dayItems.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    setDayEntries(dayItems);
     setDialogOpen(true);
   };
 
   const handleDialogClose = () => {
     setDialogOpen(false);
     setSelectedDate(null);
-    setDayAppointments([]);
+    setDayEntries([]);
   };
 
   const handleAppointmentClick = (id: string) => {
     handleDialogClose();
     navigate(`/appointments/${id}`);
+  };
+
+  const handleTaskClick = (id: string) => {
+    handleDialogClose();
+    navigate(`/tasks/${id}`);
   };
 
   const formatTime = (dateString: string) => {
@@ -247,6 +349,8 @@ export default function CalendarView() {
     );
   }
 
+  const eventDisplayMode = currentView === 'dayGridMonth' ? 'auto' : 'block';
+
   return (
     <Box>
       <Paper
@@ -256,7 +360,23 @@ export default function CalendarView() {
           borderRadius: 3,
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, gap: 2 }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showTaskOverlay}
+                onChange={(event) => setShowTaskOverlay(event.target.checked)}
+              />
+            }
+            label={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="body2">Tasks overlay</Typography>
+                <Tooltip title="Show task work slots alongside appointments">
+                  <Chip size="small" label={taskSlots.length} variant="outlined" />
+                </Tooltip>
+              </Stack>
+            }
+          />
           <ToggleButtonGroup
             value={currentView}
             exclusive
@@ -293,7 +413,8 @@ export default function CalendarView() {
             right: '',
           }}
           height="auto"
-          eventDisplay="block"
+          eventDisplay={eventDisplayMode}
+          displayEventEnd={true}
           dayMaxEvents={3}
           slotMinTime="06:00:00"
           slotMaxTime="22:00:00"
@@ -312,13 +433,13 @@ export default function CalendarView() {
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          {dayAppointments.length === 0 ? (
+          {dayEntries.length === 0 ? (
             <Box sx={{ py: 2.5, textAlign: 'center' }}>
               <Typography color="text.secondary" gutterBottom>
-                No appointments on this day
+                No items on this day
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Add a meeting to keep your schedule moving.
+                Add an appointment or work slot to keep your schedule moving.
               </Typography>
               <Button
                 variant="contained"
@@ -334,10 +455,16 @@ export default function CalendarView() {
             </Box>
           ) : (
             <Stack spacing={1.5}>
-              {dayAppointments.map((apt) => (
+              {dayEntries.map((entry) => (
                 <Paper
-                  key={apt.id}
-                  onClick={() => handleAppointmentClick(apt.id)}
+                  key={`${entry.type}-${entry.id}`}
+                  onClick={() => {
+                    if (entry.type === 'task' && entry.taskId) {
+                      handleTaskClick(entry.taskId);
+                    } else if (entry.appointmentId) {
+                      handleAppointmentClick(entry.appointmentId);
+                    }
+                  }}
                   sx={{
                     p: 1.5,
                     borderRadius: 2,
@@ -357,18 +484,30 @@ export default function CalendarView() {
                       width: 6,
                       height: 44,
                       borderRadius: 999,
-                      background: 'linear-gradient(180deg, rgba(15, 118, 110, 0.8), rgba(14, 165, 233, 0.8))',
+                      background:
+                        entry.type === 'task'
+                          ? 'linear-gradient(180deg, rgba(249, 115, 22, 0.85), rgba(234, 88, 12, 0.9))'
+                          : 'linear-gradient(180deg, rgba(15, 118, 110, 0.8), rgba(14, 165, 233, 0.8))',
                     }}
                   />
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="subtitle1" fontWeight={600}>
-                      {apt.title}
+                      {entry.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {formatTime(apt.startTime)} - {formatTime(apt.endTime)}
+                      {formatTime(entry.startTime)} - {formatTime(entry.endTime)}
                     </Typography>
+                    {entry.projectName && (
+                      <Typography variant="caption" color="text.secondary">
+                        {entry.projectName}
+                      </Typography>
+                    )}
                   </Box>
-                  <Chip label="Open" size="small" variant="outlined" />
+                  <Chip
+                    label={entry.type === 'task' ? 'Task' : 'Appointment'}
+                    size="small"
+                    variant="outlined"
+                  />
                 </Paper>
               ))}
             </Stack>

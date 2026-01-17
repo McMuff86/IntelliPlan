@@ -5,6 +5,7 @@ import type {
   Task,
   TaskDependency,
   TaskWorkSlot,
+  TaskWorkSlotCalendar,
 } from '../types';
 import api from './api';
 
@@ -73,6 +74,11 @@ export const taskService = {
     const response = await api.post<
       ApiResponse<{ shiftedTaskIds: string[]; deltaDays: number; shiftedTasks?: { taskId: string; deltaDays: number }[] }>
     >(`/tasks/${taskId}/shift`, data);
+    return response.data.data;
+  },
+
+  async getWorkSlotsForCalendar(): Promise<TaskWorkSlotCalendar[]> {
+    const response = await api.get<ApiResponse<TaskWorkSlotCalendar[]>>('/tasks/work-slots');
     return response.data.data;
   },
 };
