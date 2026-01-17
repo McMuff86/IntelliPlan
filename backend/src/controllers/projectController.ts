@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { createProject, deleteProject, getProjectById, listProjects, updateProject } from '../services/projectService';
+import { shiftProjectSchedule } from '../services/taskService';
 import { toProjectResponse } from '../models/project';
 
 const getUserId = (req: Request): string | null => {
@@ -127,6 +128,36 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
     }
 
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function shiftSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const deltaDays = Number(req.body.deltaDays);
+    const shiftResult = await shiftProjectSchedule(projectId, userId, deltaDays);
+
+    res.status(200).json({ success: true, data: shiftResult });
   } catch (error) {
     next(error);
   }
