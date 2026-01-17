@@ -6,11 +6,16 @@ import interactionPlugin from '@fullcalendar/interaction';
 import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
 import {
   addDays,
+  addWeeks,
   eachDayOfInterval,
   differenceInCalendarDays,
   format,
+  getISOWeek,
   isWeekend,
+  isSameMonth,
+  startOfMonth,
   startOfDay,
+  startOfWeek,
 } from 'date-fns';
 import {
   Box,
@@ -52,6 +57,13 @@ const defaultWorkdayEnd = '17:00';
 const ganttColumnWidth = 56;
 const ganttHeaderHeight = 44;
 const ganttRowHeight = 56;
+const holidayStorageKey = 'intelliplan-holidays';
+
+type Holiday = {
+  id: string;
+  date: string;
+  name: string;
+};
 
 const formatDuration = (minutes?: number | null) => {
   if (!minutes) return '';
@@ -88,6 +100,9 @@ export default function Projects() {
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [showWeekends, setShowWeekends] = useState(true);
   const [showProjectOverlay, setShowProjectOverlay] = useState(true);
+  const [showWeekNumbers, setShowWeekNumbers] = useState(false);
+  const [calendarMode, setCalendarMode] = useState<'month' | 'year'>('month');
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
   const [dragDeltaDays, setDragDeltaDays] = useState(0);
@@ -98,6 +113,12 @@ export default function Projects() {
     projectName: string;
     deltaDays: number;
   } | null>(null);
+  const [holidays, setHolidays] = useState<Holiday[]>([]);
+  const [holidayDialogOpen, setHolidayDialogOpen] = useState(false);
+  const [holidayName, setHolidayName] = useState('');
+  const [holidayDate, setHolidayDate] = useState('');
+  const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
+  const [holidayError, setHolidayError] = useState<string | null>(null);
   const dragStartXRef = useRef(0);
   const dragDeltaRef = useRef(0);
 
@@ -124,6 +145,25 @@ export default function Projects() {
   useEffect(() => {
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const raw = window.localStorage.getItem(holidayStorageKey);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Holiday[];
+      if (Array.isArray(parsed)) {
+        setHolidays(parsed);
+      }
+    } catch (error) {
+      console.warn('Failed to parse holidays', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(holidayStorageKey, JSON.stringify(holidays));
+  }, [holidays]);
 
   useEffect(() => {
     setViewMode(resolvedView);
@@ -189,12 +229,129 @@ export default function Projects() {
     setProjectFilter(value as string[]);
   };
 
+  const handleCalendarModeChange = (_event: React.MouseEvent<HTMLElement>, nextMode: 'month' | 'year' | null) => {
+    if (!nextMode) return;
+    setCalendarMode(nextMode);
+    if (nextMode === 'year') {
+      setShowProjectOverlay(false);
+    }
+  };
+
+  const handleCalendarYearChange = (event: SelectChangeEvent<number>) => {
+    const nextYear = Number(event.target.value);
+    setCalendarYear(nextYear);
+  };
+
+  const buildMonthWeeks = (month: Date) => {
+    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
+    return Array.from({ length: 6 }, (_unused, weekIndex) => {
+      const weekStart = addWeeks(start, weekIndex);
+      return Array.from({ length: 7 }, (_dayUnused, dayIndex) => addDays(weekStart, dayIndex));
+    });
+  };
+
+  const weekDayLabels = useMemo(
+    () => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    []
+  );
+
+  const holidayYearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    return [current - 1, current, current + 1, current + 2];
+  }, []);
+
+  const filteredHolidays = useMemo(() => {
+    return holidays.filter((holiday) => {
+      const year = new Date(`${holiday.date}T00:00:00`).getFullYear();
+      return year === holidayYear;
+    });
+  }, [holidayYear, holidays]);
+
+  const holidayByDate = useMemo(() => {
+    return new Map(holidays.map((holiday) => [holiday.date, holiday]));
+  }, [holidays]);
+
+  const openHolidayDialog = () => {
+    setHolidayDialogOpen(true);
+    setHolidayError(null);
+    if (!holidayDate) {
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      setHolidayDate(`${today.getFullYear()}-${month}-${day}`);
+      setHolidayYear(today.getFullYear());
+    }
+  };
+
+  const handleHolidayYearChange = (event: SelectChangeEvent<number>) => {
+    const nextYear = Number(event.target.value);
+    setHolidayYear(nextYear);
+    setHolidayError(null);
+    if (holidayDate) {
+      const parts = holidayDate.split('-');
+      if (parts.length === 3) {
+        setHolidayDate(`${nextYear}-${parts[1]}-${parts[2]}`);
+        return;
+      }
+    }
+    setHolidayDate(`${nextYear}-01-01`);
+  };
+
+  const handleAddHoliday = () => {
+    if (!holidayName.trim() || !holidayDate) {
+      setHolidayError('Holiday name and date are required');
+      return;
+    }
+
+    const year = new Date(`${holidayDate}T00:00:00`).getFullYear();
+    if (year !== holidayYear) {
+      setHolidayError('Holiday date must match the selected year');
+      return;
+    }
+
+    const exists = holidays.some(
+      (holiday) =>
+        holiday.date === holidayDate && holiday.name.trim().toLowerCase() === holidayName.trim().toLowerCase()
+    );
+    if (exists) {
+      setHolidayError('Holiday already exists for this date');
+      return;
+    }
+
+    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`;
+    setHolidays((prev) => [
+      ...prev,
+      {
+        id,
+        date: holidayDate,
+        name: holidayName.trim(),
+      },
+    ]);
+    setHolidayName('');
+    setHolidayError(null);
+  };
+
+  const handleRemoveHoliday = (id: string) => {
+    setHolidays((prev) => prev.filter((holiday) => holiday.id !== id));
+  };
+
   const handleCalendarEventClick = (info: EventClickArg) => {
     const { type, projectId, taskId } = info.event.extendedProps as {
-      type?: 'project' | 'task';
+      type?: 'project' | 'task' | 'holiday';
       projectId?: string;
       taskId?: string;
     };
+    if (type === 'holiday') {
+      const start = info.event.start;
+      if (start) {
+        const month = String(start.getMonth() + 1).padStart(2, '0');
+        const day = String(start.getDate()).padStart(2, '0');
+        setHolidayYear(start.getFullYear());
+        setHolidayDate(`${start.getFullYear()}-${month}-${day}`);
+      }
+      openHolidayDialog();
+      return;
+    }
     if (type === 'project' && projectId) {
       navigate(`/projects/${projectId}`);
       return;
@@ -276,6 +433,21 @@ export default function Projects() {
   }, [filteredProjectIds, projectRanges, projects]);
 
   const calendarEvents = useMemo(() => {
+    const holidayEvents = holidays.map((holiday) => ({
+      id: `holiday-${holiday.id}`,
+      title: holiday.name,
+      start: `${holiday.date}T00:00:00`,
+      end: addDays(new Date(`${holiday.date}T00:00:00`), 1).toISOString(),
+      allDay: true,
+      backgroundColor: 'rgba(248, 113, 113, 0.75)',
+      borderColor: 'rgba(239, 68, 68, 0.9)',
+      textColor: '#ffffff',
+      editable: false,
+      extendedProps: {
+        type: 'holiday',
+      },
+    }));
+
     const taskEvents = filteredSlots.map((slot) => {
       const durationLabel = slot.taskDurationMinutes
         ? ` | ${formatDuration(slot.taskDurationMinutes)}`
@@ -299,7 +471,7 @@ export default function Projects() {
     });
 
     if (!showProjectOverlay) {
-      return taskEvents;
+      return [...holidayEvents, ...taskEvents];
     }
 
     const projectEvents = scheduledProjectRanges.map((range) => ({
@@ -319,8 +491,12 @@ export default function Projects() {
       },
     }));
 
-    return [...projectEvents, ...taskEvents];
-  }, [filteredSlots, scheduledProjectRanges, showProjectOverlay]);
+    return [...holidayEvents, ...projectEvents, ...taskEvents];
+  }, [filteredSlots, holidays, scheduledProjectRanges, showProjectOverlay]);
+
+  const calendarMonths = useMemo(() => {
+    return Array.from({ length: 12 }, (_unused, index) => new Date(calendarYear, index, 1));
+  }, [calendarYear]);
 
   const timelineRange = useMemo(() => {
     if (scheduledProjectRanges.length === 0) return null;
@@ -624,6 +800,35 @@ export default function Projects() {
               ))}
             </TextField>
             <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+              <ToggleButtonGroup
+                value={calendarMode}
+                exclusive
+                onChange={handleCalendarModeChange}
+                size="small"
+              >
+                <ToggleButton value="month" aria-label="month view">
+                  Month
+                </ToggleButton>
+                <ToggleButton value="year" aria-label="year view">
+                  Year
+                </ToggleButton>
+              </ToggleButtonGroup>
+              {calendarMode === 'year' && (
+                <TextField
+                  select
+                  label="Year"
+                  value={calendarYear}
+                  onChange={handleCalendarYearChange}
+                  size="small"
+                  sx={{ minWidth: 120 }}
+                >
+                  {holidayYearOptions.map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
               <Button
                 variant="outlined"
                 onClick={() => setProjectFilter([])}
@@ -631,14 +836,28 @@ export default function Projects() {
               >
                 Clear Filter
               </Button>
+              <Button variant="outlined" onClick={openHolidayDialog}>
+                Holidays
+              </Button>
+              {calendarMode === 'month' && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showProjectOverlay}
+                      onChange={(event) => setShowProjectOverlay(event.target.checked)}
+                    />
+                  }
+                  label="Project bars"
+                />
+              )}
               <FormControlLabel
                 control={
                   <Switch
-                    checked={showProjectOverlay}
-                    onChange={(event) => setShowProjectOverlay(event.target.checked)}
+                    checked={showWeekNumbers}
+                    onChange={(event) => setShowWeekNumbers(event.target.checked)}
                   />
                 }
-                label="Project bars"
+                label="Week numbers"
               />
               <FormControlLabel
                 control={
@@ -658,7 +877,7 @@ export default function Projects() {
           )}
           {calendarLoading ? (
             <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1 }} />
-          ) : (
+          ) : calendarMode === 'month' ? (
             <FullCalendar
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
@@ -676,7 +895,125 @@ export default function Projects() {
               displayEventEnd={true}
               dayMaxEvents={3}
               weekends={showWeekends}
+              weekNumbers={showWeekNumbers}
+              weekNumberCalculation="ISO"
             />
+          ) : (
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                gap: 2,
+              }}
+            >
+              {calendarMonths.map((month) => {
+                const weeks = buildMonthWeeks(month);
+                const columnCount = showWeekNumbers ? 8 : 7;
+                const cells: JSX.Element[] = [];
+
+                if (showWeekNumbers) {
+                  cells.push(
+                    <Box
+                      key={`${month.toISOString()}-wk-label`}
+                      sx={{ textAlign: 'center', fontSize: 11, color: 'text.secondary', py: 0.5 }}
+                    >
+                      WK
+                    </Box>
+                  );
+                }
+
+                weekDayLabels.forEach((label) => {
+                  cells.push(
+                    <Box
+                      key={`${month.toISOString()}-${label}`}
+                      sx={{ textAlign: 'center', fontSize: 11, color: 'text.secondary', py: 0.5 }}
+                    >
+                      {label}
+                    </Box>
+                  );
+                });
+
+                weeks.forEach((week, weekIndex) => {
+                  if (showWeekNumbers) {
+                    const weekNumber = getISOWeek(week[0]);
+                    cells.push(
+                      <Box
+                        key={`${month.toISOString()}-wk-${weekIndex}`}
+                        sx={{ textAlign: 'center', fontSize: 11, color: 'text.secondary', py: 0.5 }}
+                      >
+                        {weekNumber}
+                      </Box>
+                    );
+                  }
+
+                  week.forEach((day, dayIndex) => {
+                    const isInMonth = isSameMonth(day, month);
+                    const isSelectable = isInMonth && day.getFullYear() === calendarYear;
+                    const dateKey = format(day, 'yyyy-MM-dd');
+                    const holiday = holidayByDate.get(dateKey);
+                    const isWeekendDay = isWeekend(day);
+                    const baseOpacity = isInMonth ? 1 : 0.35;
+                    const weekendOpacity = showWeekends || !isWeekendDay ? 1 : 0.35;
+                    const opacity = Math.min(baseOpacity, weekendOpacity);
+
+                    cells.push(
+                      <Box
+                        key={`${month.toISOString()}-${weekIndex}-${dayIndex}`}
+                        onClick={() => {
+                          if (!isSelectable) return;
+                          setHolidayYear(calendarYear);
+                          setHolidayDate(dateKey);
+                          openHolidayDialog();
+                        }}
+                        title={holiday ? holiday.name : undefined}
+                        sx={{
+                          minHeight: 28,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: 1,
+                          cursor: isSelectable ? 'pointer' : 'default',
+                          backgroundColor: holiday ? 'rgba(248, 113, 113, 0.25)' : 'transparent',
+                          border: holiday ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid transparent',
+                          opacity,
+                          fontSize: 12,
+                          color: isInMonth ? 'text.primary' : 'text.disabled',
+                          '&:hover': isSelectable
+                            ? {
+                                backgroundColor: holiday
+                                  ? 'rgba(248, 113, 113, 0.35)'
+                                  : 'rgba(15, 118, 110, 0.08)',
+                              }
+                            : undefined,
+                        }}
+                      >
+                        {day.getDate()}
+                      </Box>
+                    );
+                  });
+                });
+
+                return (
+                  <Paper
+                    key={month.toISOString()}
+                    sx={{ p: 1.5, background: 'var(--ip-surface-elevated)', borderRadius: 2 }}
+                  >
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      {format(month, 'MMMM')}
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
+                        gap: 0.5,
+                      }}
+                    >
+                      {cells}
+                    </Box>
+                  </Paper>
+                );
+              })}
+            </Box>
           )}
         </Paper>
       ) : (
@@ -932,6 +1269,89 @@ export default function Projects() {
           )}
         </Paper>
       )}
+
+      <Dialog open={holidayDialogOpen} onClose={() => setHolidayDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Holidays</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            {holidayError && <Alert severity="error">{holidayError}</Alert>}
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+              <TextField
+                select
+                label="Year"
+                value={holidayYear}
+                onChange={handleHolidayYearChange}
+                fullWidth
+              >
+                {holidayYearOptions.map((year) => (
+                  <MenuItem key={year} value={year}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="Date"
+                type="date"
+                value={holidayDate}
+                onChange={(event) => {
+                  setHolidayDate(event.target.value);
+                  setHolidayError(null);
+                }}
+                InputLabelProps={{ shrink: true }}
+                fullWidth
+              />
+            </Stack>
+            <TextField
+              label="Holiday name"
+              value={holidayName}
+              onChange={(event) => {
+                setHolidayName(event.target.value);
+                setHolidayError(null);
+              }}
+              fullWidth
+            />
+            <Button variant="contained" onClick={handleAddHoliday}>
+              Add holiday
+            </Button>
+            {filteredHolidays.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                No holidays in {holidayYear}
+              </Typography>
+            ) : (
+              <Stack spacing={1}>
+                {filteredHolidays.map((holiday) => (
+                  <Box
+                    key={holiday.id}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 2,
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 2,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle2">{holiday.name}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {holiday.date}
+                      </Typography>
+                    </Box>
+                    <Button size="small" color="error" onClick={() => handleRemoveHoliday(holiday.id)}>
+                      Remove
+                    </Button>
+                  </Box>
+                ))}
+              </Stack>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setHolidayDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Create Project</DialogTitle>

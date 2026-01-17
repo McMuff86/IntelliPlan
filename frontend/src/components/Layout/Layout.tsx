@@ -135,7 +135,7 @@ const Layout = ({ children }: LayoutProps) => {
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="sticky" elevation={0}>
         <Toolbar sx={{ minHeight: { xs: 64, md: 72 } }}>
-          <Container maxWidth="lg" disableGutters sx={{ display: 'flex', alignItems: 'center' }}>
+          <Container maxWidth="xl" disableGutters sx={{ display: 'flex', alignItems: 'center' }}>
             {isMobile && (
               <IconButton
                 color="inherit"
@@ -208,7 +208,7 @@ const Layout = ({ children }: LayoutProps) => {
       </Drawer>
       <Container
         component="main"
-        maxWidth="lg"
+        maxWidth="xl"
         sx={{ flexGrow: 1, py: { xs: 3, md: 4 }, animation: 'ip-fade-up 0.4s ease both' }}
       >
         {children}
@@ -223,7 +223,7 @@ const Layout = ({ children }: LayoutProps) => {
           backdropFilter: 'blur(8px)',
         }}
       >
-        <Container maxWidth="lg">
+        <Container maxWidth="xl">
           <Box
             sx={{
               display: 'flex',

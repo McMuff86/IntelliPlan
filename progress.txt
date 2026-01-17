@@ -735,3 +735,39 @@ Thread: N/A (Codex)
 **Learnings for future iterations:**
 - Project bars use all-day events in FullCalendar to support day-level drag
 ---
+
+## 2026-01-17 - Project Calendar Week Numbers + Holidays
+Thread: N/A (Codex)
+- Added week numbers toggle (ISO weeks) in Projects calendar view
+- Added holiday manager with year selection, local persistence, and colored holiday events in calendar
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+
+**Learnings for future iterations:**
+- Holidays stored in localStorage and rendered as all-day events
+---
+
+## 2026-01-17 - Project Calendar Year Grid + Dependency Types
+Thread: N/A (Codex)
+- Added year grid mode for Projects calendar with clickable day cells to manage holidays
+- Added ISO week number display in year grid and year selector
+- Updated dependency blocking to respect dependency types (start-start and finish-finish)
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+- backend/src/services/taskService.ts
+
+**Learnings for future iterations:**
+- Year grid uses local holiday store for highlights and quick creation
+---
+
+## 2026-01-17 - Layout Width + Year Selector Fix
+Thread: N/A (Codex)
+- Increased app container width to xl for large screens
+- Widened Year select control to avoid label truncation
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx
+- frontend/src/pages/Projects.tsx
+---

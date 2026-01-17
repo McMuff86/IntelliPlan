@@ -7,6 +7,7 @@ import type {
   UpdateTaskDTO,
   DependencyType,
   ResourceType,
+  TaskStatus,
 } from '../models/task';
 
 export interface TaskWorkSlotCalendar {
@@ -202,8 +203,8 @@ export async function listDependencies(taskId: string, ownerId: string): Promise
 }
 
 export async function isTaskBlocked(taskId: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query<{ is_blocked: boolean }>(
-    `SELECT COALESCE(BOOL_OR(dep.status <> 'done'), false) AS is_blocked
+  const result = await pool.query<{ dependency_type: DependencyType; status: TaskStatus }>(
+    `SELECT td.dependency_type, dep.status
      FROM task_dependencies td
      JOIN tasks t ON td.task_id = t.id
      JOIN tasks dep ON td.depends_on_task_id = dep.id
@@ -211,7 +212,15 @@ export async function isTaskBlocked(taskId: string, ownerId: string): Promise<bo
     [taskId, ownerId]
   );
 
-  return result.rows[0]?.is_blocked ?? false;
+  return result.rows.some((row) => {
+    if (row.dependency_type === 'start_start') {
+      return row.status === 'planned';
+    }
+    if (row.dependency_type === 'finish_finish') {
+      return false;
+    }
+    return row.status !== 'done';
+  });
 }
 
 export async function deleteDependency(dependencyId: string, ownerId: string): Promise<boolean> {
