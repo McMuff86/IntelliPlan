@@ -351,6 +351,30 @@ const toDate = (value: string | null): Date | null => {
 
 const shiftDate = (value: Date, days: number): Date => new Date(value.getTime() + days * MS_PER_DAY);
 
+const resolveAnchor = (schedule: TaskScheduleSnapshot | undefined, preferred: 'start' | 'end'): Date | null => {
+  if (!schedule) return null;
+  const primary = schedule[preferred];
+  if (primary) return primary;
+  return preferred === 'start' ? schedule.end : schedule.start;
+};
+
+const getParentAnchor = (schedule: TaskScheduleSnapshot | undefined, type: DependencyType): Date | null => {
+  if (type === 'start_start') {
+    return resolveAnchor(schedule, 'start');
+  }
+  if (type === 'finish_finish') {
+    return resolveAnchor(schedule, 'end');
+  }
+  return resolveAnchor(schedule, 'end');
+};
+
+const getChildAnchor = (schedule: TaskScheduleSnapshot | undefined, type: DependencyType): Date | null => {
+  if (type === 'finish_finish') {
+    return resolveAnchor(schedule, 'end');
+  }
+  return resolveAnchor(schedule, 'start');
+};
+
 const shiftTaskSchedule = async (taskIds: string[], ownerId: string, deltaDays: number): Promise<void> => {
   if (taskIds.length === 0 || deltaDays === 0) {
     return;
@@ -548,10 +572,8 @@ export const shiftTaskWithDependents = async (
           const existingShift = shiftMap.get(childId) ?? 0;
           const childSchedule = scheduleMap.get(childId);
 
-          const parentAnchor =
-            edge.dependency_type === 'start_start' ? currentSchedule?.start ?? null : currentSchedule?.end ?? null;
-          const childAnchor =
-            edge.dependency_type === 'finish_finish' ? childSchedule?.end ?? null : childSchedule?.start ?? null;
+          const parentAnchor = getParentAnchor(currentSchedule, edge.dependency_type);
+          const childAnchor = getChildAnchor(childSchedule, edge.dependency_type);
 
           let nextShift = existingShift;
           if (parentAnchor && childAnchor) {

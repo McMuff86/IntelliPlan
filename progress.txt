@@ -771,3 +771,15 @@ Thread: N/A (Codex)
 - frontend/src/components/Layout/Layout.tsx
 - frontend/src/pages/Projects.tsx
 ---
+
+## 2026-01-17 - Wide Layout Toggle + Dependency Cascade Refinement
+Thread: N/A (Codex)
+- Added layout width preference (standard/wide) in Settings and applied across layout containers
+- Refined dependency cascade anchors to use best available schedule dates for each dependency type
+
+**Files modified:**
+- frontend/src/hooks/useLayoutPreference.ts
+- frontend/src/components/Layout/Layout.tsx
+- frontend/src/pages/Settings.tsx
+- backend/src/services/taskService.ts
+---

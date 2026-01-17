@@ -2,18 +2,22 @@ import { Box, Typography, Paper, TextField, MenuItem, Button, Snackbar, Alert, D
 import { useState } from 'react';
 import { useTimezone } from '../hooks/useTimezone';
 import { useThemePreference } from '../hooks/useThemePreference';
+import { useLayoutPreference } from '../hooks/useLayoutPreference';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function Settings() {
   const { timezone, setTimezone, availableTimezones } = useTimezone();
   const { theme, setTheme, themeOptions } = useThemePreference();
+  const { layout, setLayout, layoutOptions } = useLayoutPreference();
   const [selectedTimezone, setSelectedTimezone] = useState(timezone);
   const [selectedTheme, setSelectedTheme] = useState(theme);
+  const [selectedLayout, setSelectedLayout] = useState(layout);
   const [saved, setSaved] = useState(false);
 
   const handleSave = () => {
     setTimezone(selectedTimezone);
     setTheme(selectedTheme);
+    setLayout(selectedLayout);
     setSaved(true);
   };
 
@@ -65,6 +69,21 @@ export default function Settings() {
           sx={{ mb: 2 }}
         >
           {themeOptions.map((option) => (
+            <MenuItem key={option.value} value={option.value}>
+              {option.label}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <TextField
+          select
+          label="Layout width"
+          value={selectedLayout}
+          onChange={(e) => setSelectedLayout(e.target.value as typeof selectedLayout)}
+          fullWidth
+          sx={{ mb: 2 }}
+        >
+          {layoutOptions.map((option) => (
             <MenuItem key={option.value} value={option.value}>
               {option.label}
             </MenuItem>
