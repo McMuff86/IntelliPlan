@@ -28,6 +28,11 @@ export const createTaskValidator: ValidationChain[] = [
     .optional()
     .isInt({ min: 1 })
     .withMessage('durationMinutes must be a positive integer'),
+  body('resourceLabel')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('resourceLabel must be less than 255 characters'),
   body('startDate')
     .optional()
     .isISO8601()
@@ -63,6 +68,11 @@ export const updateTaskValidator: ValidationChain[] = [
     .optional()
     .isInt({ min: 1 })
     .withMessage('durationMinutes must be a positive integer'),
+  body('resourceLabel')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('resourceLabel must be less than 255 characters'),
   body('startDate')
     .optional()
     .isISO8601()

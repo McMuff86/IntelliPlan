@@ -11,6 +11,7 @@ export interface TaskWorkSlotCalendar {
   end_time: string;
   is_fixed: boolean;
   is_all_day: boolean;
+  task_duration_minutes: number | null;
 }
 
 export async function createTask(data: CreateTaskDTO): Promise<Task> {
@@ -23,9 +24,10 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
         status,
         scheduling_mode,
         duration_minutes,
+        resource_label,
         start_date,
         due_date
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING *`,
     [
       data.project_id,
@@ -35,6 +37,7 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
       data.status || 'planned',
       data.scheduling_mode || 'manual',
       data.duration_minutes ?? null,
+      data.resource_label ?? null,
       data.start_date ?? null,
       data.due_date ?? null,
     ]
@@ -104,6 +107,10 @@ export async function updateTask(
   if (data.duration_minutes !== undefined) {
     fields.push(`duration_minutes = $${paramIndex++}`);
     values.push(data.duration_minutes);
+  }
+  if (data.resource_label !== undefined) {
+    fields.push(`resource_label = $${paramIndex++}`);
+    values.push(data.resource_label);
   }
   if (data.start_date !== undefined) {
     fields.push(`start_date = $${paramIndex++}`);
@@ -235,7 +242,8 @@ export async function listWorkSlotsForCalendar(ownerId: string): Promise<TaskWor
             tws.start_time,
             tws.end_time,
             tws.is_fixed,
-            tws.is_all_day
+            tws.is_all_day,
+            t.duration_minutes AS task_duration_minutes
      FROM task_work_slots tws
      JOIN tasks t ON tws.task_id = t.id
      JOIN projects p ON t.project_id = p.id

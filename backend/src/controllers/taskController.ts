@@ -55,6 +55,9 @@ const buildTaskUpdateSummary = (before: Task, after: Task): string | null => {
   if (before.duration_minutes !== after.duration_minutes) {
     changes.push(`duration ${formatValue(before.duration_minutes)} -> ${formatValue(after.duration_minutes)}`);
   }
+  if (before.resource_label !== after.resource_label) {
+    changes.push(`resource ${formatValue(before.resource_label)} -> ${formatValue(after.resource_label)}`);
+  }
   if (before.scheduling_mode !== after.scheduling_mode) {
     changes.push(`mode ${before.scheduling_mode} -> ${after.scheduling_mode}`);
   }
@@ -109,7 +112,7 @@ export async function createInProject(req: Request, res: Response, next: NextFun
       return;
     }
 
-    const { title, description, status, schedulingMode, durationMinutes, startDate, dueDate } = req.body;
+    const { title, description, status, schedulingMode, durationMinutes, resourceLabel, startDate, dueDate } = req.body;
     const task = await createTask({
       project_id: projectId,
       owner_id: userId,
@@ -118,6 +121,7 @@ export async function createInProject(req: Request, res: Response, next: NextFun
       status,
       scheduling_mode: schedulingMode,
       duration_minutes: durationMinutes ?? null,
+      resource_label: resourceLabel ?? null,
       start_date: startDate ?? null,
       due_date: dueDate ?? null,
     });
@@ -177,7 +181,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { title, description, status, schedulingMode, durationMinutes, startDate, dueDate } = req.body;
+    const { title, description, status, schedulingMode, durationMinutes, resourceLabel, startDate, dueDate } = req.body;
     if (status === 'in_progress') {
       const blocked = await isTaskBlocked(req.params.id as string, userId);
       if (blocked) {
@@ -191,6 +195,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       status,
       scheduling_mode: schedulingMode,
       duration_minutes: durationMinutes ?? null,
+      resource_label: resourceLabel ?? null,
       start_date: startDate ?? null,
       due_date: dueDate ?? null,
     });
@@ -394,6 +399,7 @@ export async function listCalendarWorkSlots(req: Request, res: Response, next: N
       endTime: slot.end_time,
       isFixed: slot.is_fixed,
       isAllDay: slot.is_all_day,
+      taskDurationMinutes: slot.task_duration_minutes,
     }));
 
     res.status(200).json({ success: true, data: response });

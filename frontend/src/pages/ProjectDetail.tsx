@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -17,6 +17,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -29,6 +30,14 @@ import axios from 'axios';
 
 const statusOptions: TaskStatus[] = ['planned', 'in_progress', 'blocked', 'done'];
 const schedulingOptions: SchedulingMode[] = ['manual', 'auto'];
+const defaultLayoutOrder = ['tasks', 'create', 'activity', 'shift'] as const;
+type LayoutSectionKey = (typeof defaultLayoutOrder)[number];
+const layoutSectionLabels: Record<LayoutSectionKey, string> = {
+  tasks: 'Tasks',
+  create: 'Create Task',
+  activity: 'Activity History',
+  shift: 'Shift Project Schedule',
+};
 
 const statusLabel = (status: TaskStatus) =>
   ({
@@ -62,12 +71,18 @@ export default function ProjectDetail() {
   const [status, setStatus] = useState<TaskStatus>('planned');
   const [schedulingMode, setSchedulingMode] = useState<SchedulingMode>('manual');
   const [durationMinutes, setDurationMinutes] = useState<number | ''>('');
+  const [resourceLabel, setResourceLabel] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [shiftDays, setShiftDays] = useState<number | ''>('');
   const [taskSortOrder, setTaskSortOrder] = useState<'asc' | 'desc'>('asc');
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
+  const [layoutOrder, setLayoutOrder] = useState<LayoutSectionKey[]>([...defaultLayoutOrder]);
+  const [draggingSection, setDraggingSection] = useState<LayoutSectionKey | null>(null);
+  const [layoutTemplates, setLayoutTemplates] = useState<Record<string, LayoutSectionKey[]>>({});
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [newTemplateName, setNewTemplateName] = useState('');
 
   const loadProject = async () => {
     if (!id) return;
@@ -107,6 +122,48 @@ export default function ProjectDetail() {
     loadProject();
   }, [id]);
 
+  useEffect(() => {
+    const storedTemplates = localStorage.getItem('projectLayoutTemplates');
+    if (storedTemplates) {
+      try {
+        const parsed = JSON.parse(storedTemplates) as Record<string, LayoutSectionKey[]>;
+        setLayoutTemplates(parsed);
+      } catch {
+        setLayoutTemplates({});
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    const stored = localStorage.getItem(`projectLayout:${project.id}`);
+    if (!stored) {
+      setLayoutOrder([...defaultLayoutOrder]);
+      return;
+    }
+    try {
+      const parsed = JSON.parse(stored) as LayoutSectionKey[];
+      const normalized = normalizeLayoutOrder(parsed);
+      setLayoutOrder(normalized);
+    } catch {
+      setLayoutOrder([...defaultLayoutOrder]);
+    }
+  }, [project?.id]);
+
+  useEffect(() => {
+    if (!project?.id) return;
+    localStorage.setItem(`projectLayout:${project.id}`, JSON.stringify(layoutOrder));
+  }, [layoutOrder, project?.id]);
+
+  const formatDuration = (minutes?: number | null) => {
+    if (!minutes) return '';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours && mins) return `${hours}h ${mins}m`;
+    if (hours) return `${hours}h`;
+    return `${mins}m`;
+  };
+
   const sortedTasks = useMemo(() => {
     const list = [...tasks];
     list.sort((a, b) => {
@@ -116,12 +173,76 @@ export default function ProjectDetail() {
     return list;
   }, [tasks, taskSortOrder]);
 
+  const normalizeLayoutOrder = (order: LayoutSectionKey[]) => {
+    const seen = new Set<LayoutSectionKey>();
+    const filtered = order.filter((item) => {
+      if (!defaultLayoutOrder.includes(item)) return false;
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    });
+    defaultLayoutOrder.forEach((key) => {
+      if (!seen.has(key)) filtered.push(key);
+    });
+    return filtered;
+  };
+
+  const moveLayoutItem = (source: LayoutSectionKey, target: LayoutSectionKey) => {
+    if (source === target) return;
+    const next = [...layoutOrder];
+    const sourceIndex = next.indexOf(source);
+    const targetIndex = next.indexOf(target);
+    if (sourceIndex === -1 || targetIndex === -1) return;
+    next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, source);
+    setLayoutOrder(next);
+  };
+
+  const handleDragStart = (section: LayoutSectionKey) => (event: React.DragEvent) => {
+    setDraggingSection(section);
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', section);
+  };
+
+  const handleDrop = (target: LayoutSectionKey) => (event: React.DragEvent) => {
+    event.preventDefault();
+    const source = (event.dataTransfer.getData('text/plain') as LayoutSectionKey) || draggingSection;
+    if (!source) return;
+    moveLayoutItem(source, target);
+    setDraggingSection(null);
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+  };
+
+  const handleSaveTemplate = () => {
+    const name = newTemplateName.trim();
+    if (!name) return;
+    const nextTemplates = { ...layoutTemplates, [name]: layoutOrder };
+    setLayoutTemplates(nextTemplates);
+    localStorage.setItem('projectLayoutTemplates', JSON.stringify(nextTemplates));
+    setSelectedTemplate(name);
+    setNewTemplateName('');
+  };
+
+  const handleLoadTemplate = (name: string) => {
+    const template = layoutTemplates[name];
+    if (!template) return;
+    setLayoutOrder(normalizeLayoutOrder(template));
+  };
+
+  const handleResetLayout = () => {
+    setLayoutOrder([...defaultLayoutOrder]);
+  };
+
   const resetForm = () => {
     setTitle('');
     setDescription('');
     setStatus('planned');
     setSchedulingMode('manual');
     setDurationMinutes('');
+    setResourceLabel('');
     setStartDate(null);
     setDueDate(null);
   };
@@ -141,6 +262,7 @@ export default function ProjectDetail() {
         status,
         schedulingMode,
         durationMinutes: durationMinutes === '' ? undefined : durationMinutes,
+        resourceLabel: resourceLabel.trim() || undefined,
         startDate: startDate ? formatISO(startDate, { representation: 'date' }) : undefined,
         dueDate: dueDate ? formatISO(dueDate, { representation: 'date' }) : undefined,
       };
@@ -245,155 +367,113 @@ export default function ProjectDetail() {
     );
   }
 
-  return (
-    <Box>
-      <Breadcrumbs
-        items={[
-          { label: 'Projects', path: '/projects' },
-          { label: project.name },
-        ]}
-      />
+  const sectionActions: Partial<Record<LayoutSectionKey, ReactNode>> = {
+    tasks: (
+      <TextField
+        select
+        label="Sort"
+        size="small"
+        value={taskSortOrder}
+        onChange={(event) => setTaskSortOrder(event.target.value as 'asc' | 'desc')}
+        sx={{ minWidth: 160 }}
+      >
+        <MenuItem value="asc">Title A-Z</MenuItem>
+        <MenuItem value="desc">Title Z-A</MenuItem>
+      </TextField>
+    ),
+  };
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Typography variant="h4" component="h1">
-            {project.name}
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {project.includeWeekends ? 'Weekends included' : 'Weekdays only'} · {project.workdayStart} - {project.workdayEnd}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" onClick={() => navigate('/projects')}>
-            All Projects
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<TimelineIcon />}
-            onClick={() => navigate(`/projects/${project.id}/timeline`)}
+  const sectionContent: Record<LayoutSectionKey, ReactNode> = {
+    create: (
+      <Stack spacing={2}>
+        <TextField
+          label="Title"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          fullWidth
+        />
+        <TextField
+          label="Description"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          fullWidth
+          multiline
+          rows={3}
+        />
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+          <TextField
+            select
+            label="Status"
+            value={status}
+            onChange={(event) => setStatus(event.target.value as TaskStatus)}
+            fullWidth
           >
-            Timeline
-          </Button>
+            {statusOptions.map((value) => (
+              <MenuItem key={value} value={value}>
+                {statusLabel(value)}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Scheduling Mode"
+            value={schedulingMode}
+            onChange={(event) => setSchedulingMode(event.target.value as SchedulingMode)}
+            fullWidth
+          >
+            {schedulingOptions.map((value) => (
+              <MenuItem key={value} value={value}>
+                {value === 'manual' ? 'Manual' : 'Auto'}
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="Duration (minutes)"
+            type="number"
+            value={durationMinutes}
+            onChange={(event) => {
+              const value = event.target.value;
+              setDurationMinutes(value === '' ? '' : Number(value));
+            }}
+            fullWidth
+          />
         </Stack>
-      </Box>
-
-      {project.description && (
-        <Paper sx={{ p: 2, mb: 3 }}>
-          <Typography variant="body1">{project.description}</Typography>
-        </Paper>
-      )}
-
-      <Paper sx={{ p: 2, mb: 3 }}>
-        <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Created
-            </Typography>
-            <Typography variant="body2">
-              {format(parseISO(project.createdAt), 'MMM d, yyyy h:mm a')}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Last Updated
-            </Typography>
-            <Typography variant="body2">
-              {format(parseISO(project.updatedAt), 'MMM d, yyyy h:mm a')}
-            </Typography>
-          </Box>
-        </Box>
-      </Paper>
-
-      <Paper sx={{ p: 2.5, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Create Task
-        </Typography>
-        <Stack spacing={2}>
-          <TextField
-            label="Title"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            fullWidth
-          />
-          <TextField
-            label="Description"
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            fullWidth
-            multiline
-            rows={3}
-          />
+        <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <TextField
-              select
-              label="Status"
-              value={status}
-              onChange={(event) => setStatus(event.target.value as TaskStatus)}
-              fullWidth
-            >
-              {statusOptions.map((value) => (
-                <MenuItem key={value} value={value}>
-                  {statusLabel(value)}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              select
-              label="Scheduling Mode"
-              value={schedulingMode}
-              onChange={(event) => setSchedulingMode(event.target.value as SchedulingMode)}
-              fullWidth
-            >
-              {schedulingOptions.map((value) => (
-                <MenuItem key={value} value={value}>
-                  {value === 'manual' ? 'Manual' : 'Auto'}
-                </MenuItem>
-              ))}
-            </TextField>
-            <TextField
-              label="Duration (minutes)"
-              type="number"
-              value={durationMinutes}
-              onChange={(event) => {
-                const value = event.target.value;
-                setDurationMinutes(value === '' ? '' : Number(value));
-              }}
+              label="Resource"
+              value={resourceLabel}
+              onChange={(event) => setResourceLabel(event.target.value)}
               fullWidth
             />
+            <DatePicker
+              label="Start Date"
+              value={startDate}
+              onChange={(date) => setStartDate(date)}
+              slotProps={{ textField: { fullWidth: true } }}
+            />
+            <DatePicker
+              label="Due Date"
+              value={dueDate}
+              onChange={(date) => setDueDate(date)}
+              slotProps={{ textField: { fullWidth: true } }}
+            />
           </Stack>
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-              <DatePicker
-                label="Start Date"
-                value={startDate}
-                onChange={(date) => setStartDate(date)}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-              <DatePicker
-                label="Due Date"
-                value={dueDate}
-                onChange={(date) => setDueDate(date)}
-                slotProps={{ textField: { fullWidth: true } }}
-              />
-            </Stack>
-          </LocalizationProvider>
-          <Box>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={handleCreateTask}
-              disabled={creating}
-            >
-              {creating ? 'Creating...' : 'Add Task'}
-            </Button>
-          </Box>
-        </Stack>
-      </Paper>
-
-      <Paper sx={{ p: 2.5, mb: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Shift Project Schedule
-        </Typography>
+        </LocalizationProvider>
+        <Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleCreateTask}
+            disabled={creating}
+          >
+            {creating ? 'Creating...' : 'Add Task'}
+          </Button>
+        </Box>
+      </Stack>
+    ),
+    shift: (
+      <>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Move all tasks and work slots by a number of days. Tasks without dates stay unchanged.
         </Typography>
@@ -417,26 +497,12 @@ export default function ProjectDetail() {
             {shifting ? 'Shifting...' : 'Shift Project'}
           </Button>
         </Stack>
-      </Paper>
-
-      <Paper sx={{ p: 2.5 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6">Tasks</Typography>
-          <TextField
-            select
-            label="Sort"
-            size="small"
-            value={taskSortOrder}
-            onChange={(event) => setTaskSortOrder(event.target.value as 'asc' | 'desc')}
-            sx={{ minWidth: 160 }}
-          >
-            <MenuItem value="asc">Title A-Z</MenuItem>
-            <MenuItem value="desc">Title Z-A</MenuItem>
-          </TextField>
-        </Box>
-        <Divider sx={{ mb: 2 }} />
+      </>
+    ),
+    tasks: (
+      <>
         {sortedTasks.length === 0 ? (
-          <Typography color="text.secondary">No tasks yet. Create the first one above.</Typography>
+          <Typography color="text.secondary">No tasks yet. Create one to get started.</Typography>
         ) : (
           <Stack spacing={1.5}>
             {sortedTasks.map((task) => (
@@ -452,7 +518,11 @@ export default function ProjectDetail() {
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   {editingTaskId === task.id ? (
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} alignItems={{ xs: 'stretch', sm: 'center' }}>
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      spacing={1}
+                      alignItems={{ xs: 'stretch', sm: 'center' }}
+                    >
                       <TextField
                         label="Task title"
                         value={editingTaskTitle}
@@ -483,11 +553,33 @@ export default function ProjectDetail() {
                           <Chip size="small" label="Blocked" color="warning" />
                         )}
                         {task.startDate && (
-                          <Chip size="small" label={`Start: ${format(new Date(task.startDate), 'MMM d, yyyy')}`} variant="outlined" />
+                          <Chip
+                            size="small"
+                            label={`Start: ${format(new Date(task.startDate), 'MMM d, yyyy')}`}
+                            variant="outlined"
+                          />
                         )}
                         {task.dueDate && (
-                          <Chip size="small" label={`Due: ${format(new Date(task.dueDate), 'MMM d, yyyy')}`} variant="outlined" />
+                          <Chip
+                            size="small"
+                            label={`Due: ${format(new Date(task.dueDate), 'MMM d, yyyy')}`}
+                            variant="outlined"
+                          />
                         )}
+                        {task.durationMinutes ? (
+                          <Chip
+                            size="small"
+                            label={`Duration: ${formatDuration(task.durationMinutes)}`}
+                            variant="outlined"
+                          />
+                        ) : null}
+                        {task.resourceLabel ? (
+                          <Chip
+                            size="small"
+                            label={`Resource: ${task.resourceLabel}`}
+                            variant="outlined"
+                          />
+                        ) : null}
                       </Stack>
                     </>
                   )}
@@ -506,13 +598,10 @@ export default function ProjectDetail() {
             ))}
           </Stack>
         )}
-      </Paper>
-
-      <Paper sx={{ p: 2.5, mt: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Activity History
-        </Typography>
-        <Divider sx={{ mb: 2 }} />
+      </>
+    ),
+    activity: (
+      <>
         {activity.length === 0 ? (
           <Typography color="text.secondary">No activity yet.</Typography>
         ) : (
@@ -556,7 +645,156 @@ export default function ProjectDetail() {
             })}
           </Stack>
         )}
+      </>
+    ),
+  };
+
+  const renderSection = (sectionKey: LayoutSectionKey) => (
+    <Paper
+      key={sectionKey}
+      onDrop={handleDrop(sectionKey)}
+      onDragOver={handleDragOver}
+      sx={{
+        p: 2.5,
+        mb: 3,
+        border: draggingSection === sectionKey ? '1px dashed rgba(15, 23, 42, 0.3)' : '1px solid transparent',
+        transition: 'border-color 0.2s ease',
+      }}
+    >
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Box display="flex" alignItems="center" gap={1}>
+          <Tooltip title="Drag to reorder">
+            <Box
+              draggable
+              onDragStart={handleDragStart(sectionKey)}
+              onDragEnd={() => setDraggingSection(null)}
+              sx={{ display: 'flex', alignItems: 'center', cursor: 'grab', color: 'text.secondary' }}
+            >
+              <DragIndicatorIcon fontSize="small" />
+            </Box>
+          </Tooltip>
+          <Typography variant="h6">{layoutSectionLabels[sectionKey]}</Typography>
+        </Box>
+        {sectionActions[sectionKey]}
+      </Box>
+      <Divider sx={{ mb: 2 }} />
+      {sectionContent[sectionKey]}
+    </Paper>
+  );
+
+  return (
+    <Box>
+      <Breadcrumbs
+        items={[
+          { label: 'Projects', path: '/projects' },
+          { label: project.name },
+        ]}
+      />
+
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography variant="h4" component="h1">
+            {project.name}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {project.includeWeekends ? 'Weekends included' : 'Weekdays only'} | {project.workdayStart} - {project.workdayEnd}
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" onClick={() => navigate('/projects')}>
+            All Projects
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<TimelineIcon />}
+            onClick={() => navigate(`/projects/${project.id}/timeline`)}
+          >
+            Timeline
+          </Button>
+        </Stack>
+      </Box>
+
+      {project.description && (
+        <Paper sx={{ p: 2, mb: 3 }}>
+          <Typography variant="body1">{project.description}</Typography>
+        </Paper>
+      )}
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Created
+            </Typography>
+            <Typography variant="body2">
+              {format(parseISO(project.createdAt), 'MMM d, yyyy h:mm a')}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Last Updated
+            </Typography>
+            <Typography variant="body2">
+              {format(parseISO(project.updatedAt), 'MMM d, yyyy h:mm a')}
+            </Typography>
+          </Box>
+        </Box>
       </Paper>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Layout
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Drag sections by the handle to reorder. Save templates to reuse layouts.
+        </Typography>
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+            <TextField
+              select
+              label="Template"
+              value={selectedTemplate}
+              onChange={(event) => setSelectedTemplate(event.target.value)}
+              fullWidth
+            >
+              <MenuItem value="">Select template</MenuItem>
+              {Object.keys(layoutTemplates).map((name) => (
+                <MenuItem key={name} value={name}>
+                  {name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button
+              variant="outlined"
+              onClick={() => handleLoadTemplate(selectedTemplate)}
+              disabled={!selectedTemplate}
+            >
+              Load
+            </Button>
+            <Button variant="outlined" onClick={handleResetLayout}>
+              Reset Default
+            </Button>
+          </Stack>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+            <TextField
+              label="New template name"
+              value={newTemplateName}
+              onChange={(event) => setNewTemplateName(event.target.value)}
+              fullWidth
+            />
+            <Button
+              variant="contained"
+              onClick={handleSaveTemplate}
+              disabled={!newTemplateName.trim()}
+            >
+              Save Template
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
+
+      {layoutOrder.map((sectionKey) => renderSection(sectionKey))}
     </Box>
   );
 }
+

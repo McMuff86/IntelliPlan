@@ -73,6 +73,7 @@ export interface Task {
   status: TaskStatus;
   schedulingMode: SchedulingMode;
   durationMinutes: number | null;
+  resourceLabel: string | null;
   startDate: string | null;
   dueDate: string | null;
   createdAt: string;
@@ -109,6 +110,7 @@ export interface TaskWorkSlotCalendar {
   endTime: string;
   isFixed: boolean;
   isAllDay: boolean;
+  taskDurationMinutes: number | null;
 }
 
 export interface CreateProjectDTO {
@@ -125,6 +127,7 @@ export interface CreateTaskDTO {
   status?: TaskStatus;
   schedulingMode?: SchedulingMode;
   durationMinutes?: number | null;
+  resourceLabel?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
 }

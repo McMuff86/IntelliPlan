@@ -11,6 +11,7 @@ export interface Task {
   status: TaskStatus;
   scheduling_mode: SchedulingMode;
   duration_minutes: number | null;
+  resource_label: string | null;
   start_date: string | null;
   due_date: string | null;
   created_at: string;
@@ -26,6 +27,7 @@ export interface TaskResponse {
   status: TaskStatus;
   schedulingMode: SchedulingMode;
   durationMinutes: number | null;
+  resourceLabel: string | null;
   startDate: string | null;
   dueDate: string | null;
   createdAt: string;
@@ -41,6 +43,7 @@ export interface CreateTaskDTO {
   status?: TaskStatus;
   scheduling_mode?: SchedulingMode;
   duration_minutes?: number | null;
+  resource_label?: string | null;
   start_date?: string | null;
   due_date?: string | null;
 }
@@ -51,6 +54,7 @@ export interface UpdateTaskDTO {
   status?: TaskStatus;
   scheduling_mode?: SchedulingMode;
   duration_minutes?: number | null;
+  resource_label?: string | null;
   start_date?: string | null;
   due_date?: string | null;
 }
@@ -102,6 +106,7 @@ export const toTaskResponse = (task: Task & { is_blocked?: boolean | null }): Ta
   status: task.status,
   schedulingMode: task.scheduling_mode,
   durationMinutes: task.duration_minutes,
+  resourceLabel: task.resource_label,
   startDate: task.start_date,
   dueDate: task.due_date,
   createdAt: task.created_at,

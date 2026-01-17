@@ -41,6 +41,7 @@ interface DayEntry {
   startTime: string;
   endTime: string;
   isAllDay?: boolean;
+  durationMinutes?: number | null;
   appointmentId?: string;
   taskId?: string;
   projectName?: string;
@@ -78,6 +79,20 @@ export default function CalendarView() {
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({ open: false, message: '', severity: 'success' });
   const [loading, setLoading] = useState(true);
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+  const formatTime = (dateString: string) => {
+    const date = toZonedTime(new Date(dateString), userTimezone);
+    return format(date, 'HH:mm');
+  };
+
+  const formatDuration = (minutes?: number | null) => {
+    if (!minutes) return '';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours && mins) return `${hours}h ${mins}m`;
+    if (hours) return `${hours}h`;
+    return `${mins}m`;
+  };
 
   useEffect(() => {
     loadAppointments();
@@ -119,20 +134,25 @@ export default function CalendarView() {
     }));
 
     const taskEvents: CalendarEvent[] = showTaskOverlay
-      ? taskSlots.map((slot) => ({
-          id: `task-${slot.id}`,
-          title: `${slot.taskTitle} · ${slot.projectName}`,
-          start: slot.startTime,
-          end: slot.endTime,
-          allDay: slot.isAllDay,
-          backgroundColor: 'rgba(249, 115, 22, 0.85)',
-          borderColor: 'rgba(234, 88, 12, 0.9)',
-          textColor: '#ffffff',
-          extendedProps: {
-            type: 'task',
-            taskSlot: slot,
-          },
-        }))
+      ? taskSlots.map((slot) => {
+          const durationLabel = slot.taskDurationMinutes
+            ? ` | ${formatDuration(slot.taskDurationMinutes)}`
+            : '';
+          return {
+            id: `task-${slot.id}`,
+            title: `${slot.taskTitle} | ${slot.projectName}${durationLabel}`,
+            start: slot.startTime,
+            end: slot.endTime,
+            allDay: slot.isAllDay,
+            backgroundColor: 'rgba(249, 115, 22, 0.85)',
+            borderColor: 'rgba(234, 88, 12, 0.9)',
+            textColor: '#ffffff',
+            extendedProps: {
+              type: 'task',
+              taskSlot: slot,
+            },
+          };
+        })
       : [];
 
     setEvents([...appointmentEvents, ...taskEvents]);
@@ -210,6 +230,7 @@ export default function CalendarView() {
             startTime: slot.startTime,
             endTime: slot.endTime,
             isAllDay: slot.isAllDay,
+            durationMinutes: slot.taskDurationMinutes,
             taskId: slot.taskId,
             projectName: slot.projectName,
           });
@@ -237,11 +258,6 @@ export default function CalendarView() {
   const handleTaskClick = (id: string) => {
     handleDialogClose();
     navigate(`/tasks/${id}`);
-  };
-
-  const formatTime = (dateString: string) => {
-    const date = toZonedTime(new Date(dateString), userTimezone);
-    return format(date, 'HH:mm');
   };
 
   const handleViewChange = (_event: React.MouseEvent<HTMLElement>, newView: CalendarViewType | null) => {
@@ -497,7 +513,11 @@ export default function CalendarView() {
                       {entry.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {entry.isAllDay ? 'All day' : `${formatTime(entry.startTime)} - ${formatTime(entry.endTime)}`}
+                      {entry.isAllDay
+                        ? `All day${entry.durationMinutes ? ` | ${formatDuration(entry.durationMinutes)}` : ''}`
+                        : `${formatTime(entry.startTime)} - ${formatTime(entry.endTime)}${
+                            entry.durationMinutes ? ` | ${formatDuration(entry.durationMinutes)}` : ''
+                          }`}
                     </Typography>
                     {entry.projectName && (
                       <Typography variant="caption" color="text.secondary">
@@ -573,3 +593,4 @@ export default function CalendarView() {
     </Box>
   );
 }
+

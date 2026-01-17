@@ -14,6 +14,10 @@ import {
   CircularProgress,
   FormControlLabel,
   Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
@@ -66,6 +70,10 @@ export default function TaskDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [resourceLabel, setResourceLabel] = useState('');
+  const [savingResource, setSavingResource] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resettingStatus, setResettingStatus] = useState(false);
 
   const [dependsOnTaskId, setDependsOnTaskId] = useState('');
   const [dependencyType, setDependencyType] = useState<DependencyType>('finish_start');
@@ -107,6 +115,21 @@ export default function TaskDetail() {
   useEffect(() => {
     loadTask();
   }, [id]);
+
+  useEffect(() => {
+    if (task) {
+      setResourceLabel(task.resourceLabel ?? '');
+    }
+  }, [task?.id]);
+
+  const formatDuration = (minutes?: number | null) => {
+    if (!minutes) return '';
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours && mins) return `${hours}h ${mins}m`;
+    if (hours) return `${hours}h`;
+    return `${mins}m`;
+  };
 
   const dependencyMap = useMemo(() => {
     return new Map(projectTasks.map((t) => [t.id, t]));
@@ -152,6 +175,44 @@ export default function TaskDetail() {
       setError('Failed to complete task');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleConfirmReset = async () => {
+    if (!task) return;
+    try {
+      setResettingStatus(true);
+      const updated = await taskService.update(task.id, { status: 'planned' });
+      setTask(updated);
+      setResetDialogOpen(false);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to reset task status');
+    } finally {
+      setResettingStatus(false);
+    }
+  };
+
+  const handleSaveResource = async () => {
+    if (!task) return;
+    try {
+      setSavingResource(true);
+      setError(null);
+      const updated = await taskService.update(task.id, {
+        resourceLabel: resourceLabel.trim() || null,
+      });
+      setTask(updated);
+    } catch (err) {
+      console.error(err);
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to update resource');
+      } else {
+        setError('Failed to update resource');
+      }
+    } finally {
+      setSavingResource(false);
     }
   };
 
@@ -309,6 +370,27 @@ export default function TaskDetail() {
         </Alert>
       )}
 
+      <Paper sx={{ p: 2.5, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Resource
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+          <TextField
+            label="Assigned resource"
+            value={resourceLabel}
+            onChange={(event) => setResourceLabel(event.target.value)}
+            fullWidth
+          />
+          <Button
+            variant="contained"
+            onClick={handleSaveResource}
+            disabled={savingResource}
+          >
+            {savingResource ? 'Saving...' : 'Save'}
+          </Button>
+        </Stack>
+      </Paper>
+
       <Stack direction="row" spacing={2} mb={3}>
         {task.status === 'planned' && (
           <Button
@@ -326,6 +408,15 @@ export default function TaskDetail() {
             disabled={actionLoading}
           >
             Mark Done
+          </Button>
+        )}
+        {task.status !== 'planned' && (
+          <Button
+            variant="outlined"
+            onClick={() => setResetDialogOpen(true)}
+            disabled={actionLoading}
+          >
+            Change Status
           </Button>
         )}
       </Stack>
@@ -430,7 +521,11 @@ export default function TaskDetail() {
                       : `${format(new Date(slot.startTime), 'MMM d, yyyy h:mm a')} - ${format(new Date(slot.endTime), 'MMM d, yyyy h:mm a')}`}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {slot.isAllDay ? 'All day' : slot.isFixed ? 'Fixed' : 'Flexible'}
+                    {slot.isAllDay
+                      ? `All day${task?.durationMinutes ? ` | ${formatDuration(task.durationMinutes)}` : ''}`
+                      : slot.isFixed
+                        ? 'Fixed'
+                        : 'Flexible'}
                   </Typography>
                 </Box>
                 <Button variant="outlined" size="small" onClick={() => handleRemoveSlot(slot.id)}>
@@ -556,6 +651,25 @@ export default function TaskDetail() {
           </Button>
         </Stack>
       </Paper>
+
+      <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
+        <DialogTitle>Change task status?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This task is already {task.status.replace('_', ' ')}. Do you want to reset it to
+            Not Started?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResetDialogOpen(false)} disabled={resettingStatus}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmReset} variant="contained" disabled={resettingStatus}>
+            {resettingStatus ? 'Updating...' : 'Set to Not Started'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
+
