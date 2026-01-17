@@ -17,6 +17,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import LinkIcon from '@mui/icons-material/Link';
 import {
+  addDays,
   eachDayOfInterval,
   startOfDay,
   endOfDay,
@@ -66,7 +67,10 @@ const statusColor = (status: Task['status']) => {
 const getTaskRange = (task: Task, workSlots: TaskWorkSlot[]) => {
   if (workSlots.length > 0) {
     const starts = workSlots.map((slot) => new Date(slot.startTime).getTime());
-    const ends = workSlots.map((slot) => new Date(slot.endTime).getTime());
+    const ends = workSlots.map((slot) => {
+      const end = new Date(slot.endTime).getTime();
+      return slot.isAllDay ? end - 1 : end;
+    });
     const minStart = Math.min(...starts);
     const maxEnd = Math.max(...ends);
     return { start: new Date(minStart), end: new Date(maxEnd) };
@@ -435,7 +439,8 @@ export default function ProjectTimeline() {
                         </Tooltip>
                         {row.workSlots.map((slot) => {
                           const slotStart = startOfDay(new Date(slot.startTime));
-                          const slotEnd = startOfDay(new Date(slot.endTime));
+                          const slotEndBase = startOfDay(new Date(slot.endTime));
+                          const slotEnd = slot.isAllDay ? addDays(slotEndBase, -1) : slotEndBase;
                           const slotStartIndex = differenceInCalendarDays(slotStart, timelineRange.start);
                           const slotEndIndex = differenceInCalendarDays(slotEnd, timelineRange.start);
                           const slotGridStart = Math.max(1, slotStartIndex + 1);

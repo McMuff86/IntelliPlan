@@ -19,8 +19,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import { format } from 'date-fns';
+import { addDays, format, startOfDay } from 'date-fns';
 import axios from 'axios';
 import type {
   DependencyType,
@@ -72,6 +73,8 @@ export default function TaskDetail() {
   const [slotStart, setSlotStart] = useState<Date | null>(null);
   const [slotEnd, setSlotEnd] = useState<Date | null>(null);
   const [slotFixed, setSlotFixed] = useState(false);
+  const [slotAllDay, setSlotAllDay] = useState(false);
+  const [slotDate, setSlotDate] = useState<Date | null>(null);
   const [shiftDays, setShiftDays] = useState<number | ''>('');
   const [cascadeShift, setCascadeShift] = useState(true);
   const [shiftBlock, setShiftBlock] = useState(false);
@@ -116,6 +119,7 @@ export default function TaskDetail() {
     });
   }, [dependencies, dependencyMap]);
   const blockedNow = task?.isBlocked ?? isBlocked;
+  const canAddSlot = slotAllDay ? Boolean(slotDate) : Boolean(slotStart && slotEnd);
 
   const handleStartTask = async () => {
     if (!task) return;
@@ -184,18 +188,26 @@ export default function TaskDetail() {
   };
 
   const handleAddSlot = async () => {
-    if (!task || !slotStart || !slotEnd) return;
+    if (!task) return;
+    if (slotAllDay && !slotDate) return;
+    if (!slotAllDay && (!slotStart || !slotEnd)) return;
     try {
       setActionLoading(true);
+      const baseDate = slotDate ? startOfDay(slotDate) : null;
+      const startTime = slotAllDay ? (baseDate as Date) : (slotStart as Date);
+      const endTime = slotAllDay ? addDays(baseDate as Date, 1) : (slotEnd as Date);
       const created = await taskService.createWorkSlot(task.id, {
-        startTime: slotStart.toISOString(),
-        endTime: slotEnd.toISOString(),
-        isFixed: slotFixed,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        isFixed: slotAllDay ? false : slotFixed,
+        isAllDay: slotAllDay,
       });
       setWorkSlots((prev) => [...prev, created].sort((a, b) => a.startTime.localeCompare(b.startTime)));
       setSlotStart(null);
       setSlotEnd(null);
       setSlotFixed(false);
+      setSlotAllDay(false);
+      setSlotDate(null);
     } catch (err) {
       console.error(err);
       setError('Failed to add work slot');
@@ -413,10 +425,12 @@ export default function TaskDetail() {
               >
                 <Box>
                   <Typography variant="subtitle2">
-                    {format(new Date(slot.startTime), 'MMM d, yyyy h:mm a')} - {format(new Date(slot.endTime), 'MMM d, yyyy h:mm a')}
+                    {slot.isAllDay
+                      ? format(new Date(slot.startTime), 'MMM d, yyyy')
+                      : `${format(new Date(slot.startTime), 'MMM d, yyyy h:mm a')} - ${format(new Date(slot.endTime), 'MMM d, yyyy h:mm a')}`}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {slot.isFixed ? 'Fixed' : 'Flexible'}
+                    {slot.isAllDay ? 'All day' : slot.isFixed ? 'Fixed' : 'Flexible'}
                   </Typography>
                 </Box>
                 <Button variant="outlined" size="small" onClick={() => handleRemoveSlot(slot.id)}>
@@ -428,27 +442,62 @@ export default function TaskDetail() {
         )}
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-            <DateTimePicker
-              label="Start time"
-              value={slotStart}
-              onChange={(value) => setSlotStart(value)}
-              slotProps={{ textField: { fullWidth: true } }}
-            />
-            <DateTimePicker
-              label="End time"
-              value={slotEnd}
-              onChange={(value) => setSlotEnd(value)}
-              slotProps={{ textField: { fullWidth: true } }}
-            />
+            {slotAllDay ? (
+              <DatePicker
+                label="Day"
+                value={slotDate}
+                onChange={(value) => setSlotDate(value)}
+                slotProps={{ textField: { fullWidth: true } }}
+              />
+            ) : (
+              <>
+                <DateTimePicker
+                  label="Start time"
+                  value={slotStart}
+                  onChange={(value) => setSlotStart(value)}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+                <DateTimePicker
+                  label="End time"
+                  value={slotEnd}
+                  onChange={(value) => setSlotEnd(value)}
+                  slotProps={{ textField: { fullWidth: true } }}
+                />
+              </>
+            )}
+            <Button
+              variant={slotAllDay ? 'contained' : 'outlined'}
+              onClick={() => {
+                setSlotAllDay((prev) => {
+                  const next = !prev;
+                  if (next) {
+                    setSlotStart(null);
+                    setSlotEnd(null);
+                    setSlotFixed(false);
+                  } else {
+                    setSlotDate(null);
+                  }
+                  return next;
+                });
+              }}
+            >
+              Whole Day
+            </Button>
             <FormControlLabel
-              control={<Switch checked={slotFixed} onChange={(event) => setSlotFixed(event.target.checked)} />}
+              control={
+                <Switch
+                  checked={slotFixed}
+                  onChange={(event) => setSlotFixed(event.target.checked)}
+                  disabled={slotAllDay}
+                />
+              }
               label="Fixed"
             />
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleAddSlot}
-              disabled={!slotStart || !slotEnd || actionLoading}
+              disabled={!canAddSlot || actionLoading}
             >
               Add slot
             </Button>

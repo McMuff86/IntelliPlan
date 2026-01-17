@@ -94,6 +94,7 @@ export interface TaskWorkSlot {
   startTime: string;
   endTime: string;
   isFixed: boolean;
+  isAllDay: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +108,7 @@ export interface TaskWorkSlotCalendar {
   startTime: string;
   endTime: string;
   isFixed: boolean;
+  isAllDay: boolean;
 }
 
 export interface CreateProjectDTO {
@@ -136,6 +138,7 @@ export interface CreateWorkSlotDTO {
   startTime: string;
   endTime: string;
   isFixed?: boolean;
+  isAllDay?: boolean;
 }
 
 export interface ProjectActivity {

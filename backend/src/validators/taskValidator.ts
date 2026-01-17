@@ -101,6 +101,10 @@ export const createWorkSlotValidator: ValidationChain[] = [
     .optional()
     .isBoolean()
     .withMessage('isFixed must be boolean'),
+  body('isAllDay')
+    .optional()
+    .isBoolean()
+    .withMessage('isAllDay must be boolean'),
 ];
 
 export const shiftTaskValidator: ValidationChain[] = [

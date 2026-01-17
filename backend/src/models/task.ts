@@ -77,6 +77,7 @@ export interface TaskWorkSlot {
   start_time: string;
   end_time: string;
   is_fixed: boolean;
+  is_all_day: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -87,6 +88,7 @@ export interface TaskWorkSlotResponse {
   startTime: string;
   endTime: string;
   isFixed: boolean;
+  isAllDay: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -121,6 +123,7 @@ export const toTaskWorkSlotResponse = (slot: TaskWorkSlot): TaskWorkSlotResponse
   startTime: slot.start_time,
   endTime: slot.end_time,
   isFixed: slot.is_fixed,
+  isAllDay: slot.is_all_day,
   createdAt: slot.created_at,
   updatedAt: slot.updated_at,
 });

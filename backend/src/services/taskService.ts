@@ -10,6 +10,7 @@ export interface TaskWorkSlotCalendar {
   start_time: string;
   end_time: string;
   is_fixed: boolean;
+  is_all_day: boolean;
 }
 
 export async function createTask(data: CreateTaskDTO): Promise<Task> {
@@ -197,14 +198,15 @@ export async function createWorkSlot(
   ownerId: string,
   startTime: string,
   endTime: string,
-  isFixed = false
+  isFixed = false,
+  isAllDay = false
 ): Promise<TaskWorkSlot | null> {
   const result = await pool.query<TaskWorkSlot>(
-    `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed)
-     SELECT $1, $2, $3, $4
-     WHERE EXISTS (SELECT 1 FROM tasks WHERE id = $1 AND owner_id = $5)
+    `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day)
+     SELECT $1, $2, $3, $4, $5
+     WHERE EXISTS (SELECT 1 FROM tasks WHERE id = $1 AND owner_id = $6)
      RETURNING *`,
-    [taskId, startTime, endTime, isFixed, ownerId]
+    [taskId, startTime, endTime, isFixed, isAllDay, ownerId]
   );
 
   return result.rows[0] || null;
@@ -232,7 +234,8 @@ export async function listWorkSlotsForCalendar(ownerId: string): Promise<TaskWor
             p.name AS project_name,
             tws.start_time,
             tws.end_time,
-            tws.is_fixed
+            tws.is_fixed,
+            tws.is_all_day
      FROM task_work_slots tws
      JOIN tasks t ON tws.task_id = t.id
      JOIN projects p ON t.project_id = p.id

@@ -393,6 +393,7 @@ export async function listCalendarWorkSlots(req: Request, res: Response, next: N
       startTime: slot.start_time,
       endTime: slot.end_time,
       isFixed: slot.is_fixed,
+      isAllDay: slot.is_all_day,
     }));
 
     res.status(200).json({ success: true, data: response });
@@ -415,13 +416,14 @@ export async function createTaskWorkSlot(req: Request, res: Response, next: Next
       return;
     }
 
-    const { startTime, endTime, isFixed } = req.body;
+    const { startTime, endTime, isFixed, isAllDay } = req.body;
     const slot = await createWorkSlot(
       req.params.id as string,
       userId,
       startTime,
       endTime,
-      isFixed ?? false
+      isFixed ?? false,
+      isAllDay ?? false
     );
 
     if (!slot) {
@@ -431,18 +433,20 @@ export async function createTaskWorkSlot(req: Request, res: Response, next: Next
 
     const task = await getTaskById(req.params.id as string, userId);
     if (task) {
+      const slotLabel = slot.is_all_day ? 'all day' : `${startTime} - ${endTime}`;
       await createProjectActivity({
         project_id: task.project_id,
         actor_user_id: userId,
         entity_type: 'work_slot',
         action: 'created',
-        summary: `Work slot added: ${task.title} (${startTime} - ${endTime})`,
+        summary: `Work slot added: ${task.title} (${slotLabel})`,
         metadata: {
           taskId: task.id,
           workSlotId: slot.id,
           startTime,
           endTime,
           isFixed: slot.is_fixed,
+          isAllDay: slot.is_all_day,
           projectId: task.project_id,
         },
       });
@@ -472,18 +476,22 @@ export async function removeTaskWorkSlot(req: Request, res: Response, next: Next
     if (existingSlot) {
       const task = await getTaskById(existingSlot.task_id, userId);
       if (task) {
+        const slotLabel = existingSlot.is_all_day
+          ? 'all day'
+          : `${existingSlot.start_time} - ${existingSlot.end_time}`;
         await createProjectActivity({
           project_id: task.project_id,
           actor_user_id: userId,
           entity_type: 'work_slot',
           action: 'deleted',
-          summary: `Work slot removed: ${task.title} (${existingSlot.start_time} - ${existingSlot.end_time})`,
+          summary: `Work slot removed: ${task.title} (${slotLabel})`,
           metadata: {
             taskId: task.id,
             workSlotId: existingSlot.id,
             startTime: existingSlot.start_time,
             endTime: existingSlot.end_time,
             isFixed: existingSlot.is_fixed,
+            isAllDay: existingSlot.is_all_day,
             projectId: task.project_id,
           },
         });

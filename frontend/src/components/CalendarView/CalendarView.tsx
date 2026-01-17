@@ -40,6 +40,7 @@ interface DayEntry {
   title: string;
   startTime: string;
   endTime: string;
+  isAllDay?: boolean;
   appointmentId?: string;
   taskId?: string;
   projectName?: string;
@@ -123,7 +124,7 @@ export default function CalendarView() {
           title: `${slot.taskTitle} · ${slot.projectName}`,
           start: slot.startTime,
           end: slot.endTime,
-          allDay: false,
+          allDay: slot.isAllDay,
           backgroundColor: 'rgba(249, 115, 22, 0.85)',
           borderColor: 'rgba(234, 88, 12, 0.9)',
           textColor: '#ffffff',
@@ -208,6 +209,7 @@ export default function CalendarView() {
             title: slot.taskTitle,
             startTime: slot.startTime,
             endTime: slot.endTime,
+            isAllDay: slot.isAllDay,
             taskId: slot.taskId,
             projectName: slot.projectName,
           });
@@ -418,7 +420,7 @@ export default function CalendarView() {
           dayMaxEvents={3}
           slotMinTime="06:00:00"
           slotMaxTime="22:00:00"
-          allDaySlot={false}
+          allDaySlot={showTaskOverlay}
           nowIndicator={true}
         />
       </Paper>
@@ -495,7 +497,7 @@ export default function CalendarView() {
                       {entry.title}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      {formatTime(entry.startTime)} - {formatTime(entry.endTime)}
+                      {entry.isAllDay ? 'All day' : `${formatTime(entry.startTime)} - ${formatTime(entry.endTime)}`}
                     </Typography>
                     {entry.projectName && (
                       <Typography variant="caption" color="text.secondary">
