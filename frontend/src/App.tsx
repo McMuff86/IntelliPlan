@@ -8,6 +8,7 @@ import Home from './pages/Home';
 import Appointments from './pages/Appointments';
 import CreateAppointment from './pages/CreateAppointment';
 import AppointmentDetail from './pages/AppointmentDetail';
+import Auth from './pages/Auth';
 import Settings from './pages/Settings';
 import Projects from './pages/Projects';
 import ProjectDetail from './pages/ProjectDetail';
@@ -35,6 +36,7 @@ function App() {
             <Route path="/appointments/calendar" element={<Appointments />} />
             <Route path="/appointments/new" element={<CreateAppointment />} />
             <Route path="/appointments/:id" element={<AppointmentDetail />} />
+            <Route path="/auth" element={<Auth />} />
             <Route path="/projects" element={<Projects />} />
             <Route path="/projects/:id" element={<ProjectDetail />} />
             <Route path="/projects/:id/timeline" element={<ProjectTimeline />} />

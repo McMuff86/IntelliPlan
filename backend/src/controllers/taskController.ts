@@ -58,6 +58,9 @@ const buildTaskUpdateSummary = (before: Task, after: Task): string | null => {
   if (before.resource_label !== after.resource_label) {
     changes.push(`resource ${formatValue(before.resource_label)} -> ${formatValue(after.resource_label)}`);
   }
+  if (before.resource_id !== after.resource_id) {
+    changes.push(`resourceId ${formatValue(before.resource_id)} -> ${formatValue(after.resource_id)}`);
+  }
   if (before.scheduling_mode !== after.scheduling_mode) {
     changes.push(`mode ${before.scheduling_mode} -> ${after.scheduling_mode}`);
   }
@@ -112,19 +115,21 @@ export async function createInProject(req: Request, res: Response, next: NextFun
       return;
     }
 
-    const { title, description, status, schedulingMode, durationMinutes, resourceLabel, startDate, dueDate } = req.body;
-    const task = await createTask({
-      project_id: projectId,
-      owner_id: userId,
-      title,
-      description,
-      status,
-      scheduling_mode: schedulingMode,
-      duration_minutes: durationMinutes ?? null,
-      resource_label: resourceLabel ?? null,
-      start_date: startDate ?? null,
-      due_date: dueDate ?? null,
-    });
+  const { title, description, status, schedulingMode, durationMinutes, resourceLabel, resourceId, startDate, dueDate } =
+    req.body;
+  const task = await createTask({
+    project_id: projectId,
+    owner_id: userId,
+    title,
+    description,
+    status,
+    scheduling_mode: schedulingMode,
+    duration_minutes: durationMinutes ?? null,
+    resource_label: resourceLabel ?? null,
+    resource_id: resourceId ?? null,
+    start_date: startDate ?? null,
+    due_date: dueDate ?? null,
+  });
 
     await createProjectActivity({
       project_id: projectId,
@@ -181,7 +186,8 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { title, description, status, schedulingMode, durationMinutes, resourceLabel, startDate, dueDate } = req.body;
+  const { title, description, status, schedulingMode, durationMinutes, resourceLabel, resourceId, startDate, dueDate } =
+    req.body;
     if (status === 'in_progress') {
       const blocked = await isTaskBlocked(req.params.id as string, userId);
       if (blocked) {
@@ -196,6 +202,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       scheduling_mode: schedulingMode,
       duration_minutes: durationMinutes ?? null,
       resource_label: resourceLabel ?? null,
+      resource_id: resourceId ?? null,
       start_date: startDate ?? null,
       due_date: dueDate ?? null,
     });

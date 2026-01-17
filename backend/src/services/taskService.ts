@@ -25,9 +25,10 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
         scheduling_mode,
         duration_minutes,
         resource_label,
+        resource_id,
         start_date,
         due_date
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       data.project_id,
@@ -38,6 +39,7 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
       data.scheduling_mode || 'manual',
       data.duration_minutes ?? null,
       data.resource_label ?? null,
+      data.resource_id ?? null,
       data.start_date ?? null,
       data.due_date ?? null,
     ]
@@ -46,17 +48,20 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
   return result.rows[0];
 }
 
-type TaskWithBlocked = Task & { is_blocked?: boolean };
+type TaskWithBlocked = Task & { is_blocked?: boolean; resource_name?: string | null; resource_type?: string | null };
 
 export async function listTasksByProject(projectId: string, ownerId: string): Promise<TaskWithBlocked[]> {
   const result = await pool.query<TaskWithBlocked>(
     `SELECT t.*,
+            r.name AS resource_name,
+            r.resource_type AS resource_type,
             COALESCE(BOOL_OR(dep.status <> 'done'), false) AS is_blocked
      FROM tasks t
      LEFT JOIN task_dependencies td ON td.task_id = t.id
      LEFT JOIN tasks dep ON td.depends_on_task_id = dep.id
+     LEFT JOIN resources r ON t.resource_id = r.id
      WHERE t.project_id = $1 AND t.owner_id = $2
-     GROUP BY t.id
+     GROUP BY t.id, r.name, r.resource_type
      ORDER BY t.created_at DESC`,
     [projectId, ownerId]
   );
@@ -67,12 +72,15 @@ export async function listTasksByProject(projectId: string, ownerId: string): Pr
 export async function getTaskById(taskId: string, ownerId: string): Promise<TaskWithBlocked | null> {
   const result = await pool.query<TaskWithBlocked>(
     `SELECT t.*,
+            r.name AS resource_name,
+            r.resource_type AS resource_type,
             COALESCE(BOOL_OR(dep.status <> 'done'), false) AS is_blocked
      FROM tasks t
      LEFT JOIN task_dependencies td ON td.task_id = t.id
      LEFT JOIN tasks dep ON td.depends_on_task_id = dep.id
+     LEFT JOIN resources r ON t.resource_id = r.id
      WHERE t.id = $1 AND t.owner_id = $2
-     GROUP BY t.id`,
+     GROUP BY t.id, r.name, r.resource_type`,
     [taskId, ownerId]
   );
 
@@ -111,6 +119,10 @@ export async function updateTask(
   if (data.resource_label !== undefined) {
     fields.push(`resource_label = $${paramIndex++}`);
     values.push(data.resource_label);
+  }
+  if (data.resource_id !== undefined) {
+    fields.push(`resource_id = $${paramIndex++}`);
+    values.push(data.resource_id);
   }
   if (data.start_date !== undefined) {
     fields.push(`start_date = $${paramIndex++}`);

@@ -1,5 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { getUserById } from '../services/userService';
+import { verifyToken } from '../services/authService';
 import type { User } from '../models/user';
 import { UserRole } from '../models/user';
 
@@ -12,9 +13,23 @@ declare module 'express-serve-static-core' {
 
 const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export function requireUserId(req: Request, res: Response, next: NextFunction): void {
+const resolveUserId = (req: Request): string | null => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    const tokenUserId = verifyToken(token);
+    if (tokenUserId) {
+      return tokenUserId;
+    }
+  }
+
   const userIdHeader = req.headers['x-user-id'];
   const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+  return userId || null;
+};
+
+export function requireUserId(req: Request, res: Response, next: NextFunction): void {
+  const userId = resolveUserId(req);
 
   if (!userId) {
     res.status(401).json({
@@ -39,8 +54,7 @@ export function requireUserId(req: Request, res: Response, next: NextFunction): 
 export function requireRole(...allowedRoles: UserRole[]) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const userIdHeader = req.headers['x-user-id'];
-      const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+      const userId = resolveUserId(req);
 
       if (!userId) {
         res.status(401).json({
@@ -69,6 +83,7 @@ export function requireRole(...allowedRoles: UserRole[]) {
       }
 
       req.user = user;
+      req.userId = user.id;
       next();
     } catch (error) {
       next(error);
@@ -78,13 +93,13 @@ export function requireRole(...allowedRoles: UserRole[]) {
 
 export async function loadUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userIdHeader = req.headers['x-user-id'];
-    const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
+    const userId = resolveUserId(req);
 
     if (userId) {
       const user = await getUserById(userId);
       if (user) {
         req.user = user;
+        req.userId = user.id;
       }
     }
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -49,6 +49,7 @@ const Layout = ({ children }: LayoutProps) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(localStorage.getItem('token')));
   const navigate = useNavigate();
 
   useHotkeys([
@@ -63,6 +64,33 @@ const Layout = ({ children }: LayoutProps) => {
 
   const handleLogoClick = () => {
     navigate('/');
+  };
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setIsAuthenticated(Boolean(localStorage.getItem('token')));
+    };
+    const handleAuthChange = () => {
+      setIsAuthenticated(Boolean(localStorage.getItem('token')));
+    };
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('auth-change', handleAuthChange);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('auth-change', handleAuthChange);
+    };
+  }, []);
+
+  const handleAuthClick = () => {
+    if (isAuthenticated) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      setIsAuthenticated(false);
+      window.dispatchEvent(new Event('auth-change'));
+      navigate('/');
+    } else {
+      navigate('/auth');
+    }
   };
 
   const handleNavClick = (path: string) => {
@@ -91,6 +119,14 @@ const Layout = ({ children }: LayoutProps) => {
             </ListItemButton>
           </ListItem>
         ))}
+        <ListItem disablePadding>
+          <ListItemButton onClick={handleAuthClick}>
+            <ListItemIcon>
+              <SettingsIcon />
+            </ListItemIcon>
+            <ListItemText primary={isAuthenticated ? 'Sign Out' : 'Sign In'} />
+          </ListItemButton>
+        </ListItem>
       </List>
     </Box>
   );
@@ -148,6 +184,16 @@ const Layout = ({ children }: LayoutProps) => {
                   </Button>
                 ))}
               </Box>
+            )}
+            {!isMobile && (
+              <Button
+                color="inherit"
+                variant="outlined"
+                onClick={handleAuthClick}
+                sx={{ borderColor: 'rgba(255, 255, 255, 0.35)' }}
+              >
+                {isAuthenticated ? 'Sign Out' : 'Sign In'}
+              </Button>
             )}
           </Container>
         </Toolbar>

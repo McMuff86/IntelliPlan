@@ -33,6 +33,10 @@ export const createTaskValidator: ValidationChain[] = [
     .trim()
     .isLength({ max: 255 })
     .withMessage('resourceLabel must be less than 255 characters'),
+  body('resourceId')
+    .optional()
+    .isUUID()
+    .withMessage('resourceId must be a valid UUID'),
   body('startDate')
     .optional()
     .isISO8601()
@@ -73,6 +77,10 @@ export const updateTaskValidator: ValidationChain[] = [
     .trim()
     .isLength({ max: 255 })
     .withMessage('resourceLabel must be less than 255 characters'),
+  body('resourceId')
+    .optional()
+    .isUUID()
+    .withMessage('resourceId must be a valid UUID'),
   body('startDate')
     .optional()
     .isISO8601()

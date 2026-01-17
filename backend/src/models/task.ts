@@ -1,6 +1,7 @@
 export type TaskStatus = 'planned' | 'in_progress' | 'blocked' | 'done';
 export type SchedulingMode = 'manual' | 'auto';
 export type DependencyType = 'finish_start' | 'start_start' | 'finish_finish';
+export type ResourceType = 'person' | 'machine' | 'vehicle';
 
 export interface Task {
   id: string;
@@ -12,6 +13,7 @@ export interface Task {
   scheduling_mode: SchedulingMode;
   duration_minutes: number | null;
   resource_label: string | null;
+  resource_id: string | null;
   start_date: string | null;
   due_date: string | null;
   created_at: string;
@@ -28,6 +30,9 @@ export interface TaskResponse {
   schedulingMode: SchedulingMode;
   durationMinutes: number | null;
   resourceLabel: string | null;
+  resourceId: string | null;
+  resourceName?: string | null;
+  resourceType?: ResourceType | null;
   startDate: string | null;
   dueDate: string | null;
   createdAt: string;
@@ -44,6 +49,7 @@ export interface CreateTaskDTO {
   scheduling_mode?: SchedulingMode;
   duration_minutes?: number | null;
   resource_label?: string | null;
+  resource_id?: string | null;
   start_date?: string | null;
   due_date?: string | null;
 }
@@ -55,6 +61,7 @@ export interface UpdateTaskDTO {
   scheduling_mode?: SchedulingMode;
   duration_minutes?: number | null;
   resource_label?: string | null;
+  resource_id?: string | null;
   start_date?: string | null;
   due_date?: string | null;
 }
@@ -97,7 +104,9 @@ export interface TaskWorkSlotResponse {
   updatedAt: string;
 }
 
-export const toTaskResponse = (task: Task & { is_blocked?: boolean | null }): TaskResponse => ({
+export const toTaskResponse = (
+  task: Task & { is_blocked?: boolean | null; resource_name?: string | null; resource_type?: ResourceType | null }
+): TaskResponse => ({
   id: task.id,
   projectId: task.project_id,
   ownerId: task.owner_id,
@@ -107,6 +116,9 @@ export const toTaskResponse = (task: Task & { is_blocked?: boolean | null }): Ta
   schedulingMode: task.scheduling_mode,
   durationMinutes: task.duration_minutes,
   resourceLabel: task.resource_label,
+  resourceId: task.resource_id,
+  resourceName: task.resource_name ?? null,
+  resourceType: task.resource_type ?? null,
   startDate: task.start_date,
   dueDate: task.due_date,
   createdAt: task.created_at,

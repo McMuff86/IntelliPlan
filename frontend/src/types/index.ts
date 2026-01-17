@@ -74,6 +74,9 @@ export interface Task {
   schedulingMode: SchedulingMode;
   durationMinutes: number | null;
   resourceLabel: string | null;
+  resourceId: string | null;
+  resourceName?: string | null;
+  resourceType?: 'person' | 'machine' | 'vehicle' | null;
   startDate: string | null;
   dueDate: string | null;
   createdAt: string;
@@ -128,6 +131,7 @@ export interface CreateTaskDTO {
   schedulingMode?: SchedulingMode;
   durationMinutes?: number | null;
   resourceLabel?: string | null;
+  resourceId?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
 }
@@ -153,4 +157,26 @@ export interface ProjectActivity {
   summary: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export type ResourceType = 'person' | 'machine' | 'vehicle';
+
+export interface Resource {
+  id: string;
+  ownerId: string;
+  name: string;
+  resourceType: ResourceType;
+  description: string | null;
+  isActive: boolean;
+  availabilityEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateResourceDTO {
+  name: string;
+  resourceType: ResourceType;
+  description?: string | null;
+  isActive?: boolean;
+  availabilityEnabled?: boolean;
 }

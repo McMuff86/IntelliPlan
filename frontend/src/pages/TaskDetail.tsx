@@ -27,14 +27,9 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { addDays, format, startOfDay } from 'date-fns';
 import axios from 'axios';
-import type {
-  DependencyType,
-  Task,
-  TaskDependency,
-  TaskStatus,
-  TaskWorkSlot,
-} from '../types';
+import type { DependencyType, Resource, Task, TaskDependency, TaskStatus, TaskWorkSlot } from '../types';
 import { taskService } from '../services/taskService';
+import { resourceService } from '../services/resourceService';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 const dependencyOptions: DependencyType[] = ['finish_start', 'start_start', 'finish_finish'];
@@ -67,10 +62,12 @@ export default function TaskDetail() {
   const [projectTasks, setProjectTasks] = useState<Task[]>([]);
   const [dependencies, setDependencies] = useState<TaskDependency[]>([]);
   const [workSlots, setWorkSlots] = useState<TaskWorkSlot[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [resourceLabel, setResourceLabel] = useState('');
+  const [resourceId, setResourceId] = useState('');
   const [savingResource, setSavingResource] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resettingStatus, setResettingStatus] = useState(false);
@@ -112,13 +109,27 @@ export default function TaskDetail() {
     }
   };
 
+  const loadResources = async () => {
+    try {
+      const data = await resourceService.getAll();
+      setResources(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     loadTask();
   }, [id]);
 
   useEffect(() => {
+    loadResources();
+  }, []);
+
+  useEffect(() => {
     if (task) {
       setResourceLabel(task.resourceLabel ?? '');
+      setResourceId(task.resourceId ?? '');
     }
   }, [task?.id]);
 
@@ -200,6 +211,7 @@ export default function TaskDetail() {
       setError(null);
       const updated = await taskService.update(task.id, {
         resourceLabel: resourceLabel.trim() || null,
+        resourceId: resourceId || null,
       });
       setTask(updated);
     } catch (err) {
@@ -374,20 +386,38 @@ export default function TaskDetail() {
         <Typography variant="h6" gutterBottom>
           Resource
         </Typography>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+        <Stack spacing={2}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+            <TextField
+              select
+              label="Assigned resource"
+              value={resourceId}
+              onChange={(event) => setResourceId(event.target.value)}
+              fullWidth
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {resources
+                .filter((resource) => resource.isActive)
+                .map((resource) => (
+                  <MenuItem key={resource.id} value={resource.id}>
+                    {resource.name} ({resource.resourceType})
+                  </MenuItem>
+                ))}
+            </TextField>
+            <Button
+              variant="contained"
+              onClick={handleSaveResource}
+              disabled={savingResource}
+            >
+              {savingResource ? 'Saving...' : 'Save'}
+            </Button>
+          </Stack>
           <TextField
-            label="Assigned resource"
+            label="Resource note"
             value={resourceLabel}
             onChange={(event) => setResourceLabel(event.target.value)}
             fullWidth
           />
-          <Button
-            variant="contained"
-            onClick={handleSaveResource}
-            disabled={savingResource}
-          >
-            {savingResource ? 'Saving...' : 'Save'}
-          </Button>
         </Stack>
       </Paper>
 

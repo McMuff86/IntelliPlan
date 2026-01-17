@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   team_id: string | null;
   timezone: string;
+  password_hash?: string | null;
   created_at: Date;
   updated_at: Date;
 }

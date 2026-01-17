@@ -13,6 +13,8 @@ import {
   Divider,
   CircularProgress,
   Tooltip,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -22,19 +24,22 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formatISO, format, parseISO } from 'date-fns';
-import type { Project, ProjectActivity, Task, TaskStatus, SchedulingMode } from '../types';
+import type { Project, ProjectActivity, Resource, ResourceType, Task, TaskStatus, SchedulingMode } from '../types';
 import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
+import { resourceService } from '../services/resourceService';
 import Breadcrumbs from '../components/Breadcrumbs';
 import axios from 'axios';
 
 const statusOptions: TaskStatus[] = ['planned', 'in_progress', 'blocked', 'done'];
 const schedulingOptions: SchedulingMode[] = ['manual', 'auto'];
-const defaultLayoutOrder = ['tasks', 'create', 'activity', 'shift'] as const;
+const resourceTypeOptions: ResourceType[] = ['person', 'machine', 'vehicle'];
+const defaultLayoutOrder = ['tasks', 'create', 'resources', 'activity', 'shift'] as const;
 type LayoutSectionKey = (typeof defaultLayoutOrder)[number];
 const layoutSectionLabels: Record<LayoutSectionKey, string> = {
   tasks: 'Tasks',
   create: 'Create Task',
+  resources: 'Resources',
   activity: 'Activity History',
   shift: 'Shift Project Schedule',
 };
@@ -60,11 +65,14 @@ export default function ProjectDetail() {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activity, setActivity] = useState<ProjectActivity[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [shifting, setShifting] = useState(false);
   const [savingTaskTitle, setSavingTaskTitle] = useState(false);
+  const [creatingResource, setCreatingResource] = useState(false);
+  const [updatingResourceId, setUpdatingResourceId] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -72,6 +80,7 @@ export default function ProjectDetail() {
   const [schedulingMode, setSchedulingMode] = useState<SchedulingMode>('manual');
   const [durationMinutes, setDurationMinutes] = useState<number | ''>('');
   const [resourceLabel, setResourceLabel] = useState('');
+  const [resourceId, setResourceId] = useState('');
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [shiftDays, setShiftDays] = useState<number | ''>('');
@@ -86,6 +95,12 @@ export default function ProjectDetail() {
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [newTemplateName, setNewTemplateName] = useState('');
 
+  const [resourceName, setResourceName] = useState('');
+  const [resourceType, setResourceType] = useState<ResourceType>('person');
+  const [resourceDescription, setResourceDescription] = useState('');
+  const [resourceActive, setResourceActive] = useState(true);
+  const [resourceAvailabilityEnabled, setResourceAvailabilityEnabled] = useState(false);
+
   const loadProject = async () => {
     if (!id) return;
     try {
@@ -98,6 +113,7 @@ export default function ProjectDetail() {
       setProject(projectData);
       setTasks(taskData);
       void loadActivity(projectData.id);
+      void loadResources();
     } catch (err) {
       console.error(err);
       setError('Failed to load project');
@@ -110,6 +126,15 @@ export default function ProjectDetail() {
     try {
       const data = await projectService.getActivity(projectId);
       setActivity(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const loadResources = async () => {
+    try {
+      const data = await resourceService.getAll();
+      setResources(data);
     } catch (err) {
       console.error(err);
     }
@@ -275,6 +300,7 @@ export default function ProjectDetail() {
     setSchedulingMode('manual');
     setDurationMinutes('');
     setResourceLabel('');
+    setResourceId('');
     setStartDate(null);
     setDueDate(null);
   };
@@ -295,6 +321,7 @@ export default function ProjectDetail() {
         schedulingMode,
         durationMinutes: durationMinutes === '' ? undefined : durationMinutes,
         resourceLabel: resourceLabel.trim() || undefined,
+        resourceId: resourceId || undefined,
         startDate: startDate ? formatISO(startDate, { representation: 'date' }) : undefined,
         dueDate: dueDate ? formatISO(dueDate, { representation: 'date' }) : undefined,
       };
@@ -375,6 +402,60 @@ export default function ProjectDetail() {
       }
     } finally {
       setSavingTaskTitle(false);
+    }
+  };
+
+  const resetResourceForm = () => {
+    setResourceName('');
+    setResourceType('person');
+    setResourceDescription('');
+    setResourceActive(true);
+    setResourceAvailabilityEnabled(false);
+  };
+
+  const handleCreateResource = async () => {
+    const name = resourceName.trim();
+    if (!name) {
+      setError('Resource name is required');
+      return;
+    }
+
+    try {
+      setCreatingResource(true);
+      setError(null);
+      const created = await resourceService.create({
+        name,
+        resourceType,
+        description: resourceDescription.trim() || null,
+        isActive: resourceActive,
+        availabilityEnabled: resourceAvailabilityEnabled,
+      });
+      setResources((prev) => [created, ...prev]);
+      resetResourceForm();
+    } catch (err) {
+      console.error(err);
+      setError('Failed to create resource');
+    } finally {
+      setCreatingResource(false);
+    }
+  };
+
+  const updateResource = async (resourceIdToUpdate: string, payload: Partial<Resource>) => {
+    try {
+      setUpdatingResourceId(resourceIdToUpdate);
+      const updated = await resourceService.update(resourceIdToUpdate, {
+        name: payload.name,
+        resourceType: payload.resourceType,
+        description: payload.description,
+        isActive: payload.isActive,
+        availabilityEnabled: payload.availabilityEnabled,
+      });
+      setResources((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+    } catch (err) {
+      console.error(err);
+      setError('Failed to update resource');
+    } finally {
+      setUpdatingResourceId(null);
     }
   };
 
@@ -491,11 +572,21 @@ export default function ProjectDetail() {
         <LocalizationProvider dateAdapter={AdapterDateFns}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <TextField
-              label="Resource"
-              value={resourceLabel}
-              onChange={(event) => setResourceLabel(event.target.value)}
+              select
+              label="Assigned resource"
+              value={resourceId}
+              onChange={(event) => setResourceId(event.target.value)}
               fullWidth
-            />
+            >
+              <MenuItem value="">Unassigned</MenuItem>
+              {resources
+                .filter((resource) => resource.isActive)
+                .map((resource) => (
+                  <MenuItem key={resource.id} value={resource.id}>
+                    {resource.name} ({resource.resourceType})
+                  </MenuItem>
+                ))}
+            </TextField>
             <DatePicker
               label="Start Date"
               value={startDate}
@@ -510,6 +601,12 @@ export default function ProjectDetail() {
             />
           </Stack>
         </LocalizationProvider>
+        <TextField
+          label="Resource note"
+          value={resourceLabel}
+          onChange={(event) => setResourceLabel(event.target.value)}
+          fullWidth
+        />
         <Box>
           <Button
             variant="contained"
@@ -520,6 +617,139 @@ export default function ProjectDetail() {
             {creating ? 'Creating...' : 'Add Task'}
           </Button>
         </Box>
+      </Stack>
+    ),
+    resources: (
+      <Stack spacing={2}>
+        <Stack spacing={2}>
+          <TextField
+            label="Resource name"
+            value={resourceName}
+            onChange={(event) => setResourceName(event.target.value)}
+            fullWidth
+          />
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+            <TextField
+              select
+              label="Resource type"
+              value={resourceType}
+              onChange={(event) => setResourceType(event.target.value as ResourceType)}
+              fullWidth
+            >
+              {resourceTypeOptions.map((type) => (
+                <MenuItem key={type} value={type}>
+                  {type}
+                </MenuItem>
+              ))}
+            </TextField>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={resourceActive}
+                  onChange={(event) => setResourceActive(event.target.checked)}
+                />
+              }
+              label="Active"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={resourceAvailabilityEnabled}
+                  onChange={(event) => setResourceAvailabilityEnabled(event.target.checked)}
+                />
+              }
+              label="Availability enabled"
+            />
+          </Stack>
+          <TextField
+            label="Description"
+            value={resourceDescription}
+            onChange={(event) => setResourceDescription(event.target.value)}
+            fullWidth
+            multiline
+            rows={2}
+          />
+          <Button
+            variant="contained"
+            onClick={handleCreateResource}
+            disabled={creatingResource}
+          >
+            {creatingResource ? 'Creating...' : 'Add Resource'}
+          </Button>
+        </Stack>
+
+        <Divider />
+
+        <Typography variant="body2" color="text.secondary">
+          Availability toggles are stored now; scheduling rules will be applied in a future update.
+        </Typography>
+
+        {resources.length === 0 ? (
+          <Typography color="text.secondary">No resources yet. Add people, machines, or vehicles to get started.</Typography>
+        ) : (
+          <Stack spacing={1.5}>
+            {resources.map((resource) => (
+              <Paper
+                key={resource.id}
+                sx={{
+                  p: 1.5,
+                  display: 'flex',
+                  flexDirection: { xs: 'column', sm: 'row' },
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <Box>
+                  <Typography variant="subtitle2">{resource.name}</Typography>
+                  <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" mt={1}>
+                    <Chip size="small" label={resource.resourceType} variant="outlined" />
+                    <Chip
+                      size="small"
+                      label={resource.isActive ? 'Active' : 'Inactive'}
+                      color={resource.isActive ? 'success' : 'default'}
+                    />
+                    <Chip
+                      size="small"
+                      label={resource.availabilityEnabled ? 'Availability on' : 'Availability off'}
+                      variant="outlined"
+                    />
+                  </Stack>
+                  {resource.description && (
+                    <Typography variant="body2" color="text.secondary" mt={1}>
+                      {resource.description}
+                    </Typography>
+                  )}
+                </Box>
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={resource.isActive}
+                        onChange={(event) =>
+                          updateResource(resource.id, { isActive: event.target.checked })
+                        }
+                        disabled={updatingResourceId === resource.id}
+                      />
+                    }
+                    label="Active"
+                  />
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={resource.availabilityEnabled}
+                        onChange={(event) =>
+                          updateResource(resource.id, { availabilityEnabled: event.target.checked })
+                        }
+                        disabled={updatingResourceId === resource.id}
+                      />
+                    }
+                    label="Availability"
+                  />
+                </Stack>
+              </Paper>
+            ))}
+          </Stack>
+        )}
       </Stack>
     ),
     shift: (
@@ -623,7 +853,13 @@ export default function ProjectDetail() {
                             variant="outlined"
                           />
                         ) : null}
-                        {task.resourceLabel ? (
+                        {task.resourceName ? (
+                          <Chip
+                            size="small"
+                            label={`Resource: ${task.resourceName}${task.resourceType ? ` (${task.resourceType})` : ''}`}
+                            variant="outlined"
+                          />
+                        ) : task.resourceLabel ? (
                           <Chip
                             size="small"
                             label={`Resource: ${task.resourceLabel}`}
