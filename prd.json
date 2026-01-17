@@ -1,278 +1,182 @@
 {
-  "name": "Appointment Management",
-  "branchName": "feature/appointment-management",
-  "description": "Core appointment management system enabling users to create, view, edit, and delete appointments with overlap detection, multiple view options, and role-based access for Admin, Single, and Team users.",
+  "name": "Task Planning & Project Scheduling",
+  "branchName": "feature/task-planning",
+  "description": "Extend IntelliPlan with project-based task planning, dependent tasks, manual work slots, optional reminders, and cascading schedule shifts.",
   "userStories": [
     {
-      "id": "US-001",
-      "title": "Project Setup and Database Schema",
-      "description": "As a developer I want the project initialized with the tech stack and database schema So that I can build features on a solid foundation",
+      "id": "US-TP-001",
+      "title": "Database schema for projects and tasks",
+      "description": "As a developer, I want tables for projects, tasks, dependencies, and work slots so tasks can be planned and linked over weeks or months.",
       "acceptanceCriteria": [
-        "Node.js/Express backend initialized with TypeScript",
-        "React.js frontend initialized with Material-UI and TypeScript",
-        "PostgreSQL database connection configured",
-        "Appointments table created with: id, title, description, start_time, end_time, timezone, user_id, created_at, updated_at",
-        "Users table created with: id, email, name, role (admin/single/team), team_id, created_at",
-        "Teams table created with: id, name, created_at",
-        "Database migrations setup"
+        "projects table with owner, calendar template (weekends, working hours)",
+        "tasks table with status, duration, and planned range fields",
+        "task_dependencies table with dependency type",
+        "task_work_slots table for manual time blocks"
       ],
-      "technicalNotes": "Use UTC for all timestamp storage. Use ISO 8601 format for API responses. Set up ESLint and Prettier.",
+      "technicalNotes": "Store timestamps in UTC, return ISO 8601. Add CHECK constraints for status and dependency types.",
       "dependencies": [],
       "priority": 1,
       "passes": true
     },
     {
-      "id": "US-002",
-      "title": "Create Appointment API Endpoint",
-      "description": "As a user I want to create a new appointment via API So that I can add events to my schedule",
+      "id": "US-TP-002",
+      "title": "Project CRUD API",
+      "description": "As a user, I want to create, read, update, and delete projects so I can group tasks.",
       "acceptanceCriteria": [
-        "POST /api/appointments endpoint created",
-        "Validates required fields: title, start_time, end_time",
-        "Stores times in UTC",
-        "Returns created appointment with 201 status",
-        "Returns validation errors with 400 status"
+        "POST /api/projects",
+        "GET /api/projects",
+        "GET /api/projects/:id",
+        "PUT /api/projects/:id",
+        "DELETE /api/projects/:id"
       ],
-      "technicalNotes": "Use express-validator for input validation.",
-      "dependencies": ["US-001"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-001"],
       "priority": 2,
       "passes": true
     },
     {
-      "id": "US-003",
-      "title": "Read Appointments API Endpoints",
-      "description": "As a user I want to retrieve my appointments via API So that I can view my schedule",
+      "id": "US-TP-003",
+      "title": "Task CRUD API",
+      "description": "As a user, I want to manage tasks within projects so I can plan work packages.",
       "acceptanceCriteria": [
-        "GET /api/appointments returns user's appointments",
-        "GET /api/appointments/:id returns single appointment",
-        "Supports date range filtering (?start=&end=)",
-        "Returns 404 for non-existent appointments",
-        "Respects user ownership (users only see their own)"
+        "POST /api/projects/:projectId/tasks",
+        "GET /api/projects/:projectId/tasks",
+        "GET /api/tasks/:id",
+        "PUT /api/tasks/:id",
+        "DELETE /api/tasks/:id"
       ],
-      "technicalNotes": "Pagination support for list endpoint.",
-      "dependencies": ["US-001"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-001", "US-TP-002"],
       "priority": 3,
       "passes": true
     },
     {
-      "id": "US-004",
-      "title": "Update Appointment API Endpoint",
-      "description": "As a user I want to update an existing appointment via API So that I can modify my schedule",
+      "id": "US-TP-004",
+      "title": "Work slots (manual planning)",
+      "description": "As a user, I want to define work slots for tasks so I can distribute work across days and weeks.",
       "acceptanceCriteria": [
-        "PUT /api/appointments/:id endpoint created",
-        "Validates ownership before update",
-        "Partial updates supported (PATCH semantics)",
-        "Returns updated appointment with 200 status",
-        "Returns 404 for non-existent appointments",
-        "Returns 403 for unauthorized access"
+        "POST /api/tasks/:id/work-slots",
+        "GET /api/tasks/:id/work-slots",
+        "DELETE /api/tasks/:id/work-slots/:slotId",
+        "Validation: end time is after start time"
       ],
-      "technicalNotes": "Dependency: US-002, US-003.",
-      "dependencies": ["US-002", "US-003"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-003"],
       "priority": 4,
       "passes": true
     },
     {
-      "id": "US-005",
-      "title": "Delete Appointment API Endpoint",
-      "description": "As a user I want to delete an appointment via API So that I can remove events from my schedule",
+      "id": "US-TP-005",
+      "title": "Manage task dependencies",
+      "description": "As a user, I want to define task dependencies so I can control sequencing and blocking.",
       "acceptanceCriteria": [
-        "DELETE /api/appointments/:id endpoint created",
-        "Validates ownership before deletion",
-        "Returns 204 on successful deletion",
-        "Returns 404 for non-existent appointments",
-        "Returns 403 for unauthorized access"
+        "Dependency types: start-start, finish-finish, finish-start",
+        "POST /api/tasks/:id/dependencies",
+        "GET /api/tasks/:id/dependencies",
+        "DELETE /api/tasks/:id/dependencies/:dependencyId"
       ],
-      "technicalNotes": "Soft delete vs hard delete decision (recommend soft delete).",
-      "dependencies": ["US-002"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-003"],
       "priority": 5,
       "passes": true
     },
     {
-      "id": "US-006",
-      "title": "Overlap Detection Service",
-      "description": "As a user I want to be warned about scheduling conflicts So that I don't accidentally double-book",
+      "id": "US-TP-006",
+      "title": "Blocked status and validation",
+      "description": "As a user, I want to see blocking status so I do not start tasks with unmet dependencies.",
       "acceptanceCriteria": [
-        "Service detects overlapping appointments for same user",
-        "Returns list of conflicting appointments",
-        "Integrated into create/update endpoints",
-        "API returns overlap warnings in response",
-        "Blocked by default, but accepts ?force=true to override"
+        "Task shows blocked when dependencies are not satisfied",
+        "Start action is only possible when dependencies are fulfilled"
       ],
-      "technicalNotes": "Check: new_start < existing_end AND new_end > existing_start.",
-      "dependencies": ["US-002", "US-004"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-005"],
       "priority": 6,
-      "passes": true
+      "passes": false
     },
     {
-      "id": "US-007",
-      "title": "Appointment Form Component",
-      "description": "As a user I want a form to create/edit appointments So that I can manage my schedule through the UI",
+      "id": "US-TP-007",
+      "title": "Shift and cascade scheduling",
+      "description": "As a user, I want to shift tasks and auto-adjust dependent tasks so the plan stays consistent.",
       "acceptanceCriteria": [
-        "Form with fields: title, description, start date/time, end date/time, timezone",
-        "Date/time pickers using Material-UI",
-        "Form validation with error messages",
-        "Submit creates new appointment via API",
-        "Loading state during submission"
+        "Default: shifting only pulls dependent follow-up tasks",
+        "Option to move the whole task block, not just follow-ups",
+        "Cascading respects dependency types"
       ],
-      "technicalNotes": "Use react-hook-form for form management.",
-      "dependencies": ["US-002"],
+      "technicalNotes": "Phase 1 can be basic; Phase 2 should differentiate dependency types.",
+      "dependencies": ["US-TP-004", "US-TP-005"],
       "priority": 7,
-      "passes": true
+      "passes": false
     },
     {
-      "id": "US-008",
-      "title": "Overlap Warning Dialog",
-      "description": "As a user I want to see a warning when my appointment overlaps with existing ones So that I can decide whether to proceed or modify",
+      "id": "US-TP-008",
+      "title": "UI: Project and task overview",
+      "description": "As a user, I want to see projects and tasks in an overview so I can navigate quickly.",
       "acceptanceCriteria": [
-        "Dialog displays when overlap detected",
-        "Shows list of conflicting appointments",
-        "\"Cancel\" button returns to form",
-        "\"Create Anyway\" button forces creation",
-        "Clear visual warning styling"
+        "Project list with task list per project",
+        "Status, duration, and blocked state are visible",
+        "Verify in browser using dev-browser skill"
       ],
-      "technicalNotes": "Material-UI Dialog component.",
-      "dependencies": ["US-006", "US-007"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-002", "US-TP-003"],
       "priority": 8,
       "passes": true
     },
     {
-      "id": "US-009",
-      "title": "Appointments List View",
-      "description": "As a user I want to see my appointments in a list So that I can quickly scan my schedule",
+      "id": "US-TP-009",
+      "title": "UI: Task detail and work slots",
+      "description": "As a user, I want a task detail view with slots so I can add and remove time blocks.",
       "acceptanceCriteria": [
-        "List displays appointments sorted by date",
-        "Shows title, date, time for each appointment",
-        "Click opens appointment details",
-        "Delete button with confirmation",
-        "Empty state when no appointments"
+        "Slot list with times",
+        "Add and remove UI for slots",
+        "Dependencies visible",
+        "Verify in browser using dev-browser skill"
       ],
-      "technicalNotes": "Material-UI List/Table component.",
-      "dependencies": ["US-003"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-003", "US-TP-004", "US-TP-005"],
       "priority": 9,
       "passes": true
     },
     {
-      "id": "US-010",
-      "title": "Appointment Detail View",
-      "description": "As a user I want to view full details of an appointment So that I can see all information",
+      "id": "US-TP-010",
+      "title": "UI: Timeline/Gantt view",
+      "description": "As a user, I want a timeline view so I can plan durations and dependencies visually.",
       "acceptanceCriteria": [
-        "Displays all appointment fields",
-        "Edit button navigates to edit form",
-        "Delete button with confirmation dialog",
-        "Back navigation to list view"
+        "Gantt or timeline view per project",
+        "Dependencies shown with lines or indicators",
+        "Verify in browser using dev-browser skill"
       ],
-      "technicalNotes": "Material-UI Card or Paper component.",
-      "dependencies": ["US-003", "US-007"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-008"],
       "priority": 10,
-      "passes": true
+      "passes": false
     },
     {
-      "id": "US-011",
-      "title": "Calendar View Component",
-      "description": "As a user I want to see my appointments in a calendar view So that I can visualize my schedule over time",
+      "id": "US-TP-011",
+      "title": "Calendar reminders (optional)",
+      "description": "As a user, I want optional reminders so tasks show up in the calendar.",
       "acceptanceCriteria": [
-        "Monthly calendar grid view",
-        "Appointments displayed on their dates",
-        "Navigation between months",
-        "Click on date shows appointments for that day",
-        "Click on appointment opens detail view"
+        "Toggle per work slot or task",
+        "Reminder-only, no hard appointment binding",
+        "Verify in browser using dev-browser skill"
       ],
-      "technicalNotes": "Consider FullCalendar library or build custom with Material-UI.",
-      "dependencies": ["US-003"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-004"],
       "priority": 11,
-      "passes": true
+      "passes": false
     },
     {
-      "id": "US-012",
-      "title": "Calendar Week and Day Views",
-      "description": "As a user I want week and day views in the calendar So that I can see detailed time slots",
+      "id": "US-TP-012",
+      "title": "Working time templates",
+      "description": "As a user, I want working time templates so I can plan faster.",
       "acceptanceCriteria": [
-        "Week view shows 7-day grid with time slots",
-        "Day view shows single day with time slots",
-        "Toggle between Month/Week/Day views",
-        "Appointments positioned by time",
-        "Time slot visual indicators"
+        "Templates for Mon-Fri 8-17 with optional weekends",
+        "Templates can be saved per project",
+        "Verify in browser using dev-browser skill"
       ],
-      "technicalNotes": "Dependency: US-011.",
-      "dependencies": ["US-011"],
+      "technicalNotes": "",
+      "dependencies": ["US-TP-002"],
       "priority": 12,
-      "passes": true
-    },
-    {
-      "id": "US-013",
-      "title": "Drag and Drop Rescheduling",
-      "description": "As a user I want to drag appointments to reschedule them So that I can quickly adjust my schedule",
-      "acceptanceCriteria": [
-        "Drag appointment to new date in calendar",
-        "Drag to new time slot in week/day view",
-        "Visual feedback during drag",
-        "Confirmation or immediate save option",
-        "Overlap warning if conflict detected"
-      ],
-      "technicalNotes": "Use react-beautiful-dnd or native drag API.",
-      "dependencies": ["US-011", "US-012", "US-006"],
-      "priority": 13,
-      "passes": true
-    },
-    {
-      "id": "US-014",
-      "title": "View Toggle Navigation",
-      "description": "As a user I want to switch between List and Calendar views So that I can choose my preferred visualization",
-      "acceptanceCriteria": [
-        "Toggle buttons for List/Calendar views",
-        "Persists view preference in local storage",
-        "Smooth transition between views",
-        "URL reflects current view (/appointments/list, /appointments/calendar)"
-      ],
-      "technicalNotes": "React Router for view routing.",
-      "dependencies": ["US-009", "US-011"],
-      "priority": 14,
-      "passes": true
-    },
-    {
-      "id": "US-015",
-      "title": "User Role - Admin Access",
-      "description": "As an admin I want to view and manage all users' appointments So that I can oversee the entire organization",
-      "acceptanceCriteria": [
-        "Admin can view all appointments across users",
-        "Filter by user in list/calendar views",
-        "Admin can edit/delete any appointment",
-        "Role check middleware on API endpoints"
-      ],
-      "technicalNotes": "Dependency: US-003, US-004, US-005.",
-      "dependencies": ["US-003", "US-004", "US-005"],
-      "priority": 15,
       "passes": false
-    },
-    {
-      "id": "US-016",
-      "title": "User Role - Team Visibility",
-      "description": "As a team user I want to see my team members' appointments So that I can coordinate schedules",
-      "acceptanceCriteria": [
-        "Team members see each other's appointments (read-only)",
-        "Visual distinction between own and team appointments",
-        "Can only edit/delete own appointments",
-        "Team filter in views"
-      ],
-      "technicalNotes": "Dependency: US-003, US-015.",
-      "dependencies": ["US-003", "US-015"],
-      "priority": 16,
-      "passes": false
-    },
-    {
-      "id": "US-017",
-      "title": "Timezone Display and Selection",
-      "description": "As a user I want to view appointments in my local timezone So that times are meaningful to me",
-      "acceptanceCriteria": [
-        "User can set preferred timezone in settings",
-        "Appointments display in user's timezone",
-        "Timezone selector in appointment form",
-        "Clear timezone indicator on appointments"
-      ],
-      "technicalNotes": "Use date-fns-tz or luxon for timezone handling. Store in UTC, display in local.",
-      "dependencies": ["US-007", "US-009", "US-011"],
-      "priority": 17,
-      "passes": true
     }
   ]
 }
-

@@ -197,7 +197,28 @@ export async function deleteWorkSlot(slotId: string, ownerId: string): Promise<b
 export interface ShiftResult {
   shiftedTaskIds: string[];
   deltaDays: number;
+  shiftedTasks?: { taskId: string; deltaDays: number }[];
 }
+
+interface DependencyEdge {
+  task_id: string;
+  depends_on_task_id: string;
+  dependency_type: DependencyType;
+}
+
+interface TaskScheduleSnapshot {
+  start: Date | null;
+  end: Date | null;
+}
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+const toDate = (value: string | null): Date | null => {
+  if (!value) return null;
+  return new Date(value);
+};
+
+const shiftDate = (value: Date, days: number): Date => new Date(value.getTime() + days * MS_PER_DAY);
 
 const shiftTaskSchedule = async (taskIds: string[], ownerId: string, deltaDays: number): Promise<void> => {
   if (taskIds.length === 0 || deltaDays === 0) {
@@ -231,25 +252,62 @@ const shiftTaskSchedule = async (taskIds: string[], ownerId: string, deltaDays: 
   );
 };
 
-const getDependentTaskIds = async (taskId: string, ownerId: string): Promise<string[]> => {
-  const result = await pool.query<{ task_id: string }>(
+const getDependentEdges = async (taskId: string, ownerId: string): Promise<DependencyEdge[]> => {
+  const result = await pool.query<DependencyEdge>(
     `WITH RECURSIVE deps AS (
-        SELECT td.task_id
+        SELECT td.task_id, td.depends_on_task_id, td.dependency_type
         FROM task_dependencies td
         JOIN tasks t ON td.task_id = t.id
         WHERE td.depends_on_task_id = $1 AND t.owner_id = $2
       UNION
-        SELECT td.task_id
+        SELECT td.task_id, td.depends_on_task_id, td.dependency_type
         FROM task_dependencies td
         JOIN tasks t ON td.task_id = t.id
         JOIN deps d ON td.depends_on_task_id = d.task_id
         WHERE t.owner_id = $2
      )
-     SELECT DISTINCT task_id FROM deps`,
+     SELECT DISTINCT task_id, depends_on_task_id, dependency_type FROM deps`,
     [taskId, ownerId]
   );
 
-  return result.rows.map((row) => row.task_id);
+  return result.rows;
+};
+
+const getTaskScheduleSnapshots = async (
+  taskIds: string[],
+  ownerId: string
+): Promise<Map<string, TaskScheduleSnapshot>> => {
+  if (taskIds.length === 0) {
+    return new Map();
+  }
+
+  const result = await pool.query<{
+    id: string;
+    start_date: string | null;
+    due_date: string | null;
+    min_slot_start: string | null;
+    max_slot_end: string | null;
+  }>(
+    `SELECT t.id,
+            t.start_date,
+            t.due_date,
+            MIN(tws.start_time) AS min_slot_start,
+            MAX(tws.end_time) AS max_slot_end
+     FROM tasks t
+     LEFT JOIN task_work_slots tws ON tws.task_id = t.id
+     WHERE t.id = ANY($1::uuid[]) AND t.owner_id = $2
+     GROUP BY t.id`,
+    [taskIds, ownerId]
+  );
+
+  const map = new Map<string, TaskScheduleSnapshot>();
+  result.rows.forEach((row) => {
+    const start = toDate(row.min_slot_start) ?? toDate(row.start_date);
+    const end = toDate(row.max_slot_end) ?? toDate(row.due_date);
+    map.set(row.id, { start, end });
+  });
+
+  return map;
 };
 
 export const shiftTaskWithDependents = async (
@@ -258,19 +316,90 @@ export const shiftTaskWithDependents = async (
   deltaDays: number,
   cascade: boolean
 ): Promise<ShiftResult> => {
-  const shiftedIds = new Set<string>();
-  shiftedIds.add(taskId);
+  const shiftMap = new Map<string, number>();
+  shiftMap.set(taskId, deltaDays);
 
   if (cascade) {
-    const dependentIds = await getDependentTaskIds(taskId, ownerId);
-    dependentIds.forEach((id) => shiftedIds.add(id));
+    const edges = await getDependentEdges(taskId, ownerId);
+    if (edges.length > 0) {
+      const dependentsByParent = new Map<string, DependencyEdge[]>();
+      const taskIds = new Set<string>([taskId]);
+
+      edges.forEach((edge) => {
+        taskIds.add(edge.task_id);
+        taskIds.add(edge.depends_on_task_id);
+        const list = dependentsByParent.get(edge.depends_on_task_id);
+        if (list) {
+          list.push(edge);
+        } else {
+          dependentsByParent.set(edge.depends_on_task_id, [edge]);
+        }
+      });
+
+      const scheduleMap = await getTaskScheduleSnapshots(Array.from(taskIds), ownerId);
+      const queue: string[] = [taskId];
+
+      // Walk dependency graph to compute minimal forward shifts that satisfy type-specific constraints.
+      while (queue.length > 0) {
+        const currentId = queue.shift() as string;
+        const currentShift = shiftMap.get(currentId) ?? 0;
+        const currentSchedule = scheduleMap.get(currentId);
+        const edgesForParent = dependentsByParent.get(currentId) ?? [];
+
+        edgesForParent.forEach((edge) => {
+          const childId = edge.task_id;
+          const existingShift = shiftMap.get(childId) ?? 0;
+          const childSchedule = scheduleMap.get(childId);
+
+          const parentAnchor =
+            edge.dependency_type === 'start_start' ? currentSchedule?.start ?? null : currentSchedule?.end ?? null;
+          const childAnchor =
+            edge.dependency_type === 'finish_finish' ? childSchedule?.end ?? null : childSchedule?.start ?? null;
+
+          let nextShift = existingShift;
+          if (parentAnchor && childAnchor) {
+            const parentShifted = shiftDate(parentAnchor, currentShift);
+            const childShifted = shiftDate(childAnchor, existingShift);
+            const diffMs = parentShifted.getTime() - childShifted.getTime();
+            if (diffMs > 0) {
+              const diffDays = Math.ceil(diffMs / MS_PER_DAY);
+              nextShift = existingShift + diffDays;
+            }
+          } else if (currentShift > 0) {
+            nextShift = Math.max(existingShift, currentShift);
+          }
+
+          if (nextShift > existingShift) {
+            shiftMap.set(childId, nextShift);
+            queue.push(childId);
+          }
+        });
+      }
+    }
   }
 
-  const ids = Array.from(shiftedIds);
-  await shiftTaskSchedule(ids, ownerId, deltaDays);
+  const shiftsByDays = new Map<number, string[]>();
+  shiftMap.forEach((days, id) => {
+    if (days === 0) return;
+    const list = shiftsByDays.get(days);
+    if (list) {
+      list.push(id);
+    } else {
+      shiftsByDays.set(days, [id]);
+    }
+  });
+
+  for (const [days, ids] of shiftsByDays.entries()) {
+    await shiftTaskSchedule(ids, ownerId, days);
+  }
+
+  const shiftedTasks = Array.from(shiftMap.entries())
+    .filter(([, days]) => days !== 0)
+    .map(([id, days]) => ({ taskId: id, deltaDays: days }));
 
   return {
-    shiftedTaskIds: ids,
+    shiftedTaskIds: shiftedTasks.map((task) => task.taskId),
     deltaDays,
+    shiftedTasks,
   };
 };
