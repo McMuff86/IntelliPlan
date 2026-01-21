@@ -436,3 +436,143 @@ Ralph automatically archives previous runs when you start a new feature (differe
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+
+## Beads Integration Patterns (US-015)
+
+### Overview
+Enhanced Beads integration provides automatic deduplication, versioning, and validation for the Ralph loop's file-based memory system. These patterns ensure efficient memory management across iterations.
+
+### Core Components
+
+#### 1. Progress.txt Deduplication (`scripts/beads/deduplicate_progress.py`)
+- **Purpose**: Reduces progress.txt size by deduplicating learnings and summarizing older iterations
+- **Target**: 20%+ size reduction (typically achieves 85%+)
+- **When to run**: After each Ralph iteration (automatic in ralph.sh)
+- **Key features**:
+  - Keeps last 5 iterations in full detail
+  - Consolidates older learnings into "Historical Learnings Summary"
+  - Creates timestamped backups in `backups/` directory
+  - Hash-based deduplication prevents redundancy
+
+**Usage:**
+```bash
+# Dry run to preview changes
+python3 scripts/beads/deduplicate_progress.py --dry-run
+
+# Live run (creates backup automatically)
+python3 scripts/beads/deduplicate_progress.py
+
+# Custom backup location
+python3 scripts/beads/deduplicate_progress.py --backup-dir /path/to/backups
+```
+
+#### 2. Beads Versioning (`scripts/beads/version_beads.py`)
+- **Purpose**: Creates timestamped snapshots of beads (prd.json, progress.txt)
+- **When to run**: At start of Ralph run and before major changes
+- **Storage**: `.beads/versions/` with metadata tracking
+
+**Usage:**
+```bash
+# Version default files (prd.json, progress.txt)
+python3 scripts/beads/version_beads.py
+
+# Version specific files
+python3 scripts/beads/version_beads.py --files prd.json progress.txt custom.json
+
+# Custom versions directory
+python3 scripts/beads/version_beads.py --versions-dir /path/to/versions
+```
+
+**Metadata format** (`.beads/versions/metadata.json`):
+```json
+[
+  {
+    "timestamp": "2026-01-21T23:47:25.123456",
+    "files": [
+      {
+        "original": "prd.json",
+        "version": ".beads/versions/prd_20260121_234725.json",
+        "timestamp": "20260121_234725"
+      }
+    ]
+  }
+]
+```
+
+#### 3. Bead Validation (`bead_check()` in ralph.sh)
+- **Purpose**: Validates JSON integrity and required fields before each iteration
+- **Validates**:
+  - prd.json is valid JSON
+  - Required fields exist: `name`, `userStories`
+  - Each user story has `id` and `passes` fields
+  - progress.txt exists (warns if missing)
+- **When to run**: Before Ralph loop starts and before each iteration (automatic)
+
+**Key patterns:**
+```bash
+# Use has() for boolean fields that can be true or false
+jq -e ".userStories[$i] | has(\"passes\")" "$PRD_FILE"
+
+# Don't use -e flag directly on boolean fields (false = exit 1)
+# WRONG: jq -e ".userStories[$i].passes"
+# RIGHT:  jq -e ".userStories[$i] | has(\"passes\")"
+```
+
+### Integration with Ralph Loop
+
+The enhanced Beads system integrates seamlessly with ralph.sh:
+
+1. **Pre-run checks** (in `main()`):
+   - Run `bead_check()` to validate integrity
+   - Run `version_beads.py` to create initial snapshot
+
+2. **Per-iteration checks** (in loop):
+   - Re-run `bead_check()` before each iteration
+   - Fail fast if validation fails
+
+3. **Post-iteration cleanup** (after Amp exits):
+   - Run `deduplicate_progress.py` to reduce size
+   - Continue on deduplication failure (warning only)
+
+### Codebase Patterns
+
+- **Always create backups before modifying beads**: Both scripts create timestamped backups automatically
+- **Use hash-based deduplication**: MD5 hash of normalized text (whitespace removed, lowercase)
+- **Keep recent context fresh**: Last 5 iterations stay in full detail
+- **Version before major changes**: Run version_beads.py manually before risky operations
+- **Python 3 required**: Both scripts require Python 3 (ralph.sh checks and warns)
+- **Fail gracefully**: Deduplication/versioning failures don't stop Ralph loop
+
+### Performance Characteristics
+
+- **Deduplication**: Processes 35KB file in ~50ms, reduces to ~5KB (85% reduction)
+- **Versioning**: Instant copy operation, negligible overhead
+- **Validation**: JSON parsing via jq, ~20ms for 17 stories
+
+### Troubleshooting
+
+**"Story X missing 'passes' field" error:**
+- Check if field exists: `jq '.userStories[X] | has("passes")' prd.json`
+- Don't confuse with field value being `false`
+
+**Deduplication below 20% target:**
+- Normal for early iterations (not enough data to deduplicate)
+- Warning only, doesn't fail the build
+- More iterations = more redundancy = better deduplication
+
+**Versioning fails silently:**
+- Check Python 3 is installed: `python3 --version`
+- Check scripts directory exists: `ls scripts/beads/`
+- Manual version: `python3 scripts/beads/version_beads.py`
+
+### Future Enhancements
+
+- Add semantic similarity detection (beyond hash-based)
+- Integrate with beads CLI tool for richer metadata
+- Add compression for archived versions
+- ML-based learning extraction from progress.txt
+- Auto-summarization using LLMs for historical learnings
+
+---
+
+**Last updated:** 2026-01-21 (US-015 implementation)

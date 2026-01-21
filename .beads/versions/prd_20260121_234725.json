@@ -220,7 +220,7 @@
       "technicalNotes": "Reference Steve Yegge's Beads for file-based persistence. Run Python script via Node exec. Ensure backward compatibility.",
       "dependencies": [],
       "priority": 13,
-      "passes": true
+      "passes": false
     },
     {
       "id": "US-016",
