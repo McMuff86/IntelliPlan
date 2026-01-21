@@ -783,3 +783,24 @@ Thread: N/A (Codex)
 - frontend/src/pages/Settings.tsx
 - backend/src/services/taskService.ts
 ---
+
+## 2026-01-21 - PRD Update: US-015 to US-019
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Added 5 new user stories to prd.json for business goal enhancement
+- US-015: Enhance Beads Integration for Better Memory Management
+- US-016: Add AI-Powered Conflict Resolution in Scheduling
+- US-017: Implement Reverse-Planning Feature for Carpentry Use Case
+- US-018: Add Authentication and DSGVO Compliance Basics
+- US-019: Create Inbound Marketing Hook
+
+**Files modified:**
+- prd.json - Added 5 new user stories (priorities 13-17)
+
+**Learnings for future iterations:**
+- New stories focus on AI/ML integration for carpentry use case
+- Target market: Swiss carpentry shops (Schreinereien)
+- Business model: 50-200 CHF/user monthly subscriptions
+- Key outcome: Save users 20+ hours/week on manual planning
+- DSGVO compliance required for CH/EU markets
+- Beads system enhancement is foundational for other features
+---

@@ -30,7 +30,9 @@
         "DELETE /api/projects/:id"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-001"],
+      "dependencies": [
+        "US-TP-001"
+      ],
       "priority": 2,
       "passes": true
     },
@@ -46,7 +48,10 @@
         "DELETE /api/tasks/:id"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-001", "US-TP-002"],
+      "dependencies": [
+        "US-TP-001",
+        "US-TP-002"
+      ],
       "priority": 3,
       "passes": true
     },
@@ -61,7 +66,9 @@
         "Validation: end time is after start time"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-003"],
+      "dependencies": [
+        "US-TP-003"
+      ],
       "priority": 4,
       "passes": true
     },
@@ -76,7 +83,9 @@
         "DELETE /api/tasks/:id/dependencies/:dependencyId"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-003"],
+      "dependencies": [
+        "US-TP-003"
+      ],
       "priority": 5,
       "passes": true
     },
@@ -89,7 +98,9 @@
         "Start action is only possible when dependencies are fulfilled"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-005"],
+      "dependencies": [
+        "US-TP-005"
+      ],
       "priority": 6,
       "passes": true
     },
@@ -103,7 +114,10 @@
         "Cascading respects dependency types"
       ],
       "technicalNotes": "Phase 1 can be basic; Phase 2 should differentiate dependency types.",
-      "dependencies": ["US-TP-004", "US-TP-005"],
+      "dependencies": [
+        "US-TP-004",
+        "US-TP-005"
+      ],
       "priority": 7,
       "passes": true
     },
@@ -117,7 +131,10 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-002", "US-TP-003"],
+      "dependencies": [
+        "US-TP-002",
+        "US-TP-003"
+      ],
       "priority": 8,
       "passes": true
     },
@@ -132,7 +149,11 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-003", "US-TP-004", "US-TP-005"],
+      "dependencies": [
+        "US-TP-003",
+        "US-TP-004",
+        "US-TP-005"
+      ],
       "priority": 9,
       "passes": true
     },
@@ -146,7 +167,9 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-008"],
+      "dependencies": [
+        "US-TP-008"
+      ],
       "priority": 10,
       "passes": true
     },
@@ -160,7 +183,9 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-004"],
+      "dependencies": [
+        "US-TP-004"
+      ],
       "priority": 11,
       "passes": false
     },
@@ -174,8 +199,106 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": ["US-TP-002"],
+      "dependencies": [
+        "US-TP-002"
+      ],
       "priority": 12,
+      "passes": false
+    },
+    {
+      "id": "US-015",
+      "title": "Enhance Beads Integration for Better Memory Management",
+      "description": "As a developer, I want automatic deduplication and summarization in progress.txt so that the Ralph loop maintains efficient memory across iterations.",
+      "acceptanceCriteria": [
+        "Python script runs on iteration end to deduplicate progress.txt",
+        "Reduces progress.txt size by 20% through summarization",
+        "Beads (prd.json, progress.txt) are versioned with timestamps",
+        "bead-check function in ralph.sh validates JSON integrity",
+        "No errors on invalid beads",
+        "Update AGENTS.md with new patterns"
+      ],
+      "technicalNotes": "Reference Steve Yegge's Beads for file-based persistence. Run Python script via Node exec. Ensure backward compatibility.",
+      "dependencies": [],
+      "priority": 13,
+      "passes": false
+    },
+    {
+      "id": "US-016",
+      "title": "Add AI-Powered Conflict Resolution in Scheduling",
+      "description": "As a user, I want AI-powered conflict resolution so that overlapping appointments can be automatically rescheduled based on priority and preferences.",
+      "acceptanceCriteria": [
+        "Integrate ML model (Hugging Face API or local torch) into appointmentService.ts",
+        "Predict and suggest resolutions for overlaps",
+        "On 409 conflict, API returns AI suggestions",
+        "Store historical conflict learnings in beads",
+        "Test with 5 overlapping appointments",
+        "Log learnings to progress.txt"
+      ],
+      "technicalNotes": "Use Hugging Face API for MVP. Consider common patterns in Schreinerei scenarios (carpentry shops). Keep model lightweight for fast responses.",
+      "dependencies": [],
+      "priority": 14,
+      "passes": false
+    },
+    {
+      "id": "US-017",
+      "title": "Implement Reverse-Planning Feature for Carpentry Use Case",
+      "description": "As a carpentry shop manager, I want reverse-planning from end-date and resources so that I can optimize my schedule based on project deadlines and machine availability.",
+      "acceptanceCriteria": [
+        "Add endpoint POST /api/appointments/reverse-plan in appointmentController.ts",
+        "Input: end-date, resources, tasks list",
+        "Output: optimized schedule working backwards",
+        "Use greedy algorithm with date-fns",
+        "Enhanced by AI prompts via beads-stored templates",
+        "Frontend: Add 'Optimize Schedule' button in CalendarView",
+        "Handles 10 tasks minimum",
+        "Outputs conflict-free plan",
+        "Demo with ERP-like data (machine availability)",
+        "Update prd.json status on completion"
+      ],
+      "technicalNotes": "Reverse planning works backward from deadline. Consider resource constraints, working hours, dependencies. Integrate with existing appointment overlap detection.",
+      "dependencies": [
+        "US-TP-001"
+      ],
+      "priority": 15,
+      "passes": false
+    },
+    {
+      "id": "US-018",
+      "title": "Add Authentication and DSGVO Compliance Basics",
+      "description": "As a user, I want secure authentication and data protection so that my scheduling data is safe and compliant with Swiss/EU regulations.",
+      "acceptanceCriteria": [
+        "Integrate Supabase Auth in frontend (App.tsx)",
+        "Add requireUserId middleware in backend",
+        "Soft data encryption for beads containing user data",
+        "Timezone handling complies with CH regulations",
+        "User login/logout works correctly",
+        "No data leaks in tests",
+        "Encrypted beads for sensitive data"
+      ],
+      "technicalNotes": "DSGVO (GDPR in German) compliance requires: consent management, data encryption at rest, right to deletion. Use bcryptjs for passwords, ensure all timestamps use ISO 8601 with timezone.",
+      "dependencies": [],
+      "priority": 16,
+      "passes": false
+    },
+    {
+      "id": "US-019",
+      "title": "Create Inbound Marketing Hook",
+      "description": "As a business owner, I want a demo page and shareable materials so that I can attract potential carpentry shop clients via LinkedIn and X.",
+      "acceptanceCriteria": [
+        "Build /demo route in frontend",
+        "Demo page shows scheduling features",
+        "Generate shareable PDF export using jsPDF",
+        "PDF includes outcomes (e.g., 'Saved 15 hours')",
+        "Update README.md with business pitch",
+        "Page renders demo calendar",
+        "Log deployment learnings to beads",
+        "Include call-to-action for 50-200 CHF/user pricing"
+      ],
+      "technicalNotes": "Demo should showcase reverse-planning and conflict resolution. Use sample data for Swiss carpentry shop. Make it visually impressive for LinkedIn sharing.",
+      "dependencies": [
+        "US-017"
+      ],
+      "priority": 17,
       "passes": false
     }
   ]
