@@ -8,7 +8,6 @@
 
 import { Appointment } from '../models/appointment';
 import { pool } from '../config/database';
-import { writeFile, appendFile } from 'fs/promises';
 import { join } from 'path';
 
 export interface ConflictSuggestion {
@@ -370,17 +369,17 @@ async function loadHistoricalLearnings(userId: string): Promise<string> {
     const learnings = JSON.parse(data);
     
     // Filter learnings for this user
-    const userLearnings = learnings.filter((l: any) => l.userId === userId);
+    const userLearnings = learnings.filter((l: { userId: string }) => l.userId === userId);
     
     if (userLearnings.length > 0) {
       const recentPatterns = userLearnings
         .slice(-5)
-        .map((l: any) => l.conflictPattern)
+        .map((l: { conflictPattern: string }) => l.conflictPattern)
         .join(', ');
       
       return `Recent patterns: ${recentPatterns}`;
     }
-  } catch (error) {
+  } catch {
     // File doesn't exist yet or other error - that's okay
   }
   
@@ -431,9 +430,9 @@ async function logConflictLearning(data: {
     }
     
     await writeFile(learningsFile, JSON.stringify(learnings, null, 2));
-  } catch (error) {
+  } catch {
     // Silently fail - logging is not critical
-    console.warn('Failed to log conflict learning:', error);
+    console.warn('Failed to log conflict learning');
   }
 }
 
@@ -453,14 +452,15 @@ export async function getConflictStatistics(userId: string): Promise<{
     const data = await readFile(learningsFile, 'utf-8');
     const learnings = JSON.parse(data);
     
-    const userLearnings = learnings.filter((l: any) => l.userId === userId);
+    const userLearnings = learnings.filter((l: { userId: string }) => l.userId === userId);
     
     const patterns: { [key: string]: number } = {};
     const solutions: { [key: string]: number } = {};
     
     for (const learning of userLearnings) {
-      patterns[learning.conflictPattern] = (patterns[learning.conflictPattern] || 0) + 1;
-      solutions[learning.topSuggestion] = (solutions[learning.topSuggestion] || 0) + 1;
+      const l = learning as { conflictPattern: string; topSuggestion: string };
+      patterns[l.conflictPattern] = (patterns[l.conflictPattern] || 0) + 1;
+      solutions[l.topSuggestion] = (solutions[l.topSuggestion] || 0) + 1;
     }
     
     return {

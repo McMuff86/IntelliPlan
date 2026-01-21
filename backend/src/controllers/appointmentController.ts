@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment, deleteAppointment, checkOverlap } from '../services/appointmentService';
-import { toAppointmentResponse } from '../models/appointment';
+import { Appointment, toAppointmentResponse } from '../models/appointment';
 import { generateConflictSuggestions } from '../services/aiConflictService';
 
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -35,6 +35,11 @@ export async function create(req: Request, res: Response, next: NextFunction): P
 
     if (overlapResult.hasOverlap && !force) {
       // Generate AI-powered suggestions for conflict resolution
+      interface ConflictWithDates extends Appointment {
+        start_time: Date;
+        end_time: Date;
+      }
+      
       const aiSuggestions = await generateConflictSuggestions({
         requestedStart: startTime,
         requestedEnd: endTime,
@@ -42,7 +47,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
           ...c,
           start_time: new Date(c.startTime),
           end_time: new Date(c.endTime),
-        })) as any,
+        })) as ConflictWithDates[],
         userId,
         title,
       });
@@ -222,6 +227,11 @@ export async function update(req: Request, res: Response, next: NextFunction): P
 
         if (overlapResult.hasOverlap && !force) {
           // Generate AI-powered suggestions for conflict resolution
+          interface ConflictWithDates extends Appointment {
+            start_time: Date;
+            end_time: Date;
+          }
+          
           const aiSuggestions = await generateConflictSuggestions({
             requestedStart: checkStartTime,
             requestedEnd: checkEndTime,
@@ -229,7 +239,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
               ...c,
               start_time: new Date(c.startTime),
               end_time: new Date(c.endTime),
-            })) as any,
+            })) as ConflictWithDates[],
             userId: appointmentOwnerId,
             title,
           });

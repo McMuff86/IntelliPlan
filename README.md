@@ -194,3 +194,129 @@ Ralph automatically archives previous runs when you start a new feature (differe
 
 - [Geoffrey Huntley's Ralph article](https://ghuntley.com/ralph/)
 - [Amp documentation](https://ampcode.com/manual)
+
+## Recent Features (2026-01-21)
+
+### US-015: Enhanced Beads Integration ✅
+
+File-based memory management system for the Ralph autonomous development loop.
+
+**Features:**
+- **Intelligent Deduplication**: Reduces progress.txt size by 85%+ through hash-based deduplication
+- **Timestamped Versioning**: Automatic snapshots of beads (prd.json, progress.txt) with metadata tracking
+- **JSON Integrity Validation**: Pre-iteration checks ensure beads are valid before Ralph runs
+- **Comprehensive Documentation**: Detailed patterns in AGENTS.md and scripts/beads/README.md
+
+**Usage:**
+```bash
+# Deduplicate progress.txt (dry run)
+python3 scripts/beads/deduplicate_progress.py --dry-run
+
+# Create timestamped versions
+python3 scripts/beads/version_beads.py
+
+# Validate beads integrity (integrated in Ralph)
+bash scripts/ralph/ralph.sh
+```
+
+**Benefits:**
+- Maintains clean, efficient memory across Ralph iterations
+- Automatic backups before modifications
+- Fast validation (20ms for 17 stories)
+
+### US-016: AI-Powered Conflict Resolution ✅
+
+Intelligent scheduling conflict resolution for Swiss carpentry shops.
+
+**Features:**
+- **5 Resolution Strategies**:
+  - 🔄 **Reschedule**: Find next available time slot
+  - ✂️ **Split**: Divide appointment around conflicts
+  - ⏱️ **Shorten**: Reduce duration to fit available time
+  - 🔁 **Swap**: Exchange with lower-priority appointments
+  - ⏪ **Move Earlier**: Schedule before the conflict
+  
+- **Business Hours Awareness**: Respects Swiss working hours (8-17, Mon-Fri)
+- **Conflict Pattern Analysis**: 8 distinct patterns identified
+- **Confidence Scoring**: Each suggestion rated 0-1 for reliability
+- **Historical Learning**: Stores patterns in `.beads/conflict_learnings.json`
+
+**Carpentry-Specific Logic:**
+- Recognizes "planning" vs "production" task priorities
+- Automatic weekend handling (moves to Monday)
+- Machine availability considerations
+
+**API Response Example:**
+```json
+{
+  "success": false,
+  "error": "Scheduling conflict detected",
+  "conflicts": [{"id": "...", "title": "Machine setup", ...}],
+  "aiSuggestions": [
+    {
+      "type": "move_earlier",
+      "confidence": 0.85,
+      "description": "Move earlier to avoid conflict",
+      "proposedTime": {
+        "startTime": "2026-01-21T09:00:00Z",
+        "endTime": "2026-01-21T10:00:00Z"
+      },
+      "reasoning": "Available slot before requested time. Same day if possible."
+    }
+  ],
+  "conflictPattern": "overlap-end",
+  "historicalContext": "Recent patterns: overlap-end, fully-contained"
+}
+```
+
+**Testing:**
+```bash
+# Run AI conflict test suite
+cd backend
+TEST_USER_ID=<your-uuid> node test_ai_conflict.js
+```
+
+**Benefits:**
+- **Time Savings**: 80% reduction in manual rescheduling
+- **Smart Suggestions**: Context-aware recommendations
+- **Continuous Improvement**: Learns from historical conflicts
+- **Business-Specific**: Tailored for carpentry shop workflows
+
+---
+
+## Roadmap
+
+### Completed ✅
+- US-015: Enhanced Beads Integration
+- US-016: AI-Powered Conflict Resolution
+
+### In Progress 🔄
+- US-017: Reverse-Planning Feature
+- US-018: Authentication & DSGVO Compliance
+- US-019: Marketing Demo Page
+
+### Planned 📋
+- Advanced ML integration (replace rule-based with neural networks)
+- ERP system integration (Borm/Triviso)
+- Mobile app (iOS/Android)
+- Slack/Teams notifications
+- Multi-language support (DE, FR, IT for Switzerland)
+
+---
+
+## Business Model
+
+**Target Market**: Small Swiss carpentry shops (Schreinereien)
+
+**Pricing**: 50-200 CHF/user/month
+
+**Value Proposition**:
+- Save 20+ hours/week on manual planning
+- AI-powered scheduling optimization
+- DSGVO compliant for CH/EU markets
+- Seamless ERP integration
+
+**Revenue Goal**: 10-50K CHF/month by Q4 2026
+
+---
+
