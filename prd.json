@@ -237,7 +237,7 @@
       "technicalNotes": "Use Hugging Face API for MVP. Consider common patterns in Schreinerei scenarios (carpentry shops). Keep model lightweight for fast responses.",
       "dependencies": [],
       "priority": 14,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-017",

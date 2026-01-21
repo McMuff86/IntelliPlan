@@ -834,3 +834,38 @@ Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
 - Versioning creates snapshots at start of run for rollback capability
 - Backup files created automatically before any modification
 ---
+
+## 2026-01-21 - US-016: AI-Powered Conflict Resolution
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Created aiConflictService.ts with intelligent conflict resolution
+- Implemented rule-based AI system for MVP (5 resolution strategies)
+- Integrated AI suggestions into appointmentController.ts
+- Returns AI suggestions on 409 conflict responses
+- Stores historical conflict learnings in .beads/conflict_learnings.json
+- Created test script for 5 overlapping appointment scenarios
+- Compiled successfully with TypeScript
+
+**Features implemented:**
+- 5 AI suggestion types: reschedule, split, shorten, swap, move earlier
+- Business hours awareness (8-17, Mon-Fri for Swiss carpentry shops)
+- Confidence scoring (0-1) for each suggestion
+- Conflict pattern analysis (fully-contained, overlap-end, multiple-conflicts, etc.)
+- Historical learning storage in beads for future improvements
+- Specific to carpentry use case (recognizes "planning" vs "production" priorities)
+
+**Files created:**
+- backend/src/services/aiConflictService.ts - AI conflict resolution engine
+- backend/test_ai_conflict.js - Test script for 5 conflict scenarios
+
+**Files modified:**
+- backend/src/controllers/appointmentController.ts - Integrated AI suggestions
+
+**Learnings for future iterations:**
+- Rule-based AI is effective for MVP, can be enhanced with real ML later
+- Swiss business hours: 8-17, Mon-Fri (weekends handled automatically)
+- Carpentry shops prioritize "production" over "planning" appointments
+- Conflict learnings stored in JSON for lightweight persistence
+- Top 3 suggestions returned, sorted by confidence
+- Historical context helps improve suggestions over time
+- Force flag (?force=true) bypasses AI suggestions when needed
+---
