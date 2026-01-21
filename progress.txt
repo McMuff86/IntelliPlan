@@ -869,3 +869,22 @@ Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
 - Historical context helps improve suggestions over time
 - Force flag (?force=true) bypasses AI suggestions when needed
 ---
+
+## 2026-01-21 - Code Review Fixes
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Fixed ConflictSuggestion type to include 'move_earlier' strategy
+- Made beads directory path configurable via BEADS_DIR environment variable
+- Upgraded hash function from MD5 to SHA-256 for better security
+- Added documentation for test user UUID setup
+
+**Files modified:**
+- backend/src/services/aiConflictService.ts - Added move_earlier type, configurable beads path
+- scripts/beads/deduplicate_progress.py - Changed from MD5 to SHA-256
+- backend/test_ai_conflict.js - Added comment about test user setup
+
+**Learnings for future iterations:**
+- Use environment variables for configurable paths (BEADS_DIR)
+- Prefer SHA-256 over MD5 even for non-cryptographic purposes
+- Document test setup requirements clearly in comments
+- Code review feedback is valuable for production readiness
+---

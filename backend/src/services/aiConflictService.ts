@@ -12,7 +12,7 @@ import { writeFile, appendFile } from 'fs/promises';
 import { join } from 'path';
 
 export interface ConflictSuggestion {
-  type: 'reschedule' | 'split' | 'shorten' | 'swap';
+  type: 'reschedule' | 'split' | 'shorten' | 'swap' | 'move_earlier';
   confidence: number; // 0-1
   description: string;
   proposedTime?: {
@@ -76,7 +76,7 @@ export async function generateConflictSuggestions(
   const beforeSlot = await findAvailableSlotBefore(userId, duration, reqStart);
   if (beforeSlot) {
     suggestions.push({
-      type: 'reschedule',
+      type: 'move_earlier',
       confidence: 0.85,
       description: `Move earlier to avoid conflict`,
       proposedTime: {
@@ -360,8 +360,8 @@ function isInBusinessHours(time: Date): boolean {
  * Load historical conflict learnings from beads
  */
 async function loadHistoricalLearnings(userId: string): Promise<string> {
-  // Read from beads conflict learnings file
-  const beadsDir = join(process.cwd(), '..', '.beads');
+  // Get beads directory from environment or default
+  const beadsDir = process.env.BEADS_DIR || join(process.cwd(), '..', '.beads');
   const learningsFile = join(beadsDir, 'conflict_learnings.json');
   
   try {
@@ -398,7 +398,7 @@ async function logConflictLearning(data: {
   conflictPattern: string;
   suggestions: ConflictSuggestion[];
 }): Promise<void> {
-  const beadsDir = join(process.cwd(), '..', '.beads');
+  const beadsDir = process.env.BEADS_DIR || join(process.cwd(), '..', '.beads');
   const learningsFile = join(beadsDir, 'conflict_learnings.json');
   
   const entry = {
@@ -445,7 +445,7 @@ export async function getConflictStatistics(userId: string): Promise<{
   commonPatterns: { [key: string]: number };
   commonSolutions: { [key: string]: number };
 }> {
-  const beadsDir = join(process.cwd(), '..', '.beads');
+  const beadsDir = process.env.BEADS_DIR || join(process.cwd(), '..', '.beads');
   const learningsFile = join(beadsDir, 'conflict_learnings.json');
   
   try {

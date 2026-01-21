@@ -8,6 +8,8 @@
 const http = require('http');
 
 const BASE_URL = process.env.API_URL || 'http://localhost:3000';
+// Note: In production, create a test user first via seed script (npm run seed:user)
+// Then set TEST_USER_ID environment variable to the generated UUID
 const USER_ID = process.env.TEST_USER_ID || '00000000-0000-0000-0000-000000000001';
 
 // Helper to make API requests

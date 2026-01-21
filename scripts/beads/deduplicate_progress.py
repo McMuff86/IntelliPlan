@@ -36,9 +36,9 @@ class ProgressDeduplicator:
         self.deduplicated_size = 0
         
     def hash_text(self, text: str) -> str:
-        """Create hash for similarity detection."""
+        """Create hash for similarity detection using SHA-256."""
         normalized = re.sub(r'\s+', ' ', text.lower().strip())
-        return hashlib.md5(normalized.encode()).hexdigest()[:8]
+        return hashlib.sha256(normalized.encode()).hexdigest()[:16]
     
     def extract_sections(self, content: str) -> Tuple[str, List[str], List[Dict]]:
         """Extract codebase patterns and iteration logs."""
