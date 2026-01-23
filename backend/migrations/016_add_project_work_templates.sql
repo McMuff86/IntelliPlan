@@ -1,0 +1,2 @@
+ALTER TABLE projects
+  ADD COLUMN IF NOT EXISTS work_template VARCHAR(50) NOT NULL DEFAULT 'weekday_8_17';

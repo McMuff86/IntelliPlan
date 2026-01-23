@@ -61,6 +61,7 @@ export interface Project {
   includeWeekends: boolean;
   workdayStart: string;
   workdayEnd: string;
+  workTemplate: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -126,6 +127,7 @@ export interface CreateProjectDTO {
   includeWeekends?: boolean;
   workdayStart?: string;
   workdayEnd?: string;
+  workTemplate?: string;
 }
 
 export interface CreateTaskDTO {

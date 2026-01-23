@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import type { EventClickArg, EventDropArg } from '@fullcalendar/core';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin from "@fullcalendar/interaction";
+import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import {
   addDays,
   addWeeks,
@@ -16,7 +16,7 @@ import {
   startOfMonth,
   startOfDay,
   startOfWeek,
-} from 'date-fns';
+} from "date-fns";
 import {
   Box,
   Typography,
@@ -40,24 +40,25 @@ import {
   Paper,
   ToggleButtonGroup,
   ToggleButton,
-} from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import TimelineIcon from '@mui/icons-material/Timeline';
-import { projectService } from '../services/projectService';
-import { taskService } from '../services/taskService';
-import type { Project, TaskWorkSlotCalendar } from '../types';
-import EmptyState from '../components/EmptyState';
-import axios from 'axios';
+} from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import TimelineIcon from "@mui/icons-material/Timeline";
+import { projectService } from "../services/projectService";
+import { taskService } from "../services/taskService";
+import type { Project, TaskWorkSlotCalendar } from "../types";
+import EmptyState from "../components/EmptyState";
+import axios from "axios";
 
-const defaultWorkdayStart = '08:00';
-const defaultWorkdayEnd = '17:00';
+const defaultWorkdayStart = "08:00";
+const defaultWorkdayEnd = "17:00";
+const defaultWorkTemplate = "weekday_8_17_with_weekends";
 const ganttColumnWidth = 56;
 const ganttHeaderHeight = 44;
 const ganttRowHeight = 56;
-const holidayStorageKey = 'intelliplan-holidays';
+const holidayStorageKey = "intelliplan-holidays";
 
 type Holiday = {
   id: string;
@@ -65,8 +66,35 @@ type Holiday = {
   name: string;
 };
 
+const workTemplateOptions = [
+  { value: "weekday_8_17", label: "Mon–Fri 08:00–17:00" },
+  { value: "weekday_8_17_with_weekends", label: "Mon–Sun 08:00–17:00" },
+  { value: "custom", label: "Custom" },
+];
+
+const workTemplateDefaults: Record<
+  string,
+  { includeWeekends: boolean; workdayStart: string; workdayEnd: string }
+> = {
+  weekday_8_17: {
+    includeWeekends: false,
+    workdayStart: "08:00",
+    workdayEnd: "17:00",
+  },
+  weekday_8_17_with_weekends: {
+    includeWeekends: true,
+    workdayStart: "08:00",
+    workdayEnd: "17:00",
+  },
+};
+
+const formatTemplateLabel = (template?: string) => {
+  const entry = workTemplateOptions.find((option) => option.value === template);
+  return entry ? entry.label : "Custom";
+};
+
 const formatDuration = (minutes?: number | null) => {
-  if (!minutes) return '';
+  if (!minutes) return "";
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   if (hours && mins) return `${hours}h ${mins}m`;
@@ -82,31 +110,38 @@ export default function Projects() {
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [workTemplate, setWorkTemplate] = useState(defaultWorkTemplate);
   const [includeWeekends, setIncludeWeekends] = useState(true);
   const [workdayStart, setWorkdayStart] = useState(defaultWorkdayStart);
   const [workdayEnd, setWorkdayEnd] = useState(defaultWorkdayEnd);
-  const resolvedView = useMemo<'grid' | 'calendar' | 'gantt'>(() => {
-    const view = searchParams.get('view');
-    if (view === 'calendar' || view === 'gantt') {
+  const resolvedView = useMemo<"grid" | "calendar" | "gantt">(() => {
+    const view = searchParams.get("view");
+    if (view === "calendar" || view === "gantt") {
       return view;
     }
-    return 'grid';
+    return "grid";
   }, [searchParams]);
-  const [viewMode, setViewMode] = useState<'grid' | 'calendar' | 'gantt'>(resolvedView);
+  const [viewMode, setViewMode] = useState<"grid" | "calendar" | "gantt">(
+    resolvedView,
+  );
   const [taskSlots, setTaskSlots] = useState<TaskWorkSlotCalendar[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
   const [showWeekends, setShowWeekends] = useState(true);
   const [showProjectOverlay, setShowProjectOverlay] = useState(true);
   const [showWeekNumbers, setShowWeekNumbers] = useState(false);
-  const [calendarMode, setCalendarMode] = useState<'month' | 'year'>('month');
+  const [calendarMode, setCalendarMode] = useState<"month" | "year">("month");
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
-  const [draggingProjectId, setDraggingProjectId] = useState<string | null>(null);
+  const [draggingProjectId, setDraggingProjectId] = useState<string | null>(
+    null,
+  );
   const [dragDeltaDays, setDragDeltaDays] = useState(0);
-  const [shiftingProjectId, setShiftingProjectId] = useState<string | null>(null);
+  const [shiftingProjectId, setShiftingProjectId] = useState<string | null>(
+    null,
+  );
   const [shiftSnackbar, setShiftSnackbar] = useState<{
     open: boolean;
     projectId: string;
@@ -115,8 +150,8 @@ export default function Projects() {
   } | null>(null);
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [holidayDialogOpen, setHolidayDialogOpen] = useState(false);
-  const [holidayName, setHolidayName] = useState('');
-  const [holidayDate, setHolidayDate] = useState('');
+  const [holidayName, setHolidayName] = useState("");
+  const [holidayDate, setHolidayDate] = useState("");
   const [holidayYear, setHolidayYear] = useState(new Date().getFullYear());
   const [holidayError, setHolidayError] = useState<string | null>(null);
   const dragStartXRef = useRef(0);
@@ -131,11 +166,14 @@ export default function Projects() {
     } catch (err) {
       console.error(err);
       if (axios.isAxiosError(err)) {
-        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
-        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
-        setError(message || 'Failed to load projects');
+        const data = err.response?.data as
+          | { error?: string | { message?: string } }
+          | undefined;
+        const message =
+          typeof data?.error === "string" ? data.error : data?.error?.message;
+        setError(message || "Failed to load projects");
       } else {
-        setError('Failed to load projects');
+        setError("Failed to load projects");
       }
     } finally {
       setLoading(false);
@@ -147,7 +185,7 @@ export default function Projects() {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const raw = window.localStorage.getItem(holidayStorageKey);
     if (!raw) return;
     try {
@@ -156,12 +194,12 @@ export default function Projects() {
         setHolidays(parsed);
       }
     } catch (error) {
-      console.warn('Failed to parse holidays', error);
+      console.warn("Failed to parse holidays", error);
     }
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     window.localStorage.setItem(holidayStorageKey, JSON.stringify(holidays));
   }, [holidays]);
 
@@ -170,11 +208,22 @@ export default function Projects() {
   }, [resolvedView]);
 
   const resetForm = () => {
-    setName('');
-    setDescription('');
+    setName("");
+    setDescription("");
+    setWorkTemplate(defaultWorkTemplate);
     setIncludeWeekends(true);
     setWorkdayStart(defaultWorkdayStart);
     setWorkdayEnd(defaultWorkdayEnd);
+  };
+
+  const handleWorkTemplateChange = (value: string) => {
+    setWorkTemplate(value);
+    const defaults = workTemplateDefaults[value];
+    if (defaults) {
+      setIncludeWeekends(defaults.includeWeekends);
+      setWorkdayStart(defaults.workdayStart);
+      setWorkdayEnd(defaults.workdayEnd);
+    }
   };
 
   const loadTaskSlots = useCallback(async () => {
@@ -185,14 +234,14 @@ export default function Projects() {
       setTaskSlots(data);
     } catch (err) {
       console.error(err);
-      setCalendarError('Failed to load project calendar');
+      setCalendarError("Failed to load project calendar");
     } finally {
       setCalendarLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    if (viewMode === 'calendar' || viewMode === 'gantt') {
+    if (viewMode === "calendar" || viewMode === "gantt") {
       loadTaskSlots();
     }
   }, [viewMode, loadTaskSlots]);
@@ -210,29 +259,32 @@ export default function Projects() {
 
   const handleViewModeChange = (
     _event: React.MouseEvent<HTMLElement>,
-    nextView: 'grid' | 'calendar' | 'gantt' | null
+    nextView: "grid" | "calendar" | "gantt" | null,
   ) => {
     if (nextView) {
       setViewMode(nextView);
       const nextParams = new URLSearchParams(searchParams);
-      nextParams.set('view', nextView);
+      nextParams.set("view", nextView);
       setSearchParams(nextParams, { replace: true });
     }
   };
 
   const handleProjectFilterChange = (event: SelectChangeEvent<unknown>) => {
     const value = event.target.value;
-    if (typeof value === 'string') {
-      setProjectFilter(value.split(','));
+    if (typeof value === "string") {
+      setProjectFilter(value.split(","));
       return;
     }
     setProjectFilter(value as string[]);
   };
 
-  const handleCalendarModeChange = (_event: React.MouseEvent<HTMLElement>, nextMode: 'month' | 'year' | null) => {
+  const handleCalendarModeChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    nextMode: "month" | "year" | null,
+  ) => {
     if (!nextMode) return;
     setCalendarMode(nextMode);
-    if (nextMode === 'year') {
+    if (nextMode === "year") {
       setShowProjectOverlay(false);
     }
   };
@@ -246,13 +298,15 @@ export default function Projects() {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
     return Array.from({ length: 6 }, (_unused, weekIndex) => {
       const weekStart = addWeeks(start, weekIndex);
-      return Array.from({ length: 7 }, (_dayUnused, dayIndex) => addDays(weekStart, dayIndex));
+      return Array.from({ length: 7 }, (_dayUnused, dayIndex) =>
+        addDays(weekStart, dayIndex),
+      );
     });
   };
 
   const weekDayLabels = useMemo(
-    () => ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    []
+    () => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    [],
   );
 
   const holidayYearOptions = useMemo(() => {
@@ -276,8 +330,8 @@ export default function Projects() {
     setHolidayError(null);
     if (!holidayDate) {
       const today = new Date();
-      const month = String(today.getMonth() + 1).padStart(2, '0');
-      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, "0");
+      const day = String(today.getDate()).padStart(2, "0");
       setHolidayDate(`${today.getFullYear()}-${month}-${day}`);
       setHolidayYear(today.getFullYear());
     }
@@ -288,7 +342,7 @@ export default function Projects() {
     setHolidayYear(nextYear);
     setHolidayError(null);
     if (holidayDate) {
-      const parts = holidayDate.split('-');
+      const parts = holidayDate.split("-");
       if (parts.length === 3) {
         setHolidayDate(`${nextYear}-${parts[1]}-${parts[2]}`);
         return;
@@ -299,26 +353,30 @@ export default function Projects() {
 
   const handleAddHoliday = () => {
     if (!holidayName.trim() || !holidayDate) {
-      setHolidayError('Holiday name and date are required');
+      setHolidayError("Holiday name and date are required");
       return;
     }
 
     const year = new Date(`${holidayDate}T00:00:00`).getFullYear();
     if (year !== holidayYear) {
-      setHolidayError('Holiday date must match the selected year');
+      setHolidayError("Holiday date must match the selected year");
       return;
     }
 
     const exists = holidays.some(
       (holiday) =>
-        holiday.date === holidayDate && holiday.name.trim().toLowerCase() === holidayName.trim().toLowerCase()
+        holiday.date === holidayDate &&
+        holiday.name.trim().toLowerCase() === holidayName.trim().toLowerCase(),
     );
     if (exists) {
-      setHolidayError('Holiday already exists for this date');
+      setHolidayError("Holiday already exists for this date");
       return;
     }
 
-    const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`;
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}`;
     setHolidays((prev) => [
       ...prev,
       {
@@ -327,7 +385,7 @@ export default function Projects() {
         name: holidayName.trim(),
       },
     ]);
-    setHolidayName('');
+    setHolidayName("");
     setHolidayError(null);
   };
 
@@ -337,26 +395,26 @@ export default function Projects() {
 
   const handleCalendarEventClick = (info: EventClickArg) => {
     const { type, projectId, taskId } = info.event.extendedProps as {
-      type?: 'project' | 'task' | 'holiday';
+      type?: "project" | "task" | "holiday";
       projectId?: string;
       taskId?: string;
     };
-    if (type === 'holiday') {
+    if (type === "holiday") {
       const start = info.event.start;
       if (start) {
-        const month = String(start.getMonth() + 1).padStart(2, '0');
-        const day = String(start.getDate()).padStart(2, '0');
+        const month = String(start.getMonth() + 1).padStart(2, "0");
+        const day = String(start.getDate()).padStart(2, "0");
         setHolidayYear(start.getFullYear());
         setHolidayDate(`${start.getFullYear()}-${month}-${day}`);
       }
       openHolidayDialog();
       return;
     }
-    if (type === 'project' && projectId) {
+    if (type === "project" && projectId) {
       navigate(`/projects/${projectId}`);
       return;
     }
-    if (type === 'task' && taskId) {
+    if (type === "task" && taskId) {
       navigate(`/tasks/${taskId}`);
       return;
     }
@@ -422,13 +480,14 @@ export default function Projects() {
 
   const scheduledProjectRanges = useMemo(
     () => projectRanges.filter((range) => range.start && range.end),
-    [projectRanges]
+    [projectRanges],
   );
 
   const unscheduledProjects = useMemo(() => {
     const scheduledIds = new Set(projectRanges.map((range) => range.projectId));
     return projects.filter(
-      (project) => filteredProjectIds.has(project.id) && !scheduledIds.has(project.id)
+      (project) =>
+        filteredProjectIds.has(project.id) && !scheduledIds.has(project.id),
     );
   }, [filteredProjectIds, projectRanges, projects]);
 
@@ -439,31 +498,31 @@ export default function Projects() {
       start: `${holiday.date}T00:00:00`,
       end: addDays(new Date(`${holiday.date}T00:00:00`), 1).toISOString(),
       allDay: true,
-      backgroundColor: 'rgba(248, 113, 113, 0.75)',
-      borderColor: 'rgba(239, 68, 68, 0.9)',
-      textColor: '#ffffff',
+      backgroundColor: "rgba(248, 113, 113, 0.75)",
+      borderColor: "rgba(239, 68, 68, 0.9)",
+      textColor: "#ffffff",
       editable: false,
       extendedProps: {
-        type: 'holiday',
+        type: "holiday",
       },
     }));
 
     const taskEvents = filteredSlots.map((slot) => {
       const durationLabel = slot.taskDurationMinutes
         ? ` | ${formatDuration(slot.taskDurationMinutes)}`
-        : '';
+        : "";
       return {
         id: `task-${slot.id}`,
         title: `${slot.projectName} | ${slot.taskTitle}${durationLabel}`,
         start: slot.startTime,
         end: slot.endTime,
         allDay: slot.isAllDay,
-        backgroundColor: 'rgba(20, 184, 166, 0.85)',
-        borderColor: 'rgba(13, 148, 136, 0.9)',
-        textColor: '#ffffff',
+        backgroundColor: "rgba(20, 184, 166, 0.85)",
+        borderColor: "rgba(13, 148, 136, 0.9)",
+        textColor: "#ffffff",
         editable: false,
         extendedProps: {
-          type: 'task',
+          type: "task",
           projectId: slot.projectId,
           taskId: slot.taskId,
         },
@@ -480,13 +539,13 @@ export default function Projects() {
       start: (range.start as Date).toISOString(),
       end: addDays(range.end as Date, 1).toISOString(),
       allDay: true,
-      backgroundColor: 'rgba(59, 130, 246, 0.55)',
-      borderColor: 'rgba(37, 99, 235, 0.85)',
-      textColor: '#ffffff',
+      backgroundColor: "rgba(59, 130, 246, 0.55)",
+      borderColor: "rgba(37, 99, 235, 0.85)",
+      textColor: "#ffffff",
       editable: true,
       durationEditable: false,
       extendedProps: {
-        type: 'project',
+        type: "project",
         projectId: range.projectId,
       },
     }));
@@ -495,7 +554,10 @@ export default function Projects() {
   }, [filteredSlots, holidays, scheduledProjectRanges, showProjectOverlay]);
 
   const calendarMonths = useMemo(() => {
-    return Array.from({ length: 12 }, (_unused, index) => new Date(calendarYear, index, 1));
+    return Array.from(
+      { length: 12 },
+      (_unused, index) => new Date(calendarYear, index, 1),
+    );
   }, [calendarYear]);
 
   const timelineRange = useMemo(() => {
@@ -517,7 +579,12 @@ export default function Projects() {
   }, [scheduledProjectRanges]);
 
   const shiftProjectSchedule = useCallback(
-    async (projectId: string, deltaDays: number, projectName?: string, notify = true) => {
+    async (
+      projectId: string,
+      deltaDays: number,
+      projectName?: string,
+      notify = true,
+    ) => {
       if (!deltaDays) return false;
       try {
         setShiftingProjectId(projectId);
@@ -528,20 +595,21 @@ export default function Projects() {
           setShiftSnackbar({
             open: true,
             projectId,
-            projectName: projectName || projectNameById.get(projectId) || 'Project',
+            projectName:
+              projectName || projectNameById.get(projectId) || "Project",
             deltaDays,
           });
         }
         return true;
       } catch (err) {
         console.error(err);
-        setCalendarError('Failed to shift project schedule');
+        setCalendarError("Failed to shift project schedule");
         return false;
       } finally {
         setShiftingProjectId(null);
       }
     },
-    [loadTaskSlots, projectNameById]
+    [loadTaskSlots, projectNameById],
   );
 
   const startProjectDrag = (event: React.MouseEvent, projectId: string) => {
@@ -575,24 +643,33 @@ export default function Projects() {
         return;
       }
 
-      await shiftProjectSchedule(projectId, deltaDays, projectNameById.get(projectId));
+      await shiftProjectSchedule(
+        projectId,
+        deltaDays,
+        projectNameById.get(projectId),
+      );
     };
 
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
     return () => {
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
     };
-  }, [draggingProjectId, shiftProjectSchedule, shiftingProjectId, projectNameById]);
+  }, [
+    draggingProjectId,
+    shiftProjectSchedule,
+    shiftingProjectId,
+    projectNameById,
+  ]);
 
   const handleCalendarEventDrop = async (info: EventDropArg) => {
     const { type, projectId } = info.event.extendedProps as {
-      type?: 'project' | 'task';
+      type?: "project" | "task";
       projectId?: string;
     };
 
-    if (type !== 'project' || !projectId || shiftingProjectId) {
+    if (type !== "project" || !projectId || shiftingProjectId) {
       info.revert();
       return;
     }
@@ -604,12 +681,19 @@ export default function Projects() {
       return;
     }
 
-    const deltaDays = differenceInCalendarDays(startOfDay(newStart), startOfDay(oldStart));
+    const deltaDays = differenceInCalendarDays(
+      startOfDay(newStart),
+      startOfDay(oldStart),
+    );
     if (!deltaDays) {
       return;
     }
 
-    const success = await shiftProjectSchedule(projectId, deltaDays, projectNameById.get(projectId));
+    const success = await shiftProjectSchedule(
+      projectId,
+      deltaDays,
+      projectNameById.get(projectId),
+    );
     if (!success) {
       info.revert();
     }
@@ -624,12 +708,17 @@ export default function Projects() {
     if (!shiftSnackbar) return;
     const { projectId, deltaDays } = shiftSnackbar;
     setShiftSnackbar(null);
-    await shiftProjectSchedule(projectId, -deltaDays, projectNameById.get(projectId), false);
+    await shiftProjectSchedule(
+      projectId,
+      -deltaDays,
+      projectNameById.get(projectId),
+      false,
+    );
   };
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      setError('Project name is required');
+      setError("Project name is required");
       return;
     }
 
@@ -642,6 +731,7 @@ export default function Projects() {
         includeWeekends,
         workdayStart,
         workdayEnd,
+        workTemplate,
       });
       setProjects((prev) => [created, ...prev]);
       setDialogOpen(false);
@@ -649,11 +739,14 @@ export default function Projects() {
     } catch (err) {
       console.error(err);
       if (axios.isAxiosError(err)) {
-        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
-        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
-        setError(message || 'Failed to create project');
+        const data = err.response?.data as
+          | { error?: string | { message?: string } }
+          | undefined;
+        const message =
+          typeof data?.error === "string" ? data.error : data?.error?.message;
+        setError(message || "Failed to create project");
       } else {
-        setError('Failed to create project');
+        setError("Failed to create project");
       }
     } finally {
       setCreating(false);
@@ -663,16 +756,21 @@ export default function Projects() {
   return (
     <Box>
       <Stack
-        direction={{ xs: 'column', sm: 'row' }}
+        direction={{ xs: "column", sm: "row" }}
         spacing={2}
-        alignItems={{ xs: 'stretch', sm: 'center' }}
+        alignItems={{ xs: "stretch", sm: "center" }}
         justifyContent="space-between"
         mb={3}
       >
         <Typography variant="h4" component="h1">
           Projects
         </Typography>
-        <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+        <Stack
+          direction="row"
+          spacing={1}
+          alignItems="center"
+          justifyContent="flex-end"
+        >
           <ToggleButtonGroup
             value={viewMode}
             exclusive
@@ -692,7 +790,11 @@ export default function Projects() {
               Gantt
             </ToggleButton>
           </ToggleButtonGroup>
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setDialogOpen(true)}>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setDialogOpen(true)}
+          >
             New Project
           </Button>
         </Stack>
@@ -704,7 +806,7 @@ export default function Projects() {
         </Alert>
       )}
 
-      {viewMode === 'grid' ? (
+      {viewMode === "grid" ? (
         loading ? (
           <Grid container spacing={2}>
             {[...Array(3)].map((_, index) => (
@@ -713,7 +815,12 @@ export default function Projects() {
                   <CardContent>
                     <Skeleton variant="text" width="60%" height={28} />
                     <Skeleton variant="text" width="80%" />
-                    <Skeleton variant="rounded" width="40%" height={24} sx={{ mt: 2 }} />
+                    <Skeleton
+                      variant="rounded"
+                      width="40%"
+                      height={24}
+                      sx={{ mt: 2 }}
+                    />
                   </CardContent>
                 </Card>
               </Grid>
@@ -731,7 +838,7 @@ export default function Projects() {
               <Grid key={project.id} size={{ xs: 12, md: 4 }}>
                 <Card
                   onClick={() => navigate(`/projects/${project.id}`)}
-                  sx={{ cursor: 'pointer', height: '100%' }}
+                  sx={{ cursor: "pointer", height: "100%" }}
                 >
                   <CardContent>
                     <Stack spacing={1.5}>
@@ -747,7 +854,16 @@ export default function Projects() {
                       <Stack direction="row" spacing={1} flexWrap="wrap">
                         <Chip
                           size="small"
-                          label={project.includeWeekends ? 'Weekends included' : 'Weekdays only'}
+                          label={
+                            project.includeWeekends
+                              ? "Weekends included"
+                              : "Weekdays only"
+                          }
+                          variant="outlined"
+                        />
+                        <Chip
+                          size="small"
+                          label={formatTemplateLabel(project.workTemplate)}
                           variant="outlined"
                         />
                         <Chip
@@ -763,18 +879,19 @@ export default function Projects() {
             ))}
           </Grid>
         )
-      ) : viewMode === 'calendar' ? (
+      ) : viewMode === "calendar" ? (
         <Paper sx={{ p: 2 }}>
           <Stack spacing={1} sx={{ mb: 2 }}>
             <Typography variant="h6">Project Calendar</Typography>
             <Typography variant="body2" color="text.secondary">
-              Shows task work slots across all projects (appointments are hidden).
+              Shows task work slots across all projects (appointments are
+              hidden).
             </Typography>
           </Stack>
           <Stack
-            direction={{ xs: 'column', md: 'row' }}
+            direction={{ xs: "column", md: "row" }}
             spacing={2}
-            alignItems={{ xs: 'stretch', md: 'center' }}
+            alignItems={{ xs: "stretch", md: "center" }}
             justifyContent="space-between"
             sx={{ mb: 2 }}
           >
@@ -787,8 +904,10 @@ export default function Projects() {
                 onChange: handleProjectFilterChange,
                 renderValue: (selected) => {
                   const ids = selected as string[];
-                  if (ids.length === 0) return 'All projects';
-                  return ids.map((id) => projectNameById.get(id) ?? 'Unknown').join(', ');
+                  if (ids.length === 0) return "All projects";
+                  return ids
+                    .map((id) => projectNameById.get(id) ?? "Unknown")
+                    .join(", ");
                 },
               }}
               fullWidth
@@ -799,7 +918,12 @@ export default function Projects() {
                 </MenuItem>
               ))}
             </TextField>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="flex-end"
+            >
               <ToggleButtonGroup
                 value={calendarMode}
                 exclusive
@@ -813,7 +937,7 @@ export default function Projects() {
                   Year
                 </ToggleButton>
               </ToggleButtonGroup>
-              {calendarMode === 'year' && (
+              {calendarMode === "year" && (
                 <TextField
                   select
                   label="Year"
@@ -839,12 +963,14 @@ export default function Projects() {
               <Button variant="outlined" onClick={openHolidayDialog}>
                 Holidays
               </Button>
-              {calendarMode === 'month' && (
+              {calendarMode === "month" && (
                 <FormControlLabel
                   control={
                     <Switch
                       checked={showProjectOverlay}
-                      onChange={(event) => setShowProjectOverlay(event.target.checked)}
+                      onChange={(event) =>
+                        setShowProjectOverlay(event.target.checked)
+                      }
                     />
                   }
                   label="Project bars"
@@ -854,7 +980,9 @@ export default function Projects() {
                 control={
                   <Switch
                     checked={showWeekNumbers}
-                    onChange={(event) => setShowWeekNumbers(event.target.checked)}
+                    onChange={(event) =>
+                      setShowWeekNumbers(event.target.checked)
+                    }
                   />
                 }
                 label="Week numbers"
@@ -876,8 +1004,12 @@ export default function Projects() {
             </Alert>
           )}
           {calendarLoading ? (
-            <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1 }} />
-          ) : calendarMode === 'month' ? (
+            <Skeleton
+              variant="rectangular"
+              height={420}
+              sx={{ borderRadius: 1 }}
+            />
+          ) : calendarMode === "month" ? (
             <FullCalendar
               plugins={[dayGridPlugin, interactionPlugin]}
               initialView="dayGridMonth"
@@ -886,9 +1018,9 @@ export default function Projects() {
               editable={showProjectOverlay}
               eventDrop={handleCalendarEventDrop}
               headerToolbar={{
-                left: 'prev,next today',
-                center: 'title',
-                right: '',
+                left: "prev,next today",
+                center: "title",
+                right: "",
               }}
               height="auto"
               eventDisplay="block"
@@ -901,8 +1033,13 @@ export default function Projects() {
           ) : (
             <Box
               sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(4, 1fr)' },
+                display: "grid",
+                gridTemplateColumns: {
+                  xs: "1fr",
+                  sm: "repeat(2, 1fr)",
+                  md: "repeat(3, 1fr)",
+                  lg: "repeat(4, 1fr)",
+                },
                 gap: 2,
               }}
             >
@@ -915,10 +1052,15 @@ export default function Projects() {
                   cells.push(
                     <Box
                       key={`${month.toISOString()}-wk-label`}
-                      sx={{ textAlign: 'center', fontSize: 11, color: 'text.secondary', py: 0.5 }}
+                      sx={{
+                        textAlign: "center",
+                        fontSize: 11,
+                        color: "text.secondary",
+                        py: 0.5,
+                      }}
                     >
                       WK
-                    </Box>
+                    </Box>,
                   );
                 }
 
@@ -926,10 +1068,15 @@ export default function Projects() {
                   cells.push(
                     <Box
                       key={`${month.toISOString()}-${label}`}
-                      sx={{ textAlign: 'center', fontSize: 11, color: 'text.secondary', py: 0.5 }}
+                      sx={{
+                        textAlign: "center",
+                        fontSize: 11,
+                        color: "text.secondary",
+                        py: 0.5,
+                      }}
                     >
                       {label}
-                    </Box>
+                    </Box>,
                   );
                 });
 
@@ -939,21 +1086,28 @@ export default function Projects() {
                     cells.push(
                       <Box
                         key={`${month.toISOString()}-wk-${weekIndex}`}
-                        sx={{ textAlign: 'center', fontSize: 11, color: 'text.secondary', py: 0.5 }}
+                        sx={{
+                          textAlign: "center",
+                          fontSize: 11,
+                          color: "text.secondary",
+                          py: 0.5,
+                        }}
                       >
                         {weekNumber}
-                      </Box>
+                      </Box>,
                     );
                   }
 
                   week.forEach((day, dayIndex) => {
                     const isInMonth = isSameMonth(day, month);
-                    const isSelectable = isInMonth && day.getFullYear() === calendarYear;
-                    const dateKey = format(day, 'yyyy-MM-dd');
+                    const isSelectable =
+                      isInMonth && day.getFullYear() === calendarYear;
+                    const dateKey = format(day, "yyyy-MM-dd");
                     const holiday = holidayByDate.get(dateKey);
                     const isWeekendDay = isWeekend(day);
                     const baseOpacity = isInMonth ? 1 : 0.35;
-                    const weekendOpacity = showWeekends || !isWeekendDay ? 1 : 0.35;
+                    const weekendOpacity =
+                      showWeekends || !isWeekendDay ? 1 : 0.35;
                     const opacity = Math.min(baseOpacity, weekendOpacity);
 
                     cells.push(
@@ -968,27 +1122,31 @@ export default function Projects() {
                         title={holiday ? holiday.name : undefined}
                         sx={{
                           minHeight: 28,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                           borderRadius: 1,
-                          cursor: isSelectable ? 'pointer' : 'default',
-                          backgroundColor: holiday ? 'rgba(248, 113, 113, 0.25)' : 'transparent',
-                          border: holiday ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid transparent',
+                          cursor: isSelectable ? "pointer" : "default",
+                          backgroundColor: holiday
+                            ? "rgba(248, 113, 113, 0.25)"
+                            : "transparent",
+                          border: holiday
+                            ? "1px solid rgba(239, 68, 68, 0.6)"
+                            : "1px solid transparent",
                           opacity,
                           fontSize: 12,
-                          color: isInMonth ? 'text.primary' : 'text.disabled',
-                          '&:hover': isSelectable
+                          color: isInMonth ? "text.primary" : "text.disabled",
+                          "&:hover": isSelectable
                             ? {
                                 backgroundColor: holiday
-                                  ? 'rgba(248, 113, 113, 0.35)'
-                                  : 'rgba(15, 118, 110, 0.08)',
+                                  ? "rgba(248, 113, 113, 0.35)"
+                                  : "rgba(15, 118, 110, 0.08)",
                               }
                             : undefined,
                         }}
                       >
                         {day.getDate()}
-                      </Box>
+                      </Box>,
                     );
                   });
                 });
@@ -996,14 +1154,18 @@ export default function Projects() {
                 return (
                   <Paper
                     key={month.toISOString()}
-                    sx={{ p: 1.5, background: 'var(--ip-surface-elevated)', borderRadius: 2 }}
+                    sx={{
+                      p: 1.5,
+                      background: "var(--ip-surface-elevated)",
+                      borderRadius: 2,
+                    }}
                   >
                     <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      {format(month, 'MMMM')}
+                      {format(month, "MMMM")}
                     </Typography>
                     <Box
                       sx={{
-                        display: 'grid',
+                        display: "grid",
                         gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
                         gap: 0.5,
                       }}
@@ -1025,9 +1187,9 @@ export default function Projects() {
             </Typography>
           </Stack>
           <Stack
-            direction={{ xs: 'column', md: 'row' }}
+            direction={{ xs: "column", md: "row" }}
             spacing={2}
-            alignItems={{ xs: 'stretch', md: 'center' }}
+            alignItems={{ xs: "stretch", md: "center" }}
             justifyContent="space-between"
             sx={{ mb: 2 }}
           >
@@ -1040,8 +1202,10 @@ export default function Projects() {
                 onChange: handleProjectFilterChange,
                 renderValue: (selected) => {
                   const ids = selected as string[];
-                  if (ids.length === 0) return 'All projects';
-                  return ids.map((id) => projectNameById.get(id) ?? 'Unknown').join(', ');
+                  if (ids.length === 0) return "All projects";
+                  return ids
+                    .map((id) => projectNameById.get(id) ?? "Unknown")
+                    .join(", ");
                 },
               }}
               fullWidth
@@ -1052,7 +1216,12 @@ export default function Projects() {
                 </MenuItem>
               ))}
             </TextField>
-            <Stack direction="row" spacing={1} alignItems="center" justifyContent="flex-end">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="flex-end"
+            >
               <Button
                 variant="outlined"
                 onClick={() => setProjectFilter([])}
@@ -1077,26 +1246,36 @@ export default function Projects() {
             </Alert>
           )}
           {calendarLoading ? (
-            <Skeleton variant="rectangular" height={420} sx={{ borderRadius: 1 }} />
+            <Skeleton
+              variant="rectangular"
+              height={420}
+              sx={{ borderRadius: 1 }}
+            />
           ) : scheduledProjectRanges.length === 0 || !timelineRange ? (
             <EmptyState
               title="No scheduled projects yet"
               description="Add work slots to see project schedules here."
               actionLabel="Open Projects"
-              onAction={() => navigate('/projects')}
+              onAction={() => navigate("/projects")}
             />
           ) : (
-            <Box sx={{ display: { xs: 'block', md: 'grid' }, gridTemplateColumns: '260px 1fr', gap: 2 }}>
+            <Box
+              sx={{
+                display: { xs: "block", md: "grid" },
+                gridTemplateColumns: "260px 1fr",
+                gap: 2,
+              }}
+            >
               <Box>
                 <Box
                   sx={{
                     height: ganttHeaderHeight,
-                    display: 'flex',
-                    alignItems: 'center',
+                    display: "flex",
+                    alignItems: "center",
                     px: 2,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    color: 'text.secondary',
+                    borderBottom: "1px solid",
+                    borderColor: "divider",
+                    color: "text.secondary",
                     fontWeight: 600,
                   }}
                 >
@@ -1111,12 +1290,12 @@ export default function Projects() {
                         sx={{
                           height: ganttRowHeight,
                           px: 2,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
                           gap: 2,
-                          borderBottom: '1px solid',
-                          borderColor: 'divider',
+                          borderBottom: "1px solid",
+                          borderColor: "divider",
                         }}
                       >
                         <Box sx={{ minWidth: 0 }}>
@@ -1127,7 +1306,12 @@ export default function Projects() {
                             {taskCount} tasks | {range.slotCount} slots
                           </Typography>
                         </Box>
-                        <Button size="small" onClick={() => navigate(`/projects/${range.projectId}`)}>
+                        <Button
+                          size="small"
+                          onClick={() =>
+                            navigate(`/projects/${range.projectId}`)
+                          }
+                        >
                           Open
                         </Button>
                       </Box>
@@ -1136,16 +1320,20 @@ export default function Projects() {
                 </Stack>
               </Box>
 
-              <Box sx={{ overflowX: 'auto' }}>
-                <Box sx={{ minWidth: timelineRange.days.length * ganttColumnWidth }}>
+              <Box sx={{ overflowX: "auto" }}>
+                <Box
+                  sx={{
+                    minWidth: timelineRange.days.length * ganttColumnWidth,
+                  }}
+                >
                   <Box
                     sx={{
-                      display: 'grid',
+                      display: "grid",
                       gridTemplateColumns: `repeat(${timelineRange.days.length}, ${ganttColumnWidth}px)`,
                       height: ganttHeaderHeight,
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      background: 'rgba(15, 118, 110, 0.06)',
+                      borderBottom: "1px solid",
+                      borderColor: "divider",
+                      background: "rgba(15, 118, 110, 0.06)",
                     }}
                   >
                     {timelineRange.days.map((day) => (
@@ -1154,14 +1342,16 @@ export default function Projects() {
                         sx={{
                           px: 1,
                           py: 0.5,
-                          borderRight: '1px solid',
-                          borderColor: 'divider',
-                          backgroundColor: isWeekend(day) ? 'rgba(15, 23, 42, 0.04)' : 'transparent',
+                          borderRight: "1px solid",
+                          borderColor: "divider",
+                          backgroundColor: isWeekend(day)
+                            ? "rgba(15, 23, 42, 0.04)"
+                            : "transparent",
                           opacity: showWeekends || !isWeekend(day) ? 1 : 0.3,
                         }}
                       >
                         <Typography variant="caption" color="text.secondary">
-                          {format(day, 'MMM d')}
+                          {format(day, "MMM d")}
                         </Typography>
                       </Box>
                     ))}
@@ -1169,25 +1359,33 @@ export default function Projects() {
 
                   <Stack spacing={0}>
                     {scheduledProjectRanges.map((range) => {
-                      const startIndex = differenceInCalendarDays(startOfDay(range.start as Date), timelineRange.start);
-                      const endIndex = differenceInCalendarDays(startOfDay(range.end as Date), timelineRange.start);
+                      const startIndex = differenceInCalendarDays(
+                        startOfDay(range.start as Date),
+                        timelineRange.start,
+                      );
+                      const endIndex = differenceInCalendarDays(
+                        startOfDay(range.end as Date),
+                        timelineRange.start,
+                      );
                       const gridStart = Math.max(1, startIndex + 1);
                       const gridEnd = Math.max(gridStart + 1, endIndex + 2);
                       const isDragging = draggingProjectId === range.projectId;
                       const offsetDays = isDragging ? dragDeltaDays : 0;
                       const shiftLabel =
-                        isDragging && dragDeltaDays !== 0 ? `Shift ${dragDeltaDays > 0 ? '+' : ''}${dragDeltaDays}d` : '';
+                        isDragging && dragDeltaDays !== 0
+                          ? `Shift ${dragDeltaDays > 0 ? "+" : ""}${dragDeltaDays}d`
+                          : "";
 
                       return (
                         <Box
                           key={`gantt-${range.projectId}`}
                           sx={{
                             height: ganttRowHeight,
-                            display: 'grid',
+                            display: "grid",
                             gridTemplateColumns: `repeat(${timelineRange.days.length}, ${ganttColumnWidth}px)`,
-                            borderBottom: '1px solid',
-                            borderColor: 'divider',
-                            position: 'relative',
+                            borderBottom: "1px solid",
+                            borderColor: "divider",
+                            position: "relative",
                             backgroundImage: `linear-gradient(to right, rgba(15, 23, 42, 0.05) 1px, transparent 1px)`,
                             backgroundSize: `${ganttColumnWidth}px 100%`,
                           }}
@@ -1195,30 +1393,37 @@ export default function Projects() {
                           <Box
                             role="button"
                             aria-label={`Shift ${range.projectName}`}
-                            onMouseDown={(event) => startProjectDrag(event, range.projectId)}
+                            onMouseDown={(event) =>
+                              startProjectDrag(event, range.projectId)
+                            }
                             sx={{
                               gridColumn: `${gridStart} / ${gridEnd}`,
-                              alignSelf: 'center',
+                              alignSelf: "center",
                               height: 18,
                               borderRadius: 999,
-                              cursor: shiftingProjectId ? 'not-allowed' : 'grab',
-                              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(37, 99, 235, 0.95))',
-                              boxShadow: '0 8px 18px rgba(15, 23, 42, 0.2)',
+                              cursor: shiftingProjectId
+                                ? "not-allowed"
+                                : "grab",
+                              background:
+                                "linear-gradient(135deg, rgba(59, 130, 246, 0.7), rgba(37, 99, 235, 0.95))",
+                              boxShadow: "0 8px 18px rgba(15, 23, 42, 0.2)",
                               transform: `translateX(${offsetDays * ganttColumnWidth}px)`,
-                              transition: isDragging ? 'none' : 'transform 120ms ease-out',
+                              transition: isDragging
+                                ? "none"
+                                : "transform 120ms ease-out",
                             }}
                           />
                           {shiftLabel && (
                             <Box
                               sx={{
-                                position: 'absolute',
+                                position: "absolute",
                                 top: 8,
                                 right: 12,
                                 px: 1,
                                 py: 0.25,
                                 borderRadius: 999,
-                                backgroundColor: 'rgba(15, 23, 42, 0.8)',
-                                color: '#fff',
+                                backgroundColor: "rgba(15, 23, 42, 0.8)",
+                                color: "#fff",
                                 fontSize: 11,
                               }}
                             >
@@ -1245,11 +1450,11 @@ export default function Projects() {
                     sx={{
                       p: 2,
                       borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      border: "1px solid",
+                      borderColor: "divider",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                       gap: 2,
                     }}
                   >
@@ -1261,7 +1466,9 @@ export default function Projects() {
                         No work slots scheduled yet
                       </Typography>
                     </Box>
-                    <Button onClick={() => navigate(`/projects/${project.id}`)}>Add schedule</Button>
+                    <Button onClick={() => navigate(`/projects/${project.id}`)}>
+                      Add schedule
+                    </Button>
                   </Box>
                 ))}
               </Stack>
@@ -1270,12 +1477,17 @@ export default function Projects() {
         </Paper>
       )}
 
-      <Dialog open={holidayDialogOpen} onClose={() => setHolidayDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={holidayDialogOpen}
+        onClose={() => setHolidayDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Holidays</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             {holidayError && <Alert severity="error">{holidayError}</Alert>}
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
                 select
                 label="Year"
@@ -1325,21 +1537,27 @@ export default function Projects() {
                     sx={{
                       p: 1.5,
                       borderRadius: 2,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
+                      border: "1px solid",
+                      borderColor: "divider",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
                       gap: 2,
                     }}
                   >
                     <Box>
-                      <Typography variant="subtitle2">{holiday.name}</Typography>
+                      <Typography variant="subtitle2">
+                        {holiday.name}
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {holiday.date}
                       </Typography>
                     </Box>
-                    <Button size="small" color="error" onClick={() => handleRemoveHoliday(holiday.id)}>
+                    <Button
+                      size="small"
+                      color="error"
+                      onClick={() => handleRemoveHoliday(holiday.id)}
+                    >
                       Remove
                     </Button>
                   </Box>
@@ -1353,7 +1571,12 @@ export default function Projects() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>Create Project</DialogTitle>
         <DialogContent>
           <TextField
@@ -1372,11 +1595,30 @@ export default function Projects() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
+          <TextField
+            select
+            label="Working time template"
+            fullWidth
+            margin="normal"
+            value={workTemplate}
+            onChange={(event) => handleWorkTemplateChange(event.target.value)}
+          >
+            {workTemplateOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </TextField>
           <FormControlLabel
             control={
               <Switch
                 checked={includeWeekends}
-                onChange={(event) => setIncludeWeekends(event.target.checked)}
+                onChange={(event) => {
+                  setIncludeWeekends(event.target.checked);
+                  if (workTemplate !== "custom") {
+                    setWorkTemplate("custom");
+                  }
+                }}
               />
             }
             label="Include weekends"
@@ -1386,7 +1628,12 @@ export default function Projects() {
               label="Workday start"
               type="time"
               value={workdayStart}
-              onChange={(event) => setWorkdayStart(event.target.value)}
+              onChange={(event) => {
+                setWorkdayStart(event.target.value);
+                if (workTemplate !== "custom") {
+                  setWorkTemplate("custom");
+                }
+              }}
               InputLabelProps={{ shrink: true }}
               fullWidth
             />
@@ -1394,7 +1641,12 @@ export default function Projects() {
               label="Workday end"
               type="time"
               value={workdayEnd}
-              onChange={(event) => setWorkdayEnd(event.target.value)}
+              onChange={(event) => {
+                setWorkdayEnd(event.target.value);
+                if (workTemplate !== "custom") {
+                  setWorkTemplate("custom");
+                }
+              }}
               InputLabelProps={{ shrink: true }}
               fullWidth
             />
@@ -1402,8 +1654,12 @@ export default function Projects() {
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreate} disabled={creating}>
-            {creating ? 'Creating...' : 'Create Project'}
+          <Button
+            variant="contained"
+            onClick={handleCreate}
+            disabled={creating}
+          >
+            {creating ? "Creating..." : "Create Project"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1412,7 +1668,7 @@ export default function Projects() {
         open={Boolean(shiftSnackbar?.open)}
         autoHideDuration={5000}
         onClose={handleShiftSnackbarClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
         <Alert
           onClose={handleShiftSnackbarClose}
@@ -1422,13 +1678,13 @@ export default function Projects() {
               Undo
             </Button>
           }
-          sx={{ width: '100%' }}
+          sx={{ width: "100%" }}
         >
           {shiftSnackbar
             ? `${shiftSnackbar.projectName} shifted by ${
-                shiftSnackbar.deltaDays > 0 ? '+' : ''
+                shiftSnackbar.deltaDays > 0 ? "+" : ""
               }${shiftSnackbar.deltaDays} days`
-            : 'Project shifted'}
+            : "Project shifted"}
         </Alert>
       </Snackbar>
     </Box>

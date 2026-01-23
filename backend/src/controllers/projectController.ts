@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { createProject, deleteProject, getProjectById, listProjects, updateProject } from '../services/projectService';
+import {
+  createProject,
+  deleteProject,
+  getProjectById,
+  listProjects,
+  updateProject,
+} from '../services/projectService';
 import { shiftProjectSchedule } from '../services/taskService';
 import { createProjectActivity, listProjectActivity } from '../services/activityService';
 import { toProjectResponse } from '../models/project';
@@ -28,7 +34,9 @@ const buildProjectUpdateSummary = (before: Project, after: Project): string | nu
     changes.push(`name "${before.name}" -> "${after.name}"`);
   }
   if (before.description !== after.description) {
-    changes.push(`description ${formatValue(before.description)} -> ${formatValue(after.description)}`);
+    changes.push(
+      `description ${formatValue(before.description)} -> ${formatValue(after.description)}`
+    );
   }
   if (before.include_weekends !== after.include_weekends) {
     changes.push(`weekends ${before.include_weekends} -> ${after.include_weekends}`);
@@ -39,12 +47,52 @@ const buildProjectUpdateSummary = (before: Project, after: Project): string | nu
   if (before.workday_end !== after.workday_end) {
     changes.push(`workday end ${before.workday_end} -> ${after.workday_end}`);
   }
+  if (before.work_template !== after.work_template) {
+    changes.push(`template ${before.work_template} -> ${after.work_template}`);
+  }
 
   if (changes.length === 0) {
     return null;
   }
 
   return `Project updated: ${after.name} (${changes.join(', ')})`;
+};
+
+const WORK_TEMPLATE_SETTINGS: Record<
+  string,
+  { includeWeekends: boolean; workdayStart: string; workdayEnd: string }
+> = {
+  weekday_8_17: {
+    includeWeekends: false,
+    workdayStart: '08:00',
+    workdayEnd: '17:00',
+  },
+  weekday_8_17_with_weekends: {
+    includeWeekends: true,
+    workdayStart: '08:00',
+    workdayEnd: '17:00',
+  },
+};
+
+const resolveTemplateDefaults = (template?: string) => {
+  if (!template) return null;
+  return WORK_TEMPLATE_SETTINGS[template] ?? null;
+};
+
+const inferTemplate = (
+  includeWeekends?: boolean,
+  workdayStart?: string,
+  workdayEnd?: string
+): string => {
+  const resolvedStart = workdayStart ?? '08:00';
+  const resolvedEnd = workdayEnd ?? '17:00';
+  const resolvedWeekends = includeWeekends ?? true;
+
+  if (resolvedStart === '08:00' && resolvedEnd === '17:00') {
+    return resolvedWeekends ? 'weekday_8_17_with_weekends' : 'weekday_8_17';
+  }
+
+  return 'custom';
 };
 
 export async function list(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -79,14 +127,24 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, description, includeWeekends, workdayStart, workdayEnd } = req.body;
+    const { name, description, includeWeekends, workdayStart, workdayEnd, workTemplate } = req.body;
+    const templateDefaults = resolveTemplateDefaults(workTemplate);
+    const resolvedIncludeWeekends = templateDefaults
+      ? templateDefaults.includeWeekends
+      : includeWeekends;
+    const resolvedWorkdayStart = templateDefaults ? templateDefaults.workdayStart : workdayStart;
+    const resolvedWorkdayEnd = templateDefaults ? templateDefaults.workdayEnd : workdayEnd;
+    const resolvedTemplate =
+      workTemplate ??
+      inferTemplate(resolvedIncludeWeekends, resolvedWorkdayStart, resolvedWorkdayEnd);
     const project = await createProject({
       name,
       description,
       owner_id: userId,
-      include_weekends: includeWeekends,
-      workday_start: workdayStart,
-      workday_end: workdayEnd,
+      include_weekends: resolvedIncludeWeekends,
+      workday_start: resolvedWorkdayStart,
+      workday_end: resolvedWorkdayEnd,
+      work_template: resolvedTemplate,
     });
 
     await createProjectActivity({
@@ -138,7 +196,13 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, description, includeWeekends, workdayStart, workdayEnd } = req.body;
+    const { name, description, includeWeekends, workdayStart, workdayEnd, workTemplate } = req.body;
+    const templateDefaults = resolveTemplateDefaults(workTemplate);
+    const resolvedIncludeWeekends = templateDefaults
+      ? templateDefaults.includeWeekends
+      : includeWeekends;
+    const resolvedWorkdayStart = templateDefaults ? templateDefaults.workdayStart : workdayStart;
+    const resolvedWorkdayEnd = templateDefaults ? templateDefaults.workdayEnd : workdayEnd;
     const existing = await getProjectById(req.params.id as string, userId);
     if (!existing) {
       res.status(404).json({ success: false, error: 'Project not found' });
@@ -148,9 +212,10 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     const updated = await updateProject(req.params.id as string, userId, {
       name,
       description,
-      include_weekends: includeWeekends,
-      workday_start: workdayStart,
-      workday_end: workdayEnd,
+      include_weekends: resolvedIncludeWeekends,
+      workday_start: resolvedWorkdayStart,
+      workday_end: resolvedWorkdayEnd,
+      work_template: workTemplate,
     });
 
     if (!updated) {
@@ -196,7 +261,11 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
   }
 }
 
-export async function shiftSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function shiftSchedule(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

@@ -8,6 +8,7 @@ export interface CreateProjectDTO {
   include_weekends?: boolean;
   workday_start?: string;
   workday_end?: string;
+  work_template?: string;
 }
 
 export interface UpdateProjectDTO {
@@ -16,12 +17,13 @@ export interface UpdateProjectDTO {
   include_weekends?: boolean;
   workday_start?: string;
   workday_end?: string;
+  work_template?: string;
 }
 
 export async function createProject(data: CreateProjectDTO): Promise<Project> {
   const result = await pool.query<Project>(
-    `INSERT INTO projects (name, description, owner_id, include_weekends, workday_start, workday_end)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO projects (name, description, owner_id, include_weekends, workday_start, workday_end, work_template)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING *`,
     [
       data.name,
@@ -30,6 +32,7 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
       data.include_weekends ?? true,
       data.workday_start || '08:00',
       data.workday_end || '17:00',
+      data.work_template || 'weekday_8_17',
     ]
   );
 
@@ -83,6 +86,10 @@ export async function updateProject(
     fields.push(`workday_end = $${paramIndex++}`);
     values.push(data.workday_end);
   }
+  if (data.work_template !== undefined) {
+    fields.push(`work_template = $${paramIndex++}`);
+    values.push(data.work_template);
+  }
 
   if (fields.length === 0) {
     return getProjectById(id, ownerId);
@@ -100,10 +107,10 @@ export async function updateProject(
 }
 
 export async function deleteProject(id: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query(
-    `DELETE FROM projects WHERE id = $1 AND owner_id = $2`,
-    [id, ownerId]
-  );
+  const result = await pool.query(`DELETE FROM projects WHERE id = $1 AND owner_id = $2`, [
+    id,
+    ownerId,
+  ]);
 
   return result.rowCount !== null && result.rowCount > 0;
 }

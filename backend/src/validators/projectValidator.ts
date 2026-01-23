@@ -1,5 +1,7 @@
 import { body, ValidationChain } from 'express-validator';
 
+const templateValues = ['weekday_8_17', 'weekday_8_17_with_weekends', 'custom'];
+
 export const createProjectValidator: ValidationChain[] = [
   body('name')
     .trim()
@@ -12,10 +14,7 @@ export const createProjectValidator: ValidationChain[] = [
     .trim()
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
-  body('includeWeekends')
-    .optional()
-    .isBoolean()
-    .withMessage('includeWeekends must be boolean'),
+  body('includeWeekends').optional().isBoolean().withMessage('includeWeekends must be boolean'),
   body('workdayStart')
     .optional()
     .matches(/^\d{2}:\d{2}$/)
@@ -24,6 +23,10 @@ export const createProjectValidator: ValidationChain[] = [
     .optional()
     .matches(/^\d{2}:\d{2}$/)
     .withMessage('workdayEnd must be in HH:MM format'),
+  body('workTemplate')
+    .optional()
+    .isIn(templateValues)
+    .withMessage(`workTemplate must be one of: ${templateValues.join(', ')}`),
 ];
 
 export const updateProjectValidator: ValidationChain[] = [
@@ -39,10 +42,7 @@ export const updateProjectValidator: ValidationChain[] = [
     .trim()
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
-  body('includeWeekends')
-    .optional()
-    .isBoolean()
-    .withMessage('includeWeekends must be boolean'),
+  body('includeWeekends').optional().isBoolean().withMessage('includeWeekends must be boolean'),
   body('workdayStart')
     .optional()
     .matches(/^\d{2}:\d{2}$/)
@@ -51,6 +51,10 @@ export const updateProjectValidator: ValidationChain[] = [
     .optional()
     .matches(/^\d{2}:\d{2}$/)
     .withMessage('workdayEnd must be in HH:MM format'),
+  body('workTemplate')
+    .optional()
+    .isIn(templateValues)
+    .withMessage(`workTemplate must be one of: ${templateValues.join(', ')}`),
 ];
 
 export const shiftProjectValidator: ValidationChain[] = [
