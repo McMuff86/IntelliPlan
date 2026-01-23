@@ -50,6 +50,55 @@ check_prerequisites() {
         echo -e "${RED}Error: prompt.md not found at $PROMPT_FILE${NC}"
         exit 1
     fi
+    
+    # Check for Python 3 (required for beads scripts)
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${YELLOW}Warning: python3 not found. Beads scripts will not work.${NC}"
+    fi
+}
+
+# Validate beads JSON integrity
+bead_check() {
+    echo -e "${BLUE}Checking bead integrity...${NC}"
+    
+    # Check prd.json
+    if ! jq empty "$PRD_FILE" 2>/dev/null; then
+        echo -e "${RED}✗ Error: prd.json is not valid JSON${NC}"
+        return 1
+    fi
+    
+    # Check required fields in prd.json
+    if ! jq -e '.name' "$PRD_FILE" >/dev/null 2>&1; then
+        echo -e "${RED}✗ Error: prd.json missing 'name' field${NC}"
+        return 1
+    fi
+    
+    if ! jq -e '.userStories' "$PRD_FILE" >/dev/null 2>&1; then
+        echo -e "${RED}✗ Error: prd.json missing 'userStories' array${NC}"
+        return 1
+    fi
+    
+    # Check each user story has required fields
+    local story_count=$(jq '.userStories | length' "$PRD_FILE")
+    for ((i=0; i<story_count; i++)); do
+        if ! jq -e ".userStories[$i].id" "$PRD_FILE" >/dev/null 2>&1; then
+            echo -e "${RED}✗ Error: Story $i missing 'id' field${NC}"
+            return 1
+        fi
+        # Check passes field exists (can be true or false)
+        if ! jq -e ".userStories[$i] | has(\"passes\")" "$PRD_FILE" >/dev/null 2>&1; then
+            echo -e "${RED}✗ Error: Story $i missing 'passes' field${NC}"
+            return 1
+        fi
+    done
+    
+    # Check progress.txt exists
+    if [ ! -f "$PROGRESS_FILE" ]; then
+        echo -e "${YELLOW}⚠ Warning: progress.txt not found, will be created${NC}"
+    fi
+    
+    echo -e "${GREEN}✓ Beads are valid${NC}"
+    return 0
 }
 
 # Check if all stories are complete
@@ -127,6 +176,18 @@ main() {
     
     cd "$PROJECT_ROOT"
     
+    # Validate beads before starting
+    if ! bead_check; then
+        echo -e "${RED}Bead validation failed. Fix errors before continuing.${NC}"
+        exit 1
+    fi
+    
+    # Version beads at start of run
+    if command -v python3 &> /dev/null; then
+        echo -e "${BLUE}Versioning beads...${NC}"
+        python3 "$SCRIPT_DIR/../beads/version_beads.py" 2>/dev/null || echo -e "${YELLOW}⚠ Warning: Beads versioning failed${NC}"
+    fi
+    
     check_and_archive
     setup_branch
     
@@ -137,6 +198,12 @@ main() {
         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         echo -e "${BLUE}Iteration $i of $MAX_ITERATIONS${NC}"
         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        
+        # Re-validate beads before each iteration
+        if ! bead_check; then
+            echo -e "${RED}Bead validation failed in iteration $i${NC}"
+            exit 1
+        fi
         
         # Check if complete
         if check_completion; then
@@ -164,6 +231,12 @@ main() {
         if [ $amp_exit_code -ne 0 ]; then
             echo -e "${RED}Amp exited with error code $amp_exit_code${NC}"
             echo -e "${YELLOW}Continuing to next iteration...${NC}"
+        fi
+        
+        # Deduplicate progress.txt after iteration (if Python available)
+        if command -v python3 &> /dev/null && [ -f "$PROJECT_ROOT/scripts/beads/deduplicate_progress.py" ]; then
+            echo -e "${BLUE}Deduplicating progress.txt...${NC}"
+            python3 "$PROJECT_ROOT/scripts/beads/deduplicate_progress.py" 2>/dev/null || echo -e "${YELLOW}⚠ Warning: Deduplication skipped${NC}"
         fi
         
         echo ""

@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment, deleteAppointment, checkOverlap } from '../services/appointmentService';
-import { toAppointmentResponse } from '../models/appointment';
+import { Appointment, toAppointmentResponse } from '../models/appointment';
+import { generateConflictSuggestions } from '../services/aiConflictService';
 
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -33,10 +34,33 @@ export async function create(req: Request, res: Response, next: NextFunction): P
     });
 
     if (overlapResult.hasOverlap && !force) {
+      // Generate AI-powered suggestions for conflict resolution
+      const aiSuggestions = await generateConflictSuggestions({
+        requestedStart: startTime,
+        requestedEnd: endTime,
+        conflicts: overlapResult.conflicts.map(c => ({
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          start_time: new Date(c.startTime),
+          end_time: new Date(c.endTime),
+          timezone: c.timezone,
+          user_id: c.userId,
+          created_at: new Date(c.createdAt),
+          updated_at: new Date(c.updatedAt),
+          deleted_at: null,
+        })) as Appointment[],
+        userId,
+        title,
+      });
+      
       res.status(409).json({
         success: false,
         error: 'Scheduling conflict detected',
         conflicts: overlapResult.conflicts,
+        aiSuggestions: aiSuggestions.suggestions,
+        conflictPattern: aiSuggestions.conflictPattern,
+        historicalContext: aiSuggestions.historicalContext,
       });
       return;
     }
@@ -204,10 +228,33 @@ export async function update(req: Request, res: Response, next: NextFunction): P
         });
 
         if (overlapResult.hasOverlap && !force) {
+          // Generate AI-powered suggestions for conflict resolution
+          const aiSuggestions = await generateConflictSuggestions({
+            requestedStart: checkStartTime,
+            requestedEnd: checkEndTime,
+            conflicts: overlapResult.conflicts.map(c => ({
+              id: c.id,
+              title: c.title,
+              description: c.description,
+              start_time: new Date(c.startTime),
+              end_time: new Date(c.endTime),
+              timezone: c.timezone,
+              user_id: c.userId,
+              created_at: new Date(c.createdAt),
+              updated_at: new Date(c.updatedAt),
+              deleted_at: null,
+            })) as Appointment[],
+            userId: appointmentOwnerId,
+            title,
+          });
+          
           res.status(409).json({
             success: false,
             error: 'Scheduling conflict detected',
             conflicts: overlapResult.conflicts,
+            aiSuggestions: aiSuggestions.suggestions,
+            conflictPattern: aiSuggestions.conflictPattern,
+            historicalContext: aiSuggestions.historicalContext,
           });
           return;
         }
