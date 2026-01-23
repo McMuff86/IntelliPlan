@@ -5,6 +5,7 @@
 IntelliPlan is an advanced calendar and scheduling application with AI-powered features. This project uses the **Ralph pattern** - an autonomous AI agent loop that runs [Amp](https://ampcode.com) repeatedly until all PRD items are complete. Each iteration is a fresh Amp instance with clean context.
 
 **Key Concepts:**
+
 - **Ralph Loop**: Bash-based iteration system for Amp instances that processes small user stories
 - **Memory Persistence**: Via git history, `progress.txt`, `prd.json`, and Beads (file-based memory system)
 - **Fresh Context**: Each iteration spawns a new Amp instance to avoid hallucinations
@@ -88,7 +89,6 @@ Develop a scalable, user-friendly application for planning, booking, reminders, 
 - Advanced appointment features
 - Security & compliance
 
-
 ## Prerequisites
 
 - Node.js and npm installed
@@ -161,14 +161,14 @@ git log --oneline -10
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `scripts/ralph/ralph.sh` | The bash loop that spawns fresh Amp instances |
-| `scripts/ralph/prompt.md` | Instructions given to each Amp instance |
-| `prd.json` | User stories with `passes` status (the task list) |
-| `prd.json.example` | Example PRD format for reference |
-| `progress.txt` | Append-only learnings for future iterations |
-| `AGENTS.md` | This file - agent instructions and patterns |
+| File                      | Purpose                                           |
+| ------------------------- | ------------------------------------------------- |
+| `scripts/ralph/ralph.sh`  | The bash loop that spawns fresh Amp instances     |
+| `scripts/ralph/prompt.md` | Instructions given to each Amp instance           |
+| `prd.json`                | User stories with `passes` status (the task list) |
+| `prd.json.example`        | Example PRD format for reference                  |
+| `progress.txt`            | Append-only learnings for future iterations       |
+| `AGENTS.md`               | This file - agent instructions and patterns       |
 
 ## Workflow
 
@@ -200,6 +200,7 @@ git log --oneline -10
 ### Each Iteration = Fresh Context
 
 Each iteration spawns a **new Amp instance** with clean context. The only memory between iterations is:
+
 - Git history (commits from previous iterations)
 - `progress.txt` (learnings and context)
 - `prd.json` (which stories are done)
@@ -210,12 +211,14 @@ Each iteration spawns a **new Amp instance** with clean context. The only memory
 Each PRD item should be small enough to complete in one context window. If a task is too big, the LLM runs out of context before finishing and produces poor code.
 
 **Right-sized stories:**
+
 - Add a database column and migration
 - Add a UI component to an existing page
 - Update a server action with new logic
 - Add a filter dropdown to a list
 
 **Too big (split these):**
+
 - "Build the entire dashboard"
 - "Add authentication"
 - "Refactor the API"
@@ -225,6 +228,7 @@ Each PRD item should be small enough to complete in one context window. If a tas
 After each iteration, Ralph updates relevant `AGENTS.md` files with learnings. This is key because Amp automatically reads these files, so future iterations (and future human developers) benefit from discovered patterns, gotchas, and conventions.
 
 **Examples of what to add to AGENTS.md:**
+
 - Patterns discovered ("this codebase uses X for Y")
 - Gotchas ("do not forget to update Z when changing W")
 - Useful context ("the settings panel is in component X")
@@ -261,6 +265,7 @@ Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
 ### Feedback Loops
 
 Ralph only works if there are feedback loops:
+
 - Typecheck catches type errors
 - Tests verify behavior
 - CI must stay green (broken code compounds across iterations)
@@ -313,97 +318,100 @@ git log --oneline -10
 ## Customizing prompt.md
 
 Edit `scripts/ralph/prompt.md` to customize Ralph's behavior for IntelliPlan:
+
 - Add project-specific quality check commands
 - Include codebase conventions
 - Add common gotchas for your stack
 - Reference IntelliPlan-specific patterns
 
+## Quick Start
 
-## Quick Start (Windows)
+For detailed setup instructions, see:
 
-Run both backend and frontend dev servers at once:
+- **[README.md](README.md)**: End-user documentation and quick start guide
+- **[DEVELOPMENT.md](DEVELOPMENT.md)**: Developer setup, patterns, and best practices
+- **[scripts/ralph/README.md](scripts/ralph/README.md)**: Ralph autonomous agent documentation
 
-```powershell
+### Quick Reference
+
+**Start Development Servers:**
+
+```bash
+# Windows
 .\start-dev.ps1
+
+# Linux/macOS
+cd backend && npm run dev  # Terminal 1
+cd frontend && npm run dev # Terminal 2
 ```
 
-This opens two PowerShell windows:
-- **Backend**: http://localhost:3000
-- **Frontend**: http://localhost:5173
+**Database Setup:**
 
-### Manual Start
-
-```powershell
-# Terminal 1 - Backend
+```bash
+docker compose up -d     # Start PostgreSQL
 cd backend
-npm install
-npm run dev
-
-# Terminal 2 - Frontend
-cd frontend
-npm install
-npm run dev
+npm run migrate          # Run migrations
+npm run seed:user        # Create test user
 ```
 
-### Database (Docker)
+**URLs:**
 
-Use Docker for a reproducible local Postgres setup (recommended for development).
-
-```powershell
-# From project root
-docker compose up -d
-```
-
-Create local env files before running migrations:
-
-- `backend/.env` from `backend/.env.example`
-- `frontend/.env` from `frontend/.env.example`
-
-Backend expects these defaults:
-- `DB_HOST=localhost`
-- `DB_PORT=5432`
-- `DB_NAME=intelliplan`
-- `DB_USER=postgres`
-- `DB_PASSWORD=postgres`
-
-Set `DB_PASSWORD` in `backend/.env` to match the Docker password above.
-
-Run migrations to create tables and enable required extensions:
-
-```powershell
-cd backend
-npm run migrate
-```
-
-The migration `backend/migrations/000_enable_pgcrypto.sql` enables `pgcrypto`, which is required for `gen_random_uuid()`.
-If you already have a database volume, re-run `npm run migrate` to apply the new migration.
-
-### Dev Quickfix: Seed User
-
-If appointment creation fails, create a seed user and send `x-user-id` from the frontend.
-
-```powershell
-# Run migrations first (if not already done)
-cd backend
-npm run migrate
-
-# Create/update a demo user
-npm run seed:user
-```
-
-Copy the printed `User ID` and set it for the frontend:
-
-```powershell
-# Option A: set once in browser console
-localStorage.setItem('userId', '<PASTE_USER_ID>');
-
-# Option B: set via env for dev (frontend)
-# VITE_USER_ID=<PASTE_USER_ID>
-```
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:3000
 
 ## Archiving
 
 Ralph automatically archives previous runs when you start a new feature (different `branchName`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
+
+## Next Steps
+
+Based on `prd.json`, the following user stories are ready for implementation (ordered by priority):
+
+### High Priority
+1. **US-TP-011**: Optional Reminders per Task/Work Slot
+   - Toggle reminder on/off per work slot or task
+   - Reminder-only functionality (no hard appointment binding)
+   - Dependencies: US-TP-004 (Manual Time Slots)
+
+2. **US-TP-012**: Working Time Templates
+   - Templates for Mon-Fri 8-17 with optional weekends
+   - Save templates per project for faster planning
+   - Dependencies: US-TP-002 (Project CRUD)
+
+3. **US-017**: Reverse-Planning Feature for Carpentry Use Case
+   - POST /api/appointments/reverse-plan endpoint
+   - Input: end-date, resources, tasks list
+   - Output: optimized schedule working backwards
+   - Greedy algorithm with date-fns
+   - Frontend: "Optimize Schedule" button in CalendarView
+   - Dependencies: US-TP-001 (Database Schema)
+
+4. **US-018**: Authentication and DSGVO Compliance Basics
+   - Supabase Auth integration in frontend
+   - requireUserId middleware in backend
+   - Soft data encryption for sensitive beads
+   - Timezone handling compliant with CH regulations
+
+5. **US-019**: Create Inbound Marketing Hook
+   - /demo route in frontend showcasing features
+   - Shareable PDF export using jsPDF
+   - Demo calendar with sample Swiss carpentry shop data
+   - Call-to-action for 50-200 CHF/user pricing
+   - Dependencies: US-017 (Reverse-Planning)
+
+### Running Ralph
+
+To continue implementation:
+
+```bash
+# Check current status
+cat prd.json | jq '.userStories[] | select(.passes == false) | {id, title, priority}'
+
+# Run Ralph to implement next story
+./scripts/ralph/ralph.sh 10
+```
+
+See [scripts/ralph/README.md](scripts/ralph/README.md) for detailed Ralph documentation.
 
 ## References
 
@@ -432,6 +440,7 @@ Ralph automatically archives previous runs when you start a new feature (differe
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
@@ -440,11 +449,13 @@ Ralph automatically archives previous runs when you start a new feature (differe
 ## Beads Integration Patterns (US-015)
 
 ### Overview
+
 Enhanced Beads integration provides automatic deduplication, versioning, and validation for the Ralph loop's file-based memory system. These patterns ensure efficient memory management across iterations.
 
 ### Core Components
 
 #### 1. Progress.txt Deduplication (`scripts/beads/deduplicate_progress.py`)
+
 - **Purpose**: Reduces progress.txt size by deduplicating learnings and summarizing older iterations
 - **Target**: 20%+ size reduction (typically achieves 85%+)
 - **When to run**: After each Ralph iteration (automatic in ralph.sh)
@@ -455,6 +466,7 @@ Enhanced Beads integration provides automatic deduplication, versioning, and val
   - Hash-based deduplication prevents redundancy
 
 **Usage:**
+
 ```bash
 # Dry run to preview changes
 python3 scripts/beads/deduplicate_progress.py --dry-run
@@ -467,11 +479,13 @@ python3 scripts/beads/deduplicate_progress.py --backup-dir /path/to/backups
 ```
 
 #### 2. Beads Versioning (`scripts/beads/version_beads.py`)
+
 - **Purpose**: Creates timestamped snapshots of beads (prd.json, progress.txt)
 - **When to run**: At start of Ralph run and before major changes
 - **Storage**: `.beads/versions/` with metadata tracking
 
 **Usage:**
+
 ```bash
 # Version default files (prd.json, progress.txt)
 python3 scripts/beads/version_beads.py
@@ -484,6 +498,7 @@ python3 scripts/beads/version_beads.py --versions-dir /path/to/versions
 ```
 
 **Metadata format** (`.beads/versions/metadata.json`):
+
 ```json
 [
   {
@@ -500,6 +515,7 @@ python3 scripts/beads/version_beads.py --versions-dir /path/to/versions
 ```
 
 #### 3. Bead Validation (`bead_check()` in ralph.sh)
+
 - **Purpose**: Validates JSON integrity and required fields before each iteration
 - **Validates**:
   - prd.json is valid JSON
@@ -509,6 +525,7 @@ python3 scripts/beads/version_beads.py --versions-dir /path/to/versions
 - **When to run**: Before Ralph loop starts and before each iteration (automatic)
 
 **Key patterns:**
+
 ```bash
 # Use has() for boolean fields that can be true or false
 jq -e ".userStories[$i] | has(\"passes\")" "$PRD_FILE"
@@ -552,15 +569,18 @@ The enhanced Beads system integrates seamlessly with ralph.sh:
 ### Troubleshooting
 
 **"Story X missing 'passes' field" error:**
+
 - Check if field exists: `jq '.userStories[X] | has("passes")' prd.json`
 - Don't confuse with field value being `false`
 
 **Deduplication below 20% target:**
+
 - Normal for early iterations (not enough data to deduplicate)
 - Warning only, doesn't fail the build
 - More iterations = more redundancy = better deduplication
 
 **Versioning fails silently:**
+
 - Check Python 3 is installed: `python3 --version`
 - Check scripts directory exists: `ls scripts/beads/`
 - Manual version: `python3 scripts/beads/version_beads.py`
