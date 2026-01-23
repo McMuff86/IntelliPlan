@@ -1,0 +1,890 @@
+# IntelliPlan - Ralph Progress Log
+
+## Codebase Patterns
+<!-- Add reusable patterns here as they are discovered -->
+<!-- Example: Use `sql<number>` template for aggregations -->
+<!-- Example: Always use `IF NOT EXISTS` for migrations -->
+
+---
+
+## Iteration Log
+<!-- Each Ralph iteration appends its progress below -->
+  
+## 2026-01-13 - US-001  
+Thread: https://ampcode.com/threads/T-019bb959-ef98-70d3-8968-161c39a15ead  
+- Backend: Node.js/Express with TypeScript initialized  
+- Frontend: React with Vite, Material-UI, TypeScript initialized  
+- Database: PostgreSQL migrations created (teams, users, appointments)  
+- Migration runner at npm run migrate  
+  
+**Files created:**  
+- backend/ - Full Express API structure  
+- frontend/ - Full React app structure  
+- backend/migrations/ - SQL migration files  
+  
+**Learnings for future iterations:**  
+- Use IF NOT EXISTS for all CREATE TABLE/INDEX statements  
+- Vite requires type-only imports (import type) for verbatimModuleSyntax  
+- ESLint v9 requires flat config but we used legacy .eslintrc.json  
+--- 
+  
+## 2026-01-14 - US-002  
+Thread: https://ampcode.com/threads/T-019bb959-ef98-70d3-8968-161c39a15ead  
+- POST /api/appointments endpoint created  
+- Validates title, startTime, endTime with express-validator  
+- Returns 201 with created appointment  
+- Returns 400 with validation errors  
+  
+**Files created:**  
+- models/appointment.ts - Types and response mapper  
+- services/appointmentService.ts - Database operations  
+- controllers/appointmentController.ts - Request handling  
+- validators/appointmentValidator.ts - Input validation  
+- routes/appointments.ts - Route definitions  
+  
+**Learnings:**  
+- Use camelCase in API (startTime) but snake_case in DB (start_time)  
+- toAppointmentResponse() maps between formats  
+---
+
+## 2026-01-14 - US-003
+Thread: https://ampcode.com/threads/T-019bbad3-bf06-7019-a96f-5be88384398f
+- GET /api/appointments endpoint with pagination (limit, offset)
+- GET /api/appointments/:id endpoint for single appointment
+- Date range filtering via ?start=&end= query params
+- 404 response for non-existent appointments
+- User ownership enforced (users only see their own)
+
+**Files modified:**
+- services/appointmentService.ts - Added getAppointments() and getAppointmentById()
+- controllers/appointmentController.ts - Added list() and getById() handlers
+- routes/appointments.ts - Added GET routes
+
+**Learnings:**
+- req.params.id can be string | string[] in Express types - use `as string` assertion
+- req.headers values can be string | string[] - handle array case with ternary
+---
+
+## 2026-01-14 - US-004
+Thread: https://ampcode.com/threads/T-019bbb04-2438-7386-97cc-7c73c53fc01a
+- PUT /api/appointments/:id endpoint created
+- Validates ownership before update (returns 403 if not owner)
+- Partial updates supported (only provided fields are updated)
+- Returns 200 with updated appointment, 404 if not found, 403 if unauthorized
+
+**Files modified:**
+- models/appointment.ts - Added UpdateAppointmentDTO interface
+- services/appointmentService.ts - Added getAppointmentOwner() and updateAppointment()
+- controllers/appointmentController.ts - Added update() handler
+- validators/appointmentValidator.ts - Added updateAppointmentValidator (all fields optional)
+- routes/appointments.ts - Added PUT /:id route
+
+**Learnings:**
+- For partial updates, build SQL SET clause dynamically with parameterized index
+- Check ownership separately from fetching appointment to return proper 403 vs 404
+- ValidationChain type import needed for explicit validator array typing
+---
+
+## 2026-01-14 - US-005
+Thread: https://ampcode.com/threads/T-019bbb0d-33d6-75bb-84b7-fcc0b79edc4d
+- DELETE /api/appointments/:id endpoint created
+- Validates ownership before deletion (403 if not owner)
+- Returns 204 on successful deletion
+- Returns 404 for non-existent appointments
+- Implements soft delete (sets deleted_at timestamp)
+
+**Files modified:**
+- services/appointmentService.ts - Added deleteAppointment() function
+- controllers/appointmentController.ts - Added remove() handler
+- routes/appointments.ts - Added DELETE /:id route
+
+**Learnings:**
+- Soft delete pattern: UPDATE SET deleted_at = NOW() instead of DELETE
+- All queries already filter with deleted_at IS NULL for consistency
+---
+
+## 2026-01-14 - US-006
+Thread: https://ampcode.com/threads/T-019bbb1f-47ad-75ae-9433-c69c6cb516ac
+- Overlap detection service implemented
+- checkOverlap() function detects conflicts using: start_time < new_end AND end_time > new_start
+- Integrated into POST /api/appointments and PUT /api/appointments/:id
+- Returns 409 Conflict with conflicts array when overlap detected
+- Accepts ?force=true query param to override conflict blocking
+- excludeId parameter used in update to exclude the appointment being updated
+
+**Files modified:**
+- models/appointment.ts - Added OverlapResult interface
+- services/appointmentService.ts - Added checkOverlap() function
+- controllers/appointmentController.ts - Integrated overlap check in create() and update()
+
+**Learnings:**
+- Overlap detection formula: new_start < existing_end AND new_end > existing_start
+- Use excludeId to prevent self-conflict when updating an appointment
+- 409 Conflict is appropriate HTTP status for scheduling conflicts
+---
+
+## 2026-01-14 - US-007
+Thread: https://ampcode.com/threads/T-019bbb3e-1987-7039-9175-a79483176f4b
+- AppointmentForm component created with react-hook-form and MUI date pickers
+- Fields: title (required), description, start date/time, end date/time, timezone
+- Form validation with error messages (required fields, end > start)
+- Loading state during submission (CircularProgress, disabled fields)
+- Handles 409 conflict response to show overlap warning with "Create Anyway" option
+- CreateAppointment page with navigation at /appointments/new
+
+**Files created:**
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx
+- frontend/src/components/AppointmentForm/index.ts
+- frontend/src/pages/CreateAppointment.tsx
+- frontend/src/services/appointmentService.ts
+
+**Files modified:**
+- frontend/src/types/index.ts - Added CreateAppointmentDTO, AppointmentFormData, OverlapConflict
+- frontend/src/App.tsx - Added route for /appointments/new
+
+**Learnings:**
+- Use date-fns-tz's fromZonedTime() to convert local time to UTC for API
+- MUI DateTimePicker uses slotProps.textField for error/helperText display
+- Handle 409 Conflict by showing conflicts and offering force submit
+---
+
+## 2026-01-14 - US-008
+Thread: https://ampcode.com/threads/T-019bbb52-fbb3-7116-b81b-c3b722ad34f8
+- Created OverlapWarningDialog component using MUI Dialog
+- Replaced inline Alert warning with modal dialog
+- Dialog shows warning icon, conflict list, Cancel and "Create Anyway" buttons
+- Integrated into AppointmentForm for both create and edit flows
+
+**Files created:**
+- frontend/src/components/OverlapWarningDialog/OverlapWarningDialog.tsx
+- frontend/src/components/OverlapWarningDialog/index.ts
+
+**Files modified:**
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx - Uses OverlapWarningDialog
+
+**Learnings:**
+- MUI Dialog uses DialogTitle, DialogContent, DialogActions structure
+- Use warning.light color for visual warning styling on conflict list
+---
+
+## 2026-01-14 - US-009
+Thread: https://ampcode.com/threads/T-019bbb6f-4d93-70de-bb8a-862b4582d5a1
+- Created AppointmentsList component using MUI Table
+- List displays appointments sorted by start date
+- Shows title, start time, end time for each appointment
+- Click on row navigates to appointment details (route prepared for US-010)
+- Delete button with confirmation dialog
+- Empty state with message and "Create Appointment" button
+- Added getAll() and delete() methods to appointmentService
+- Added /appointments route with Appointments page
+
+**Files created:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx
+- frontend/src/components/AppointmentsList/index.ts
+- frontend/src/pages/Appointments.tsx
+
+**Files modified:**
+- frontend/src/services/appointmentService.ts - Added getAll() and delete() methods
+- frontend/src/App.tsx - Added /appointments route
+
+**Learnings:**
+- Use toZonedTime() from date-fns-tz to convert UTC to user's timezone for display
+- MUI Table with hover and cursor pointer for clickable rows
+- Stop event propagation on action buttons to prevent row click navigation
+---
+
+## 2026-01-14 - US-010
+Thread: https://ampcode.com/threads/T-019bbb79-fa8f-74cc-b0e7-a50bee78f99d
+- Created AppointmentDetail page component at /appointments/:id
+- Displays all appointment fields (title, description, times, timezone)
+- Edit button navigates to /appointments/:id/edit (route to be added)
+- Delete button with confirmation dialog, navigates back to list after deletion
+- Back navigation to /appointments
+- Added getById() method to frontend appointmentService
+- Added start-dev.ps1 script for running both servers simultaneously
+
+**Files created:**
+- frontend/src/pages/AppointmentDetail.tsx
+- start-dev.ps1
+
+**Files modified:**
+- frontend/src/services/appointmentService.ts - Added getById() method
+- frontend/src/App.tsx - Added /appointments/:id route
+- AGENTS.md - Added development setup documentation
+
+**Learnings:**
+- Use useParams<{ id: string }>() from react-router-dom for typed route params
+- Format dates with date-fns format() after converting from UTC with toZonedTime()
+- start-dev.ps1 uses Start-Process to spawn separate PowerShell windows for backend/frontend
+---
+
+## 2026-01-14 - US-011
+Thread: https://ampcode.com/threads/T-019bbbb3-962f-706b-af62-ffb8b2e06c9b
+- Created CalendarView component using FullCalendar library
+- Monthly grid view with appointment events displayed on dates
+- Previous/Next month navigation with "today" button
+- Click on date opens dialog showing appointments for that day
+- Click on appointment navigates to detail view (/appointments/:id)
+- Added /calendar route with Calendar page
+
+**Files created:**
+- frontend/src/components/CalendarView/CalendarView.tsx
+- frontend/src/components/CalendarView/index.ts
+- frontend/src/pages/Calendar.tsx
+
+**Files modified:**
+- frontend/src/App.tsx - Added /calendar route
+- frontend/package.json - Added FullCalendar dependencies
+
+**Learnings:**
+- FullCalendar: DateClickArg comes from @fullcalendar/interaction, EventClickArg from @fullcalendar/core
+- FullCalendar events need id, title, start, end properties
+- Use dayMaxEvents={3} to limit visible events per day and show "+more" link
+---
+""  
+"## 2026-01-14 - US-012"  
+"Thread: https://ampcode.com/threads/T-019bbe16-f8e6-709b-87ff-325ed78b969b"  
+"- Added @fullcalendar/timegrid plugin for week and day views"  
+"- Created Month/Week/Day toggle with MUI ToggleButtonGroup"  
+"- Week view shows 7-day grid with time slots (06:00-22:00)"  
+"- Day view shows single day with time slots"  
+"- Appointments positioned by time in timeGrid views"  
+"- Now indicator shows current time in week/day views"  
+""  
+"**Files modified:**"  
+"- frontend/src/components/CalendarView/CalendarView.tsx - Added timeGridPlugin and view toggle"  
+"- frontend/package.json - Added @fullcalendar/timegrid dependency"  
+""  
+"**Learnings:**"  
+"- FullCalendar timeGridPlugin provides timeGridWeek and timeGridDay views"  
+"- Use calendarRef.getApi().changeView() to programmatically switch views"  
+"- slotMinTime/slotMaxTime control visible time range in timeGrid views"  
+"- nowIndicator={true} shows current time line in week/day views"  
+"---" 
+  
+## 2026-01-14 - US-013  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Enabled drag-and-drop rescheduling in CalendarView  
+- Appointments can be dragged to new date in month view  
+- Appointments can be dragged/resized to new time slots in week/day views  
+- Visual feedback provided by FullCalendar during drag  
+- Immediate save on drop with success/error snackbar feedback  
+- Overlap warning dialog displayed when conflict detected  
+- Reschedule Anyway option to force update despite conflicts  
+  
+**Files modified:**  
+- frontend/src/components/CalendarView/CalendarView.tsx - Added drag-and-drop handlers, overlap dialog, snackbar  
+  
+**Learnings:**  
+- FullCalendar interactionPlugin provides editable=true for drag-and-drop  
+- EventDropArg and EventResizeDoneArg both have event and revert function  
+- Use revert to undo visual change when API call fails  
+- Store pending drop info to allow force update after user confirms overlap  
+--- 
+  
+## 2026-01-14 - US-014  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Created unified Appointments page with List/Calendar view toggle  
+- View preference persisted to localStorage  
+- URLs reflect current view: /appointments/list and /appointments/calendar  
+- /appointments redirects to preferred view, /calendar redirects to /appointments/calendar  
+- Smooth CSS transition between views  
+- Deleted standalone Calendar.tsx page  
+  
+**Files created/modified:**  
+- frontend/src/pages/Appointments.tsx - Added view toggle with localStorage persistence  
+- frontend/src/App.tsx - Updated routes for list/calendar paths  
+- Deleted frontend/src/pages/Calendar.tsx  
+  
+**Learnings:**  
+- Avoid setState in useEffect to prevent cascading renders  
+- Use useMemo to derive state from URL pathname  
+- Navigate imperatively when URL is base /appointments  
+--- 
+  
+## 2026-01-14 - US-015  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Created user model and userService for role/team lookup  
+- Created roleMiddleware with requireRole and loadUser functions  
+- Updated appointmentService with isAdmin and filterUserId options  
+- Admin can view all appointments via GET /api/appointments  
+- Admin can filter by userId query param  
+- Admin can edit/delete any appointment (bypasses ownership check)  
+- loadUser middleware loads req.user from x-user-id header  
+  
+**Files created:**  
+- backend/src/models/user.ts - User types and response mapper  
+- backend/src/services/userService.ts - getUserById, getUserRole, getUserTeamId  
+- backend/src/middleware/roleMiddleware.ts - requireRole and loadUser middleware  
+  
+**Files modified:**  
+- backend/src/services/appointmentService.ts - Added isAdmin, filterUserId options  
+- backend/src/controllers/appointmentController.ts - Updated all endpoints for admin access  
+- backend/src/routes/appointments.ts - Added loadUser middleware  
+  
+**Learnings:**  
+- Extend Express Request type with declare global for req.user  
+- Use loadUser middleware to optionally populate user context  
+- Admin bypasses ownership checks but still triggers overlap detection for appointment owner  
+--- 
+  
+## 2026-01-14 - US-016  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Updated appointmentService to support team queries with includeTeam and teamId options  
+- Team users can view team members appointments via ?includeTeam=true query param  
+- API returns isOwn flag to distinguish own vs team appointments  
+- getAppointmentById supports team visibility (read-only access for team members)  
+- Edit/delete still enforces ownership check (team members cannot edit others)  
+- Added isOwn field to frontend Appointment type  
+  
+**Files modified:**  
+- backend/src/services/appointmentService.ts - Added teamId, includeTeam options, overloaded getAppointmentById  
+- backend/src/controllers/appointmentController.ts - Added isOwn to response, team query support  
+- frontend/src/types/index.ts - Added isOwn optional field  
+  
+**Learnings:**  
+- Use function overloading to maintain backward compatibility while adding new options  
+- JOIN users table to filter by team_id when querying appointments  
+- isOwn flag enables frontend to visually distinguish own vs team appointments  
+--- 
+  
+## 2026-01-14 - US-017  
+Thread: https://ampcode.com/threads/T-019bbe22-65eb-74fa-9b29-538d323e1bf8  
+- Created useTimezone hook with localStorage persistence  
+- Created Settings page at /settings for timezone preference  
+- All appointment times display in user preferred timezone  
+- AppointmentForm defaults to preferred timezone for new appointments  
+- Timezone chips show in list and detail views with color indicator  
+- Detail view shows when displaying in different timezone than appointment  
+  
+**Files created:**  
+- frontend/src/hooks/useTimezone.ts - Timezone preference hook with useSyncExternalStore  
+- frontend/src/pages/Settings.tsx - Settings page for timezone preference  
+  
+**Files modified:**  
+- frontend/src/App.tsx - Added /settings route  
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx - Uses stored timezone  
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Displays in preferred tz  
+- frontend/src/pages/AppointmentDetail.tsx - Displays in preferred tz with indicator  
+  
+**Learnings:**  
+- Use useSyncExternalStore for localStorage state to avoid setState-in-effect errors  
+- Chip color primary/default indicates if tz matches preference
+- getStoredTimezone falls back to browser timezone if not set
+---
+
+## 2026-01-15 - US-B001
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Added navigation links to Header: Home, Appointments, Settings
+- Active link visually highlighted with rgba(255, 255, 255, 0.15) background
+- Responsive hamburger menu for mobile (< md breakpoint)
+- Logo is clickable and navigates to Home
+- MUI Drawer for mobile navigation menu
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx - Complete navigation overhaul
+
+**Learnings:**
+- Use NavLink component with `end` prop for exact matching on "/" route
+- MUI useMediaQuery with theme.breakpoints.down('md') for mobile detection
+- Drawer with keepMounted for performance
+---
+
+## 2026-01-15 - US-B002
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created UpcomingAppointments component with Card layout
+- Shows next 5 upcoming appointments from current time
+- Appointments are clickable, navigate to detail view
+- Displays title, date, and time formatted in user's timezone
+- Empty state with "Create Appointment" button
+- "View All" link to appointments list
+
+**Files created:**
+- frontend/src/components/UpcomingAppointments/UpcomingAppointments.tsx
+- frontend/src/components/UpcomingAppointments/index.ts
+
+**Files modified:**
+- frontend/src/pages/Home.tsx - Added Grid layout with UpcomingAppointments widget
+
+**Learnings:**
+- Use start param with current ISO date to fetch only future appointments
+- MUI Grid v7 uses size={{ xs: 12, md: 6 }} instead of xs={12} md={6}
+---
+
+## 2026-01-15 - US-B003
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created QuickActions component with Card layout
+- "New Appointment" button (contained/primary)
+- "View Calendar" and "View List" buttons (outlined)
+- All buttons have icons, full width, left-aligned text
+- Hover states provided by MUI Button
+
+**Files created:**
+- frontend/src/components/QuickActions/QuickActions.tsx
+- frontend/src/components/QuickActions/index.ts
+
+**Files modified:**
+- frontend/src/pages/Home.tsx - Added QuickActions card
+
+**Learnings:**
+- Use Stack with spacing for vertical button groups
+- sx={{ justifyContent: 'flex-start' }} aligns button content left
+---
+
+## 2026-01-15 - US-B007
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created reusable EmptyState component with icon, title, description, and action
+- Uses EventBusyIcon as default illustration
+- AppointmentsList uses EmptyState for empty list
+- CalendarView day dialog shows empty state with "Create Appointment" button
+
+**Files created:**
+- frontend/src/components/EmptyState/EmptyState.tsx
+- frontend/src/components/EmptyState/index.ts
+
+**Files modified:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Uses EmptyState
+- frontend/src/components/CalendarView/CalendarView.tsx - Day dialog empty state with CTA
+
+**Learnings:**
+- Reusable EmptyState component takes title, description, actionLabel, onAction props
+- EventBusyIcon works well for calendar empty states
+---
+
+## 2026-01-15 - US-B006
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created Breadcrumbs component using MUI Breadcrumbs
+- Format: Home > [Parent] > [Current Page]
+- All links are clickable except current page (Typography)
+- Added to AppointmentDetail, CreateAppointment, Settings pages
+
+**Files created:**
+- frontend/src/components/Breadcrumbs/Breadcrumbs.tsx
+- frontend/src/components/Breadcrumbs/index.ts
+
+**Files modified:**
+- frontend/src/pages/AppointmentDetail.tsx - Replaced back button with breadcrumbs
+- frontend/src/pages/CreateAppointment.tsx - Added breadcrumbs, fixed navigation to /appointments
+- frontend/src/pages/Settings.tsx - Added breadcrumbs
+
+**Learnings:**
+- MUI Breadcrumbs uses separator prop for custom separator (NavigateNextIcon)
+- Use RouterLink as component for Link to integrate with React Router
+---
+
+## 2026-01-15 - US-B008
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Added Skeleton loaders for AppointmentsList (table structure with 5 rows)
+- Added Skeleton loaders for UpcomingAppointments (list items)
+- Added Skeleton loader for CalendarView (grid of 35 cells for month view)
+- Buttons already have spinner states from previous implementation
+
+**Files modified:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Table skeleton
+- frontend/src/components/UpcomingAppointments/UpcomingAppointments.tsx - List skeleton
+- frontend/src/components/CalendarView/CalendarView.tsx - Calendar grid skeleton
+
+**Learnings:**
+- MUI Skeleton variants: text, circular, rectangular, rounded
+- Use [...Array(n)].map for generating placeholder rows
+- MUI Grid v7 uses size={{ xs: 12/7 }} for equal 7-column layout
+---
+
+## 2026-01-15 - US-B004
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created StatsCards component with Today, This Week, Total counts
+- Cards are clickable and navigate to calendar or appointments
+- Icons: TodayIcon, DateRangeIcon, EventNoteIcon
+- Skeleton loading states for each card
+- Added to Home page above other widgets
+
+**Files created:**
+- frontend/src/components/StatsCards/StatsCards.tsx
+- frontend/src/components/StatsCards/index.ts
+
+**Files modified:**
+- frontend/src/pages/Home.tsx - Added StatsCards
+
+**Learnings:**
+- Calculate week bounds from Sunday (startOfDay.getDay() gives day of week)
+- Filter appointments by comparing Date objects for Today/Week counts
+---
+
+## 2026-01-15 - US-B005
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Enhanced footer with quick links: Appointments, Calendar, Settings
+- Responsive layout (column on mobile, row on desktop)
+- Visually distinct with grey background and top border
+- Updated copyright text
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx - Footer redesign
+
+**Learnings:**
+- Use flexDirection: { xs: 'column', sm: 'row' } for responsive flex layouts
+- borderTop: 1 with borderColor: 'divider' for subtle separator
+---
+
+## 2026-01-15 - US-B009
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created reusable ConfirmDialog component
+- Props: title, message, confirmLabel, cancelLabel, destructive, loading
+- Destructive prop shows confirm button in red (error color)
+- Replaced inline dialogs in AppointmentsList and AppointmentDetail
+
+**Files created:**
+- frontend/src/components/ConfirmDialog/ConfirmDialog.tsx
+- frontend/src/components/ConfirmDialog/index.ts
+
+**Files modified:**
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Uses ConfirmDialog
+- frontend/src/pages/AppointmentDetail.tsx - Uses ConfirmDialog
+
+**Learnings:**
+- Reusable dialog pattern with destructive prop for delete actions
+- Use color="error" for destructive button styling
+---
+
+## 2026-01-15 - US-B010
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- AppointmentForm: Responsive button layout (column-reverse on mobile)
+- AppointmentDetail: Responsive header with stacked layout on mobile
+- All forms use fullWidth for mobile-friendly inputs
+- Navigation already has hamburger menu for mobile (US-B001)
+- Calendar/Grid layouts use responsive breakpoints
+
+**Files modified:**
+- frontend/src/components/AppointmentForm/AppointmentForm.tsx - Responsive button layout
+- frontend/src/pages/AppointmentDetail.tsx - Responsive header layout
+
+**Learnings:**
+- Use flexDirection: { xs: 'column-reverse', sm: 'row' } to stack buttons
+- Use p: { xs: 2, sm: 4 } for responsive padding
+- flexGrow: { xs: 1, sm: 0 } for full-width buttons on mobile
+---
+
+## 2026-01-15 - US-B011
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Added descriptive aria-labels with appointment titles
+- Added focus-visible outline styles for keyboard navigation
+- Theme: MuiButton, MuiIconButton, MuiListItemButton focus styles
+- CalendarView close button now has aria-label
+
+**Files modified:**
+- frontend/src/theme/theme.ts - Focus-visible styles for interactive elements
+- frontend/src/components/AppointmentsList/AppointmentsList.tsx - Descriptive aria-labels
+- frontend/src/components/CalendarView/CalendarView.tsx - aria-label on close button
+
+**Learnings:**
+- Use aria-label with context (e.g., "Delete appointment: Meeting")
+- focus-visible targets keyboard focus only, not mouse clicks
+- MUI theme components.styleOverrides for global focus styles
+---
+
+## 2026-01-15 - US-B012
+Thread: https://ampcode.com/threads/T-019bc050-7db3-763c-aa94-9b0efc5e9e09
+- Created useHotkeys hook for keyboard shortcuts
+- Created KeyboardShortcutsHelp modal component
+- N = New Appointment, ? = Show help, Escape = Close dialogs
+- Shortcuts ignore input/textarea focus (except Escape)
+- Help modal shows all available shortcuts
+
+**Files created:**
+- frontend/src/hooks/useHotkeys.ts - Keyboard shortcut hook
+- frontend/src/components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.tsx
+- frontend/src/components/KeyboardShortcutsHelp/index.ts
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx - Integrated hotkeys and help modal
+
+**Learnings:**
+- Check target.tagName to skip hotkeys in input fields
+- Use shiftKey: true for Shift+? shortcut
+- disabled prop in hotkey config to conditionally enable
+---
+
+## 2026-01-15 - Docs/Debug
+Thread: N/A (manual)
+- Marked all Phase B PRD acceptance criteria as implemented
+- Identified likely appointment creation failure causes:
+  - Missing x-user-id header creates invalid UUID for appointments.user_id
+  - Frontend default API base URL targets port 3001, backend runs on 3000
+  - Frontend error display reads response.message, backend returns error/errors
+
+**Files modified:**
+- tasks/prd-ui-ux-phase-b.md - Marked Phase B user stories as complete
+
+**Learnings for future iterations:**
+- Appointment creation requires a real UUID user_id or seeded user
+- Keep VITE_API_URL aligned with backend port to avoid silent network errors
+- Align frontend error parsing with backend response shape
+---
+
+## 2026-01-15 - Quickfix Seed User
+Thread: N/A (manual)
+- Added seed user script for backend and npm script
+- Frontend now sends x-user-id if present in localStorage or VITE_USER_ID
+- Documented seed user flow in AGENTS.md
+
+**Files modified:**
+- backend/src/scripts/seedUser.ts - Seed user script
+- backend/package.json - Added seed:user script
+- frontend/src/services/api.ts - Adds x-user-id header when available
+- AGENTS.md - Seed user quickfix instructions
+
+**Learnings for future iterations:**
+- Keep a dev seed user flow documented for API auth placeholders
+- Prefer localStorage userId or VITE_USER_ID in dev for x-user-id
+---
+
+## 2026-01-15 - Docker DB Setup
+Thread: N/A (manual)
+- Added docker-compose for Postgres
+- Documented Docker database setup in AGENTS.md
+
+**Files modified:**
+- docker-compose.yml - Postgres service for local development
+- AGENTS.md - Docker setup instructions
+
+**Learnings for future iterations:**
+- Use Docker to standardize local DB environments
+---
+
+## 2026-01-16 - Dev/Quality: Backend ESLint v9 Fix
+Thread: N/A (Codex)
+- Added ESLint v9 flat config for backend so `npm run lint` works again
+- Fixed backend lint errors (Express Request augmentation and TS overload-friendly no-redeclare config)
+
+**Files modified/created:**
+- backend/eslint.config.js - Flat config replacing legacy `.eslintrc.json` usage
+- backend/src/middleware/roleMiddleware.ts - Module augmentation via `express-serve-static-core`
+
+**Learnings for future iterations:**
+- ESLint v9 requires `eslint.config.js` (flat config); `.eslintrc.*` won’t be picked up by default
+- For TypeScript overload signatures: disable core `no-redeclare` and enable `@typescript-eslint/no-redeclare`
+- Prefer `declare module 'express-serve-static-core'` over `namespace Express` to satisfy `@typescript-eslint/no-namespace`
+---
+
+## 2026-01-16 - Planning: Switch PRD to Appointment Management
+Thread: N/A (Codex)
+- Replaced `prd.json` to track Appointment Management user stories (US-001..US-017)
+- Marked already-implemented stories as `passes: true` based on current backend/frontend code
+
+**Files modified:**
+- prd.json - Now tracks Appointment Management and remaining role stories (US-015/US-016)
+- AGENTS.md - Clarified Docker Postgres as recommended dev DB flow
+- backend/.env.example - Docker default DATABASE_URL and credentials
+---
+
+## 2026-01-16 - Task Planning (PRD + Backend Skeleton)
+Thread: N/A (manual)
+- Created PRD for task planning and project scheduling
+- Added migrations for projects, tasks, dependencies, and work slots
+- Added backend models, services, controllers, and routes for project/task planning APIs
+
+**Learnings for future iterations:**
+- Use owner_id from x-user-id to scope project/task access
+- Work slots represent manual scheduling blocks for multi-day tasks
+---
+
+## 2026-01-16 - Task Planning UI
+Thread: N/A (manual)
+- Added Projects, Project Detail, and Task Detail pages
+- Added project/task services and types for API integration
+- Added dependencies and work slots UI with basic start/done actions
+- Added Projects routes and navigation links
+
+**Learnings for future iterations:**
+- Projects/Tasks use x-user-id for scoping (same as appointments)
+- Task dependencies and work slots are managed via /tasks endpoints
+---
+
+## 2026-01-17 - Task Cascading
+Thread: N/A (manual)
+- Added task schedule shift endpoint with optional cascade to dependent tasks
+- Shift updates task work slots and task start/due dates by delta days
+- Added Task Detail UI for shifting schedule with dependent toggle
+
+**Learnings for future iterations:**
+- Cascade uses recursive dependency lookup (finish/start types not yet differentiated)
+- Shift uses deltaDays for manual scheduling
+---
+
+## 2026-01-17 - Project Gantt + Project Shift
+Thread: N/A (Codex)
+- Added Projects Gantt view with project-level schedule bars derived from task work slots
+- Added drag-to-shift project schedule by days (calls POST /projects/:id/shift)
+- Gantt view includes project filter and weekend toggle, plus schedule summary per project
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+
+**Learnings for future iterations:**
+- Project-level shifts reuse /projects/:id/shift to move all tasks and work slots by delta days
+---
+
+## 2026-01-17 - Project Calendar DnD + Gantt Enhancements
+Thread: N/A (Codex)
+- Added project bars overlay to Projects calendar view with drag-to-shift by days
+- Added undo snackbar for project shifts
+- Added unscheduled projects list under the Gantt view
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+
+**Learnings for future iterations:**
+- Project bars use all-day events in FullCalendar to support day-level drag
+---
+
+## 2026-01-17 - Project Calendar Week Numbers + Holidays
+Thread: N/A (Codex)
+- Added week numbers toggle (ISO weeks) in Projects calendar view
+- Added holiday manager with year selection, local persistence, and colored holiday events in calendar
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+
+**Learnings for future iterations:**
+- Holidays stored in localStorage and rendered as all-day events
+---
+
+## 2026-01-17 - Project Calendar Year Grid + Dependency Types
+Thread: N/A (Codex)
+- Added year grid mode for Projects calendar with clickable day cells to manage holidays
+- Added ISO week number display in year grid and year selector
+- Updated dependency blocking to respect dependency types (start-start and finish-finish)
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx
+- backend/src/services/taskService.ts
+
+**Learnings for future iterations:**
+- Year grid uses local holiday store for highlights and quick creation
+---
+
+## 2026-01-17 - Layout Width + Year Selector Fix
+Thread: N/A (Codex)
+- Increased app container width to xl for large screens
+- Widened Year select control to avoid label truncation
+
+**Files modified:**
+- frontend/src/components/Layout/Layout.tsx
+- frontend/src/pages/Projects.tsx
+---
+
+## 2026-01-17 - Wide Layout Toggle + Dependency Cascade Refinement
+Thread: N/A (Codex)
+- Added layout width preference (standard/wide) in Settings and applied across layout containers
+- Refined dependency cascade anchors to use best available schedule dates for each dependency type
+
+**Files modified:**
+- frontend/src/hooks/useLayoutPreference.ts
+- frontend/src/components/Layout/Layout.tsx
+- frontend/src/pages/Settings.tsx
+- backend/src/services/taskService.ts
+---
+
+## 2026-01-21 - PRD Update: US-015 to US-019
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Added 5 new user stories to prd.json for business goal enhancement
+- US-015: Enhance Beads Integration for Better Memory Management
+- US-016: Add AI-Powered Conflict Resolution in Scheduling
+- US-017: Implement Reverse-Planning Feature for Carpentry Use Case
+- US-018: Add Authentication and DSGVO Compliance Basics
+- US-019: Create Inbound Marketing Hook
+
+**Files modified:**
+- prd.json - Added 5 new user stories (priorities 13-17)
+
+**Learnings for future iterations:**
+- New stories focus on AI/ML integration for carpentry use case
+- Target market: Swiss carpentry shops (Schreinereien)
+- Business model: 50-200 CHF/user monthly subscriptions
+- Key outcome: Save users 20+ hours/week on manual planning
+- DSGVO compliance required for CH/EU markets
+- Beads system enhancement is foundational for other features
+---
+
+## 2026-01-21 - US-015: Enhanced Beads Integration
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Created Python script for progress.txt deduplication (deduplicate_progress.py)
+- Created Python script for beads versioning (version_beads.py)
+- Added bead_check() function to ralph.sh for JSON integrity validation
+- Integrated deduplication into Ralph loop (runs after each iteration)
+- Integrated versioning into Ralph loop (runs at start)
+- Tested deduplication: achieves 86.7% size reduction (target: 20%)
+- Fixed bead_check to properly handle boolean 'passes' field
+
+**Files created:**
+- scripts/beads/deduplicate_progress.py - Deduplication and summarization
+- scripts/beads/version_beads.py - Timestamped versioning
+- .beads/versions/ - Version storage directory
+- .beads/versions/metadata.json - Version tracking
+
+**Files modified:**
+- scripts/ralph/ralph.sh - Added bead_check, versioning, deduplication
+- AGENTS.md - Added comprehensive Beads Integration Patterns section
+
+**Learnings for future iterations:**
+- Use jq `has("field")` for boolean field validation, not `-e` on the field directly
+- Deduplication works best with 5+ iterations (more data = more duplicates to remove)
+- Python scripts use project_root calculation for portability
+- Ralph loop integrates beads scripts automatically but continues on failure
+- Hash-based deduplication is fast and effective for text-based learnings
+- Versioning creates snapshots at start of run for rollback capability
+- Backup files created automatically before any modification
+---
+
+## 2026-01-21 - US-016: AI-Powered Conflict Resolution
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Created aiConflictService.ts with intelligent conflict resolution
+- Implemented rule-based AI system for MVP (5 resolution strategies)
+- Integrated AI suggestions into appointmentController.ts
+- Returns AI suggestions on 409 conflict responses
+- Stores historical conflict learnings in .beads/conflict_learnings.json
+- Created test script for 5 overlapping appointment scenarios
+- Compiled successfully with TypeScript
+
+**Features implemented:**
+- 5 AI suggestion types: reschedule, split, shorten, swap, move earlier
+- Business hours awareness (8-17, Mon-Fri for Swiss carpentry shops)
+- Confidence scoring (0-1) for each suggestion
+- Conflict pattern analysis (fully-contained, overlap-end, multiple-conflicts, etc.)
+- Historical learning storage in beads for future improvements
+- Specific to carpentry use case (recognizes "planning" vs "production" priorities)
+
+**Files created:**
+- backend/src/services/aiConflictService.ts - AI conflict resolution engine
+- backend/test_ai_conflict.js - Test script for 5 conflict scenarios
+
+**Files modified:**
+- backend/src/controllers/appointmentController.ts - Integrated AI suggestions
+
+**Learnings for future iterations:**
+- Rule-based AI is effective for MVP, can be enhanced with real ML later
+- Swiss business hours: 8-17, Mon-Fri (weekends handled automatically)
+- Carpentry shops prioritize "production" over "planning" appointments
+- Conflict learnings stored in JSON for lightweight persistence
+- Top 3 suggestions returned, sorted by confidence
+- Historical context helps improve suggestions over time
+- Force flag (?force=true) bypasses AI suggestions when needed
+---
+
+## 2026-01-21 - Code Review Fixes
+Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
+- Fixed ConflictSuggestion type to include 'move_earlier' strategy
+- Made beads directory path configurable via BEADS_DIR environment variable
+- Upgraded hash function from MD5 to SHA-256 for better security
+- Added documentation for test user UUID setup
+
+**Files modified:**
+- backend/src/services/aiConflictService.ts - Added move_earlier type, configurable beads path
+- scripts/beads/deduplicate_progress.py - Changed from MD5 to SHA-256
+- backend/test_ai_conflict.js - Added comment about test user setup
+
+**Learnings for future iterations:**
+- Use environment variables for configurable paths (BEADS_DIR)
+- Prefer SHA-256 over MD5 even for non-cryptographic purposes
+- Document test setup requirements clearly in comments
+- Code review feedback is valuable for production readiness
+---

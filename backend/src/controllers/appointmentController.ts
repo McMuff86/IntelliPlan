@@ -35,19 +35,21 @@ export async function create(req: Request, res: Response, next: NextFunction): P
 
     if (overlapResult.hasOverlap && !force) {
       // Generate AI-powered suggestions for conflict resolution
-      interface ConflictWithDates extends Appointment {
-        start_time: Date;
-        end_time: Date;
-      }
-      
       const aiSuggestions = await generateConflictSuggestions({
         requestedStart: startTime,
         requestedEnd: endTime,
         conflicts: overlapResult.conflicts.map(c => ({
-          ...c,
+          id: c.id,
+          title: c.title,
+          description: c.description,
           start_time: new Date(c.startTime),
           end_time: new Date(c.endTime),
-        })) as ConflictWithDates[],
+          timezone: c.timezone,
+          user_id: c.userId,
+          created_at: new Date(c.createdAt),
+          updated_at: new Date(c.updatedAt),
+          deleted_at: null,
+        })) as Appointment[],
         userId,
         title,
       });
@@ -227,19 +229,21 @@ export async function update(req: Request, res: Response, next: NextFunction): P
 
         if (overlapResult.hasOverlap && !force) {
           // Generate AI-powered suggestions for conflict resolution
-          interface ConflictWithDates extends Appointment {
-            start_time: Date;
-            end_time: Date;
-          }
-          
           const aiSuggestions = await generateConflictSuggestions({
             requestedStart: checkStartTime,
             requestedEnd: checkEndTime,
             conflicts: overlapResult.conflicts.map(c => ({
-              ...c,
+              id: c.id,
+              title: c.title,
+              description: c.description,
               start_time: new Date(c.startTime),
               end_time: new Date(c.endTime),
-            })) as ConflictWithDates[],
+              timezone: c.timezone,
+              user_id: c.userId,
+              created_at: new Date(c.createdAt),
+              updated_at: new Date(c.updatedAt),
+              deleted_at: null,
+            })) as Appointment[],
             userId: appointmentOwnerId,
             title,
           });
