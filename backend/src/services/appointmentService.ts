@@ -1,5 +1,64 @@
 import { pool } from '../config/database';
-import { Appointment, CreateAppointmentDTO, UpdateAppointmentDTO, OverlapResult, toAppointmentResponse } from '../models/appointment';
+import {
+  Appointment,
+  CreateAppointmentDTO,
+  UpdateAppointmentDTO,
+  OverlapResult,
+  toAppointmentResponse,
+} from '../models/appointment';
+import {
+  differenceInMinutes,
+  isWeekend,
+  parseISO,
+  setHours,
+  setMinutes,
+  setSeconds,
+  startOfDay,
+  subDays,
+  subMinutes,
+} from 'date-fns';
+import path from 'path';
+import { promises as fs } from 'fs';
+
+export interface ReversePlanTaskInput {
+  id?: string;
+  title: string;
+  durationMinutes: number;
+  resourceId?: string;
+  resourceLabel?: string;
+}
+
+export interface ReversePlanResourceInput {
+  id: string;
+  name: string;
+  availability?: { start: string; end: string };
+}
+
+export interface ReversePlanResult {
+  schedule: {
+    taskId?: string;
+    title: string;
+    startTime: string;
+    endTime: string;
+    resourceId?: string;
+    resourceLabel?: string;
+  }[];
+  endDate: string;
+  timezone: string;
+  warnings?: string[];
+  promptTemplate?: string;
+}
+
+export interface ReversePlanOptions {
+  userId: string;
+  endDate: string;
+  tasks: ReversePlanTaskInput[];
+  resources?: ReversePlanResourceInput[];
+  timezone?: string;
+  includeWeekends?: boolean;
+  workdayStart?: string;
+  workdayEnd?: string;
+}
 
 export interface ListAppointmentsOptions {
   userId: string;
@@ -33,8 +92,20 @@ export async function createAppointment(data: CreateAppointmentDTO): Promise<App
   return result.rows[0];
 }
 
-export async function getAppointments(options: ListAppointmentsOptions): Promise<PaginatedResult<Appointment>> {
-  const { userId, start, end, limit = 50, offset = 0, isAdmin = false, filterUserId, teamId, includeTeam = false } = options;
+export async function getAppointments(
+  options: ListAppointmentsOptions
+): Promise<PaginatedResult<Appointment>> {
+  const {
+    userId,
+    start,
+    end,
+    limit = 50,
+    offset = 0,
+    isAdmin = false,
+    filterUserId,
+    teamId,
+    includeTeam = false,
+  } = options;
   const params: (string | number)[] = [];
   let whereClause = 'WHERE a.deleted_at IS NULL';
   let paramIndex = 1;
@@ -95,8 +166,14 @@ export interface GetAppointmentByIdOptions {
   teamId?: string;
 }
 
-export async function getAppointmentById(options: GetAppointmentByIdOptions): Promise<Appointment | null>;
-export async function getAppointmentById(id: string, userId: string, isAdmin?: boolean): Promise<Appointment | null>;
+export async function getAppointmentById(
+  options: GetAppointmentByIdOptions
+): Promise<Appointment | null>;
+export async function getAppointmentById(
+  id: string,
+  userId: string,
+  isAdmin?: boolean
+): Promise<Appointment | null>;
 export async function getAppointmentById(
   idOrOptions: string | GetAppointmentByIdOptions,
   userIdArg?: string,
@@ -215,10 +292,10 @@ export interface CheckOverlapOptions {
 
 export async function checkOverlap(options: CheckOverlapOptions): Promise<OverlapResult> {
   const { userId, startTime, endTime, excludeId } = options;
-  
+
   const params: string[] = [userId, startTime, endTime];
   let excludeClause = '';
-  
+
   if (excludeId) {
     excludeClause = ' AND id != $4';
     params.push(excludeId);
@@ -238,5 +315,190 @@ export async function checkOverlap(options: CheckOverlapOptions): Promise<Overla
   return {
     hasOverlap: result.rows.length > 0,
     conflicts: result.rows.map(toAppointmentResponse),
+  };
+}
+
+const parseTimeString = (value: string) => {
+  const [hours, minutes] = value.split(':').map((part) => Number(part));
+  return { hours: Number.isNaN(hours) ? 0 : hours, minutes: Number.isNaN(minutes) ? 0 : minutes };
+};
+
+const setTimeOnDate = (date: Date, timeValue: string): Date => {
+  const { hours, minutes } = parseTimeString(timeValue);
+  return setSeconds(setMinutes(setHours(date, hours), minutes), 0);
+};
+
+const moveToPreviousWorkdayEnd = (
+  date: Date,
+  includeWeekends: boolean,
+  workdayEnd: string
+): Date => {
+  let cursor = subDays(startOfDay(date), 1);
+  while (!includeWeekends && isWeekend(cursor)) {
+    cursor = subDays(cursor, 1);
+  }
+  return setTimeOnDate(cursor, workdayEnd);
+};
+
+const normalizeEndDate = (
+  date: Date,
+  includeWeekends: boolean,
+  workdayStart: string,
+  workdayEnd: string
+): Date => {
+  let cursor = date;
+  while (!includeWeekends && isWeekend(cursor)) {
+    cursor = moveToPreviousWorkdayEnd(cursor, includeWeekends, workdayEnd);
+  }
+
+  const startBoundary = setTimeOnDate(cursor, workdayStart);
+  const endBoundary = setTimeOnDate(cursor, workdayEnd);
+
+  if (cursor > endBoundary) {
+    return endBoundary;
+  }
+
+  if (cursor <= startBoundary) {
+    return moveToPreviousWorkdayEnd(cursor, includeWeekends, workdayEnd);
+  }
+
+  return cursor;
+};
+
+const scheduleBackwards = (
+  endDate: Date,
+  durationMinutes: number,
+  includeWeekends: boolean,
+  workdayStart: string,
+  workdayEnd: string
+): { start: Date; end: Date } => {
+  let remaining = durationMinutes;
+  let cursorEnd = normalizeEndDate(endDate, includeWeekends, workdayStart, workdayEnd);
+
+  while (remaining > 0) {
+    if (!includeWeekends && isWeekend(cursorEnd)) {
+      cursorEnd = moveToPreviousWorkdayEnd(cursorEnd, includeWeekends, workdayEnd);
+      continue;
+    }
+
+    const dayStart = setTimeOnDate(cursorEnd, workdayStart);
+    const dayEnd = setTimeOnDate(cursorEnd, workdayEnd);
+    const usableEnd = cursorEnd > dayEnd ? dayEnd : cursorEnd;
+
+    if (usableEnd <= dayStart) {
+      cursorEnd = moveToPreviousWorkdayEnd(cursorEnd, includeWeekends, workdayEnd);
+      continue;
+    }
+
+    const availableMinutes = differenceInMinutes(usableEnd, dayStart);
+    if (remaining <= availableMinutes) {
+      const start = subMinutes(usableEnd, remaining);
+      return { start, end: usableEnd };
+    }
+
+    remaining -= availableMinutes;
+    cursorEnd = moveToPreviousWorkdayEnd(usableEnd, includeWeekends, workdayEnd);
+  }
+
+  return { start: cursorEnd, end: cursorEnd };
+};
+
+const loadReversePlanTemplate = async (): Promise<string | undefined> => {
+  const beadsDir = process.env.BEADS_DIR || path.join(process.cwd(), 'beads');
+  const templatePath = path.join(beadsDir, 'templates', 'reverse-planning.md');
+  try {
+    const content = await fs.readFile(templatePath, 'utf-8');
+    return content.trim();
+  } catch {
+    return undefined;
+  }
+};
+
+export async function reversePlanSchedule(options: ReversePlanOptions): Promise<ReversePlanResult> {
+  const {
+    userId,
+    endDate,
+    tasks,
+    timezone = 'UTC',
+    includeWeekends = true,
+    workdayStart = '08:00',
+    workdayEnd = '17:00',
+  } = options;
+
+  const warnings: string[] = [];
+  const planEndDate = parseISO(endDate);
+  if (Number.isNaN(planEndDate.getTime())) {
+    throw new Error('Invalid endDate');
+  }
+
+  const promptTemplate = await loadReversePlanTemplate();
+
+  let cursorEnd = planEndDate;
+  const schedule: ReversePlanResult['schedule'] = [];
+
+  for (let i = tasks.length - 1; i >= 0; i -= 1) {
+    const task = tasks[i];
+    const durationMinutes = Number(task.durationMinutes);
+    if (!durationMinutes || durationMinutes <= 0) {
+      warnings.push(`Skipped task "${task.title}" due to invalid duration.`);
+      continue;
+    }
+
+    let attempt = 0;
+    let slot = scheduleBackwards(
+      cursorEnd,
+      durationMinutes,
+      includeWeekends,
+      workdayStart,
+      workdayEnd
+    );
+
+    while (attempt < 25) {
+      const overlap = await checkOverlap({
+        userId,
+        startTime: slot.start.toISOString(),
+        endTime: slot.end.toISOString(),
+      });
+      if (!overlap.hasOverlap) {
+        break;
+      }
+
+      const earliestConflict = overlap.conflicts
+        .map((conflict) => new Date(conflict.startTime))
+        .sort((a, b) => a.getTime() - b.getTime())[0];
+
+      cursorEnd = earliestConflict || slot.start;
+      slot = scheduleBackwards(
+        cursorEnd,
+        durationMinutes,
+        includeWeekends,
+        workdayStart,
+        workdayEnd
+      );
+      attempt += 1;
+    }
+
+    if (attempt >= 25) {
+      warnings.push(`Could not place task "${task.title}" due to conflicts.`);
+      continue;
+    }
+
+    schedule.push({
+      taskId: task.id,
+      title: task.title,
+      startTime: slot.start.toISOString(),
+      endTime: slot.end.toISOString(),
+      resourceId: task.resourceId,
+      resourceLabel: task.resourceLabel,
+    });
+    cursorEnd = slot.start;
+  }
+
+  return {
+    schedule: schedule.reverse(),
+    endDate,
+    timezone,
+    warnings: warnings.length > 0 ? warnings : undefined,
+    promptTemplate,
   };
 }

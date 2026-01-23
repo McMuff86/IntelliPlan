@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { createAppointment, getAppointments, getAppointmentById, getAppointmentOwner, updateAppointment, deleteAppointment, checkOverlap } from '../services/appointmentService';
+import {
+  createAppointment,
+  getAppointments,
+  getAppointmentById,
+  getAppointmentOwner,
+  updateAppointment,
+  deleteAppointment,
+  checkOverlap,
+  reversePlanSchedule,
+} from '../services/appointmentService';
 import { Appointment, toAppointmentResponse } from '../models/appointment';
 import { generateConflictSuggestions } from '../services/aiConflictService';
 
@@ -38,7 +47,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       const aiSuggestions = await generateConflictSuggestions({
         requestedStart: startTime,
         requestedEnd: endTime,
-        conflicts: overlapResult.conflicts.map(c => ({
+        conflicts: overlapResult.conflicts.map((c) => ({
           id: c.id,
           title: c.title,
           description: c.description,
@@ -53,7 +62,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
         userId,
         title,
       });
-      
+
       res.status(409).json({
         success: false,
         error: 'Scheduling conflict detected',
@@ -232,7 +241,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
           const aiSuggestions = await generateConflictSuggestions({
             requestedStart: checkStartTime,
             requestedEnd: checkEndTime,
-            conflicts: overlapResult.conflicts.map(c => ({
+            conflicts: overlapResult.conflicts.map((c) => ({
               id: c.id,
               title: c.title,
               description: c.description,
@@ -247,7 +256,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
             userId: appointmentOwnerId,
             title,
           });
-          
+
           res.status(409).json({
             success: false,
             error: 'Scheduling conflict detected',
@@ -281,6 +290,39 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       success: true,
       data: toAppointmentResponse(updated),
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function reversePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = req.user?.id || req.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const { endDate, tasks, resources, timezone, includeWeekends, workdayStart, workdayEnd } =
+      req.body;
+    const result = await reversePlanSchedule({
+      userId,
+      endDate,
+      tasks,
+      resources,
+      timezone,
+      includeWeekends,
+      workdayStart,
+      workdayEnd,
+    });
+
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

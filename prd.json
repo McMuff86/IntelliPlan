@@ -231,7 +231,7 @@
       "technicalNotes": "Reverse planning works backward from deadline. Consider resource constraints, working hours, dependencies. Integrate with existing appointment overlap detection.",
       "dependencies": ["US-TP-001"],
       "priority": 15,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-018",

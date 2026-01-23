@@ -116,7 +116,7 @@ export async function updateTask(
   data: UpdateTaskDTO
 ): Promise<Task | null> {
   const fields: string[] = [];
-  const values: (string | number | null)[] = [];
+  const values: (string | number | boolean | null)[] = [];
   let paramIndex = 1;
 
   if (data.title !== undefined) {

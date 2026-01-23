@@ -19,6 +19,47 @@ export interface CreateAppointmentDTO {
   timezone: string;
 }
 
+export interface ReversePlanTaskInput {
+  id?: string;
+  title: string;
+  durationMinutes: number;
+  resourceId?: string;
+  resourceLabel?: string;
+}
+
+export interface ReversePlanResourceInput {
+  id: string;
+  name: string;
+  availability?: { start: string; end: string };
+}
+
+export interface ReversePlanRequest {
+  endDate: string;
+  tasks: ReversePlanTaskInput[];
+  resources?: ReversePlanResourceInput[];
+  timezone?: string;
+  includeWeekends?: boolean;
+  workdayStart?: string;
+  workdayEnd?: string;
+}
+
+export interface ReversePlanScheduleEntry {
+  taskId?: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  resourceId?: string;
+  resourceLabel?: string;
+}
+
+export interface ReversePlanResult {
+  schedule: ReversePlanScheduleEntry[];
+  endDate: string;
+  timezone: string;
+  warnings?: string[];
+  promptTemplate?: string;
+}
+
 export interface AppointmentFormData {
   title: string;
   description: string;
