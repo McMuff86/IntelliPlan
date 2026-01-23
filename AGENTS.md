@@ -186,6 +186,7 @@ git log --oneline -10
 | `prd.json.example`        | Example PRD format for reference                  |
 | `progress.txt`            | Append-only learnings for future iterations       |
 | `AGENTS.md`               | This file - agent instructions and patterns       |
+| `CASHFLOW_PLAN.md`        | Business-agent brief for first cashflow           |
 
 ## Workflow (Ralph Only)
 
@@ -211,6 +212,12 @@ git log --oneline -10
 - **Tester-Agent**: Runs tests (Unit, Integration), marks `passes: true`
 - **Integrator-Agent**: Handles API integrations (Google/Outlook)
 - **Reviewer-Agent**: Reviews code, updates AGENTS.md with learnings
+
+## Business Agent (Cashflow)
+
+Wenn der Fokus auf dem ersten Umsatz liegt, nutze den Cashflow-Plan als Briefing für einen Business-Agent:
+
+- [CASHFLOW_PLAN.md](CASHFLOW_PLAN.md)
 
 ## Critical Concepts
 

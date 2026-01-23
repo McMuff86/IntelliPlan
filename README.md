@@ -185,6 +185,7 @@ npm run dev
 - **[DEVELOPMENT.md](DEVELOPMENT.md)**: Entwickler-Setup und Codebase-Patterns
 - **[scripts/ralph/README.md](scripts/ralph/README.md)**: Ralph Autonomous Agent Loop
 - **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)**: Implementierungs-Zusammenfassung
+- **[CASHFLOW_PLAN.md](CASHFLOW_PLAN.md)**: Business-Agent Briefing für ersten Cashflow
 
 ## 🛣️ Roadmap
 
