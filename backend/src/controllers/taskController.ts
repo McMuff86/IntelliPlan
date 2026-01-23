@@ -16,6 +16,7 @@ import {
   listWorkSlots,
   listWorkSlotsForCalendar,
   updateTask,
+  updateWorkSlotReminder,
   shiftTaskWithDependents,
 } from '../services/taskService';
 import { getProjectById } from '../services/projectService';
@@ -53,16 +54,25 @@ const buildTaskUpdateSummary = (before: Task, after: Task): string | null => {
     changes.push(`due ${formatValue(before.due_date)} -> ${formatValue(after.due_date)}`);
   }
   if (before.duration_minutes !== after.duration_minutes) {
-    changes.push(`duration ${formatValue(before.duration_minutes)} -> ${formatValue(after.duration_minutes)}`);
+    changes.push(
+      `duration ${formatValue(before.duration_minutes)} -> ${formatValue(after.duration_minutes)}`
+    );
   }
   if (before.resource_label !== after.resource_label) {
-    changes.push(`resource ${formatValue(before.resource_label)} -> ${formatValue(after.resource_label)}`);
+    changes.push(
+      `resource ${formatValue(before.resource_label)} -> ${formatValue(after.resource_label)}`
+    );
   }
   if (before.resource_id !== after.resource_id) {
-    changes.push(`resourceId ${formatValue(before.resource_id)} -> ${formatValue(after.resource_id)}`);
+    changes.push(
+      `resourceId ${formatValue(before.resource_id)} -> ${formatValue(after.resource_id)}`
+    );
   }
   if (before.scheduling_mode !== after.scheduling_mode) {
     changes.push(`mode ${before.scheduling_mode} -> ${after.scheduling_mode}`);
+  }
+  if (before.reminder_enabled !== after.reminder_enabled) {
+    changes.push(`reminder ${after.reminder_enabled ? 'on' : 'off'}`);
   }
 
   if (changes.length === 0) {
@@ -72,7 +82,11 @@ const buildTaskUpdateSummary = (before: Task, after: Task): string | null => {
   return `Task updated: ${after.title} (${changes.join(', ')})`;
 };
 
-export async function listByProject(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listByProject(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -94,7 +108,11 @@ export async function listByProject(req: Request, res: Response, next: NextFunct
   }
 }
 
-export async function createInProject(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createInProject(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -115,21 +133,32 @@ export async function createInProject(req: Request, res: Response, next: NextFun
       return;
     }
 
-  const { title, description, status, schedulingMode, durationMinutes, resourceLabel, resourceId, startDate, dueDate } =
-    req.body;
-  const task = await createTask({
-    project_id: projectId,
-    owner_id: userId,
-    title,
-    description,
-    status,
-    scheduling_mode: schedulingMode,
-    duration_minutes: durationMinutes ?? null,
-    resource_label: resourceLabel ?? null,
-    resource_id: resourceId ?? null,
-    start_date: startDate ?? null,
-    due_date: dueDate ?? null,
-  });
+    const {
+      title,
+      description,
+      status,
+      schedulingMode,
+      durationMinutes,
+      resourceLabel,
+      resourceId,
+      startDate,
+      dueDate,
+      reminderEnabled,
+    } = req.body;
+    const task = await createTask({
+      project_id: projectId,
+      owner_id: userId,
+      title,
+      description,
+      status,
+      scheduling_mode: schedulingMode,
+      duration_minutes: durationMinutes ?? null,
+      resource_label: resourceLabel ?? null,
+      resource_id: resourceId ?? null,
+      start_date: startDate ?? null,
+      due_date: dueDate ?? null,
+      reminder_enabled: reminderEnabled ?? false,
+    });
 
     await createProjectActivity({
       project_id: projectId,
@@ -186,12 +215,24 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-  const { title, description, status, schedulingMode, durationMinutes, resourceLabel, resourceId, startDate, dueDate } =
-    req.body;
+    const {
+      title,
+      description,
+      status,
+      schedulingMode,
+      durationMinutes,
+      resourceLabel,
+      resourceId,
+      startDate,
+      dueDate,
+      reminderEnabled,
+    } = req.body;
     if (status === 'in_progress') {
       const blocked = await isTaskBlocked(req.params.id as string, userId);
       if (blocked) {
-        res.status(409).json({ success: false, error: 'Task is blocked by unfinished dependencies' });
+        res
+          .status(409)
+          .json({ success: false, error: 'Task is blocked by unfinished dependencies' });
         return;
       }
     }
@@ -205,6 +246,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       resource_id: resourceId ?? null,
       start_date: startDate ?? null,
       due_date: dueDate ?? null,
+      reminder_enabled: reminderEnabled,
     });
 
     if (!updated) {
@@ -265,7 +307,11 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
   }
 }
 
-export async function listTaskDependencies(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listTaskDependencies(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -280,7 +326,11 @@ export async function listTaskDependencies(req: Request, res: Response, next: Ne
   }
 }
 
-export async function createTaskDependency(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createTaskDependency(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -331,7 +381,11 @@ export async function createTaskDependency(req: Request, res: Response, next: Ne
   }
 }
 
-export async function removeTaskDependency(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function removeTaskDependency(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -372,7 +426,11 @@ export async function removeTaskDependency(req: Request, res: Response, next: Ne
   }
 }
 
-export async function listTaskWorkSlots(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listTaskWorkSlots(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -387,7 +445,11 @@ export async function listTaskWorkSlots(req: Request, res: Response, next: NextF
   }
 }
 
-export async function listCalendarWorkSlots(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listCalendarWorkSlots(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -407,6 +469,7 @@ export async function listCalendarWorkSlots(req: Request, res: Response, next: N
       isFixed: slot.is_fixed,
       isAllDay: slot.is_all_day,
       taskDurationMinutes: slot.task_duration_minutes,
+      reminderEnabled: slot.reminder_enabled || slot.task_reminder_enabled,
     }));
 
     res.status(200).json({ success: true, data: response });
@@ -415,7 +478,11 @@ export async function listCalendarWorkSlots(req: Request, res: Response, next: N
   }
 }
 
-export async function createTaskWorkSlot(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function createTaskWorkSlot(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -429,14 +496,15 @@ export async function createTaskWorkSlot(req: Request, res: Response, next: Next
       return;
     }
 
-    const { startTime, endTime, isFixed, isAllDay } = req.body;
+    const { startTime, endTime, isFixed, isAllDay, reminderEnabled } = req.body;
     const slot = await createWorkSlot(
       req.params.id as string,
       userId,
       startTime,
       endTime,
       isFixed ?? false,
-      isAllDay ?? false
+      isAllDay ?? false,
+      reminderEnabled ?? false
     );
 
     if (!slot) {
@@ -460,6 +528,7 @@ export async function createTaskWorkSlot(req: Request, res: Response, next: Next
           endTime,
           isFixed: slot.is_fixed,
           isAllDay: slot.is_all_day,
+          reminderEnabled: slot.reminder_enabled,
           projectId: task.project_id,
         },
       });
@@ -471,7 +540,11 @@ export async function createTaskWorkSlot(req: Request, res: Response, next: Next
   }
 }
 
-export async function removeTaskWorkSlot(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function removeTaskWorkSlot(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const userId = getUserId(req);
     if (!userId) {
@@ -505,6 +578,7 @@ export async function removeTaskWorkSlot(req: Request, res: Response, next: Next
             endTime: existingSlot.end_time,
             isFixed: existingSlot.is_fixed,
             isAllDay: existingSlot.is_all_day,
+            reminderEnabled: existingSlot.reminder_enabled,
             projectId: task.project_id,
           },
         });
@@ -517,7 +591,72 @@ export async function removeTaskWorkSlot(req: Request, res: Response, next: Next
   }
 }
 
-export async function shiftSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateTaskWorkSlotReminder(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User ID required' });
+      return;
+    }
+
+    const reminderEnabled = Boolean(req.body.reminderEnabled);
+    const updated = await updateWorkSlotReminder(
+      req.params.slotId as string,
+      req.params.id as string,
+      userId,
+      reminderEnabled
+    );
+
+    if (!updated) {
+      res.status(404).json({ success: false, error: 'Work slot not found' });
+      return;
+    }
+
+    const task = await getTaskById(updated.task_id, userId);
+    if (task) {
+      const slotLabel = updated.is_all_day
+        ? 'all day'
+        : `${updated.start_time} - ${updated.end_time}`;
+      await createProjectActivity({
+        project_id: task.project_id,
+        actor_user_id: userId,
+        entity_type: 'work_slot',
+        action: 'updated',
+        summary: `Work slot reminder ${reminderEnabled ? 'enabled' : 'disabled'}: ${task.title} (${slotLabel})`,
+        metadata: {
+          taskId: task.id,
+          workSlotId: updated.id,
+          startTime: updated.start_time,
+          endTime: updated.end_time,
+          isFixed: updated.is_fixed,
+          isAllDay: updated.is_all_day,
+          reminderEnabled: updated.reminder_enabled,
+          projectId: task.project_id,
+        },
+      });
+    }
+
+    res.status(200).json({ success: true, data: toTaskWorkSlotResponse(updated) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function shiftSchedule(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -536,7 +675,13 @@ export async function shiftSchedule(req: Request, res: Response, next: NextFunct
     const cascade = Boolean(req.body.cascade);
     const shiftBlock = Boolean(req.body.shiftBlock);
 
-    const shiftResult = await shiftTaskWithDependents(taskId, userId, deltaDays, cascade, shiftBlock);
+    const shiftResult = await shiftTaskWithDependents(
+      taskId,
+      userId,
+      deltaDays,
+      cascade,
+      shiftBlock
+    );
 
     const task = await getTaskById(taskId, userId);
     if (task) {

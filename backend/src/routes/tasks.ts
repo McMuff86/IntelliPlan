@@ -1,7 +1,13 @@
 import { Router } from 'express';
 import * as taskController from '../controllers/taskController';
 import { loadUser, requireUserId } from '../middleware/roleMiddleware';
-import { createDependencyValidator, createWorkSlotValidator, shiftTaskValidator, updateTaskValidator } from '../validators/taskValidator';
+import {
+  createDependencyValidator,
+  createWorkSlotValidator,
+  shiftTaskValidator,
+  updateTaskValidator,
+  updateWorkSlotReminderValidator,
+} from '../validators/taskValidator';
 
 const router = Router();
 
@@ -21,5 +27,10 @@ router.delete('/:id/dependencies/:dependencyId', taskController.removeTaskDepend
 router.get('/:id/work-slots', taskController.listTaskWorkSlots);
 router.post('/:id/work-slots', createWorkSlotValidator, taskController.createTaskWorkSlot);
 router.delete('/:id/work-slots/:slotId', taskController.removeTaskWorkSlot);
+router.put(
+  '/:id/work-slots/:slotId/reminder',
+  updateWorkSlotReminderValidator,
+  taskController.updateTaskWorkSlotReminder
+);
 
 export default router;

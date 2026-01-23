@@ -36,7 +36,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'single' | 'team';
+  role: "admin" | "single" | "team";
   teamId?: string;
   timezone: string;
   emailVerified?: boolean;
@@ -49,9 +49,9 @@ export interface Team {
   createdAt: string;
 }
 
-export type TaskStatus = 'planned' | 'in_progress' | 'blocked' | 'done';
-export type SchedulingMode = 'manual' | 'auto';
-export type DependencyType = 'finish_start' | 'start_start' | 'finish_finish';
+export type TaskStatus = "planned" | "in_progress" | "blocked" | "done";
+export type SchedulingMode = "manual" | "auto";
+export type DependencyType = "finish_start" | "start_start" | "finish_finish";
 
 export interface Project {
   id: string;
@@ -77,9 +77,10 @@ export interface Task {
   resourceLabel: string | null;
   resourceId: string | null;
   resourceName?: string | null;
-  resourceType?: 'person' | 'machine' | 'vehicle' | null;
+  resourceType?: "person" | "machine" | "vehicle" | null;
   startDate: string | null;
   dueDate: string | null;
+  reminderEnabled: boolean;
   createdAt: string;
   updatedAt: string;
   isBlocked?: boolean;
@@ -100,6 +101,7 @@ export interface TaskWorkSlot {
   endTime: string;
   isFixed: boolean;
   isAllDay: boolean;
+  reminderEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -115,6 +117,7 @@ export interface TaskWorkSlotCalendar {
   isFixed: boolean;
   isAllDay: boolean;
   taskDurationMinutes: number | null;
+  reminderEnabled: boolean;
 }
 
 export interface CreateProjectDTO {
@@ -135,6 +138,7 @@ export interface CreateTaskDTO {
   resourceId?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
+  reminderEnabled?: boolean;
 }
 
 export interface CreateDependencyDTO {
@@ -147,20 +151,21 @@ export interface CreateWorkSlotDTO {
   endTime: string;
   isFixed?: boolean;
   isAllDay?: boolean;
+  reminderEnabled?: boolean;
 }
 
 export interface ProjectActivity {
   id: string;
   projectId: string;
   actorUserId: string | null;
-  entityType: 'project' | 'task' | 'work_slot' | 'dependency';
+  entityType: "project" | "task" | "work_slot" | "dependency";
   action: string;
   summary: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
 }
 
-export type ResourceType = 'person' | 'machine' | 'vehicle';
+export type ResourceType = "person" | "machine" | "vehicle";
 
 export interface Resource {
   id: string;

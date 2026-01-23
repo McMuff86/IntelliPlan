@@ -21,6 +21,8 @@ export interface TaskWorkSlotCalendar {
   is_fixed: boolean;
   is_all_day: boolean;
   task_duration_minutes: number | null;
+  reminder_enabled: boolean;
+  task_reminder_enabled: boolean;
 }
 
 export async function createTask(data: CreateTaskDTO): Promise<Task> {
@@ -36,8 +38,9 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
         resource_label,
         resource_id,
         start_date,
-        due_date
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        due_date,
+        reminder_enabled
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [
       data.project_id,
@@ -51,6 +54,7 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
       data.resource_id ?? null,
       data.start_date ?? null,
       data.due_date ?? null,
+      data.reminder_enabled ?? false,
     ]
   );
 
@@ -63,7 +67,10 @@ type TaskWithBlocked = Task & {
   resource_type?: ResourceType | null;
 };
 
-export async function listTasksByProject(projectId: string, ownerId: string): Promise<TaskWithBlocked[]> {
+export async function listTasksByProject(
+  projectId: string,
+  ownerId: string
+): Promise<TaskWithBlocked[]> {
   const result = await pool.query<TaskWithBlocked>(
     `SELECT t.*,
             r.name AS resource_name,
@@ -82,7 +89,10 @@ export async function listTasksByProject(projectId: string, ownerId: string): Pr
   return result.rows;
 }
 
-export async function getTaskById(taskId: string, ownerId: string): Promise<TaskWithBlocked | null> {
+export async function getTaskById(
+  taskId: string,
+  ownerId: string
+): Promise<TaskWithBlocked | null> {
   const result = await pool.query<TaskWithBlocked>(
     `SELECT t.*,
             r.name AS resource_name,
@@ -145,6 +155,10 @@ export async function updateTask(
     fields.push(`due_date = $${paramIndex++}`);
     values.push(data.due_date);
   }
+  if (data.reminder_enabled !== undefined) {
+    fields.push(`reminder_enabled = $${paramIndex++}`);
+    values.push(data.reminder_enabled);
+  }
 
   if (fields.length === 0) {
     return getTaskById(taskId, ownerId);
@@ -164,10 +178,10 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query(
-    `DELETE FROM tasks WHERE id = $1 AND owner_id = $2`,
-    [taskId, ownerId]
-  );
+  const result = await pool.query(`DELETE FROM tasks WHERE id = $1 AND owner_id = $2`, [
+    taskId,
+    ownerId,
+  ]);
 
   return result.rowCount !== null && result.rowCount > 0;
 }
@@ -239,14 +253,15 @@ export async function createWorkSlot(
   startTime: string,
   endTime: string,
   isFixed = false,
-  isAllDay = false
+  isAllDay = false,
+  reminderEnabled = false
 ): Promise<TaskWorkSlot | null> {
   const result = await pool.query<TaskWorkSlot>(
-    `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day)
-     SELECT $1, $2, $3, $4, $5
-     WHERE EXISTS (SELECT 1 FROM tasks WHERE id = $1 AND owner_id = $6)
+    `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day, reminder_enabled)
+     SELECT $1, $2, $3, $4, $5, $6
+     WHERE EXISTS (SELECT 1 FROM tasks WHERE id = $1 AND owner_id = $7)
      RETURNING *`,
-    [taskId, startTime, endTime, isFixed, isAllDay, ownerId]
+    [taskId, startTime, endTime, isFixed, isAllDay, reminderEnabled, ownerId]
   );
 
   return result.rows[0] || null;
@@ -276,7 +291,9 @@ export async function listWorkSlotsForCalendar(ownerId: string): Promise<TaskWor
             tws.end_time,
             tws.is_fixed,
             tws.is_all_day,
-            t.duration_minutes AS task_duration_minutes
+            t.duration_minutes AS task_duration_minutes,
+            tws.reminder_enabled,
+            t.reminder_enabled AS task_reminder_enabled
      FROM task_work_slots tws
      JOIN tasks t ON tws.task_id = t.id
      JOIN projects p ON t.project_id = p.id
@@ -286,6 +303,26 @@ export async function listWorkSlotsForCalendar(ownerId: string): Promise<TaskWor
   );
 
   return result.rows;
+}
+
+export async function updateWorkSlotReminder(
+  slotId: string,
+  taskId: string,
+  ownerId: string,
+  reminderEnabled: boolean
+): Promise<TaskWorkSlot | null> {
+  const result = await pool.query<TaskWorkSlot>(
+    `UPDATE task_work_slots
+     SET reminder_enabled = $1,
+         updated_at = NOW()
+     WHERE id = $2
+       AND task_id = $3
+       AND task_id IN (SELECT id FROM tasks WHERE owner_id = $4)
+     RETURNING *`,
+    [reminderEnabled, slotId, taskId, ownerId]
+  );
+
+  return result.rows[0] || null;
 }
 
 export async function deleteWorkSlot(slotId: string, ownerId: string): Promise<boolean> {
@@ -298,7 +335,10 @@ export async function deleteWorkSlot(slotId: string, ownerId: string): Promise<b
   return result.rowCount !== null && result.rowCount > 0;
 }
 
-export async function getWorkSlotById(slotId: string, ownerId: string): Promise<TaskWorkSlot | null> {
+export async function getWorkSlotById(
+  slotId: string,
+  ownerId: string
+): Promise<TaskWorkSlot | null> {
   const result = await pool.query<TaskWorkSlot>(
     `SELECT tws.*
      FROM task_work_slots tws
@@ -349,16 +389,23 @@ const toDate = (value: string | null): Date | null => {
   return new Date(value);
 };
 
-const shiftDate = (value: Date, days: number): Date => new Date(value.getTime() + days * MS_PER_DAY);
+const shiftDate = (value: Date, days: number): Date =>
+  new Date(value.getTime() + days * MS_PER_DAY);
 
-const resolveAnchor = (schedule: TaskScheduleSnapshot | undefined, preferred: 'start' | 'end'): Date | null => {
+const resolveAnchor = (
+  schedule: TaskScheduleSnapshot | undefined,
+  preferred: 'start' | 'end'
+): Date | null => {
   if (!schedule) return null;
   const primary = schedule[preferred];
   if (primary) return primary;
   return preferred === 'start' ? schedule.end : schedule.start;
 };
 
-const getParentAnchor = (schedule: TaskScheduleSnapshot | undefined, type: DependencyType): Date | null => {
+const getParentAnchor = (
+  schedule: TaskScheduleSnapshot | undefined,
+  type: DependencyType
+): Date | null => {
   if (type === 'start_start') {
     return resolveAnchor(schedule, 'start');
   }
@@ -368,14 +415,21 @@ const getParentAnchor = (schedule: TaskScheduleSnapshot | undefined, type: Depen
   return resolveAnchor(schedule, 'end');
 };
 
-const getChildAnchor = (schedule: TaskScheduleSnapshot | undefined, type: DependencyType): Date | null => {
+const getChildAnchor = (
+  schedule: TaskScheduleSnapshot | undefined,
+  type: DependencyType
+): Date | null => {
   if (type === 'finish_finish') {
     return resolveAnchor(schedule, 'end');
   }
   return resolveAnchor(schedule, 'start');
 };
 
-const shiftTaskSchedule = async (taskIds: string[], ownerId: string, deltaDays: number): Promise<void> => {
+const shiftTaskSchedule = async (
+  taskIds: string[],
+  ownerId: string,
+  deltaDays: number
+): Promise<void> => {
   if (taskIds.length === 0 || deltaDays === 0) {
     return;
   }

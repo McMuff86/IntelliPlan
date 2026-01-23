@@ -33,18 +33,10 @@ export const createTaskValidator: ValidationChain[] = [
     .trim()
     .isLength({ max: 255 })
     .withMessage('resourceLabel must be less than 255 characters'),
-  body('resourceId')
-    .optional()
-    .isUUID()
-    .withMessage('resourceId must be a valid UUID'),
-  body('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('startDate must be ISO 8601'),
-  body('dueDate')
-    .optional()
-    .isISO8601()
-    .withMessage('dueDate must be ISO 8601'),
+  body('resourceId').optional().isUUID().withMessage('resourceId must be a valid UUID'),
+  body('startDate').optional().isISO8601().withMessage('startDate must be ISO 8601'),
+  body('dueDate').optional().isISO8601().withMessage('dueDate must be ISO 8601'),
+  body('reminderEnabled').optional().isBoolean().withMessage('reminderEnabled must be boolean'),
 ];
 
 export const updateTaskValidator: ValidationChain[] = [
@@ -77,18 +69,10 @@ export const updateTaskValidator: ValidationChain[] = [
     .trim()
     .isLength({ max: 255 })
     .withMessage('resourceLabel must be less than 255 characters'),
-  body('resourceId')
-    .optional()
-    .isUUID()
-    .withMessage('resourceId must be a valid UUID'),
-  body('startDate')
-    .optional()
-    .isISO8601()
-    .withMessage('startDate must be ISO 8601'),
-  body('dueDate')
-    .optional()
-    .isISO8601()
-    .withMessage('dueDate must be ISO 8601'),
+  body('resourceId').optional().isUUID().withMessage('resourceId must be a valid UUID'),
+  body('startDate').optional().isISO8601().withMessage('startDate must be ISO 8601'),
+  body('dueDate').optional().isISO8601().withMessage('dueDate must be ISO 8601'),
+  body('reminderEnabled').optional().isBoolean().withMessage('reminderEnabled must be boolean'),
 ];
 
 export const createDependencyValidator: ValidationChain[] = [
@@ -115,14 +99,17 @@ export const createWorkSlotValidator: ValidationChain[] = [
     .withMessage('endTime is required')
     .isISO8601()
     .withMessage('endTime must be ISO 8601'),
-  body('isFixed')
-    .optional()
+  body('isFixed').optional().isBoolean().withMessage('isFixed must be boolean'),
+  body('isAllDay').optional().isBoolean().withMessage('isAllDay must be boolean'),
+  body('reminderEnabled').optional().isBoolean().withMessage('reminderEnabled must be boolean'),
+];
+
+export const updateWorkSlotReminderValidator: ValidationChain[] = [
+  body('reminderEnabled')
+    .notEmpty()
+    .withMessage('reminderEnabled is required')
     .isBoolean()
-    .withMessage('isFixed must be boolean'),
-  body('isAllDay')
-    .optional()
-    .isBoolean()
-    .withMessage('isAllDay must be boolean'),
+    .withMessage('reminderEnabled must be boolean'),
 ];
 
 export const shiftTaskValidator: ValidationChain[] = [
@@ -131,12 +118,6 @@ export const shiftTaskValidator: ValidationChain[] = [
     .withMessage('deltaDays is required')
     .isInt({ min: -3650, max: 3650 })
     .withMessage('deltaDays must be an integer between -3650 and 3650'),
-  body('cascade')
-    .optional()
-    .isBoolean()
-    .withMessage('cascade must be boolean'),
-  body('shiftBlock')
-    .optional()
-    .isBoolean()
-    .withMessage('shiftBlock must be boolean'),
+  body('cascade').optional().isBoolean().withMessage('cascade must be boolean'),
+  body('shiftBlock').optional().isBoolean().withMessage('shiftBlock must be boolean'),
 ];

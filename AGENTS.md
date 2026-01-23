@@ -2,14 +2,31 @@
 
 ## Overview
 
-IntelliPlan is an advanced calendar and scheduling application with AI-powered features. This project uses the **Ralph pattern** - an autonomous AI agent loop that runs [Amp](https://ampcode.com) repeatedly until all PRD items are complete. Each iteration is a fresh Amp instance with clean context.
+IntelliPlan is an advanced calendar and scheduling application with AI-powered features. This project **often** uses the **Ralph pattern** - an autonomous AI agent loop that runs [Amp](https://ampcode.com) repeatedly until all PRD items are complete. However, the workflow is **not always Ralph**: depending on the task, work may be done with **Beads-only**, **a single agent session**, or **Codex-style direct edits**. (DE: Nicht jeder Task läuft über Ralph; wähle den passenden Modus.)
 
 **Key Concepts:**
 
-- **Ralph Loop**: Bash-based iteration system for Amp instances that processes small user stories
+- **Ralph Loop (optional)**: Bash-based iteration system for Amp instances that processes small user stories
 - **Memory Persistence**: Via git history, `progress.txt`, `prd.json`, and Beads (file-based memory system)
 - **Fresh Context**: Each iteration spawns a new Amp instance to avoid hallucinations
 - **Small Tasks**: Stories should be small enough to complete in one context window
+
+## Working Modes (Choose per Task)
+
+Use the mode that best fits the scope and urgency. Ralph is recommended for structured PRD work, but it is **not mandatory**.
+
+1. **Ralph Loop** (structured, multi-story work)
+   - Best for PRD-driven tasks and incremental stories
+   - Uses `prd.json`, `progress.txt`, and Beads for continuity
+2. **Beads-Only** (memory capture without Ralph)
+   - Use Beads files to record context and decisions
+   - No automated iteration loop
+3. **Single-Agent Session** (focused fix or feature)
+   - Directly implement and test a bounded change
+   - Update `progress.txt` or Beads only if useful
+4. **Codex-Style Direct Edits** (quick changes)
+   - Minimal process overhead
+   - Still follow codebase conventions and run relevant checks
 
 Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
@@ -93,10 +110,10 @@ Develop a scalable, user-friendly application for planning, booking, reminders, 
 
 - Node.js and npm installed
 - PostgreSQL database running
-- [Amp CLI](https://ampcode.com) installed and authenticated
+- [Amp CLI](https://ampcode.com) installed and authenticated (only if using Ralph)
 - `jq` installed (`brew install jq` on macOS, `choco install jq` on Windows)
 - Git repository initialized
-- Beads installed (`pip install beads`) - optional but recommended for enhanced memory
+- Beads installed (`pip install beads`) - optional; recommended if you use Beads workflows
 
 ## Setup
 
@@ -140,7 +157,7 @@ Load the ralph skill and convert tasks/prd-[feature-name].md to prd.json
 
 This creates `prd.json` with user stories structured for autonomous execution.
 
-## Commands
+## Commands (Ralph Only)
 
 ```bash
 # Run Ralph (from project root)
@@ -170,7 +187,7 @@ git log --oneline -10
 | `progress.txt`            | Append-only learnings for future iterations       |
 | `AGENTS.md`               | This file - agent instructions and patterns       |
 
-## Workflow
+## Workflow (Ralph Only)
 
 ### Ralph Loop Process
 
@@ -368,6 +385,7 @@ Ralph automatically archives previous runs when you start a new feature (differe
 Based on `prd.json`, the following user stories are ready for implementation (ordered by priority):
 
 ### High Priority
+
 1. **US-TP-011**: Optional Reminders per Task/Work Slot
    - Toggle reminder on/off per work slot or task
    - Reminder-only functionality (no hard appointment binding)

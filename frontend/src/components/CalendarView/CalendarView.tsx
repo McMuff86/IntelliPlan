@@ -134,7 +134,7 @@ export default function CalendarView() {
     }));
 
     const taskEvents: CalendarEvent[] = showTaskOverlay
-      ? taskSlots.map((slot) => {
+      ? taskSlots.filter((slot) => slot.reminderEnabled).map((slot) => {
           const durationLabel = slot.taskDurationMinutes
             ? ` | ${formatDuration(slot.taskDurationMinutes)}`
             : '';
@@ -216,7 +216,7 @@ export default function CalendarView() {
     });
 
     if (showTaskOverlay) {
-      taskSlots.forEach((slot) => {
+      taskSlots.filter((slot) => slot.reminderEnabled).forEach((slot) => {
         const slotDate = toZonedTime(new Date(slot.startTime), userTimezone);
         if (
           slotDate.getFullYear() === clickedDate.getFullYear() &&
@@ -388,9 +388,13 @@ export default function CalendarView() {
             }
             label={
               <Stack direction="row" spacing={1} alignItems="center">
-                <Typography variant="body2">Tasks overlay</Typography>
-                <Tooltip title="Show task work slots alongside appointments">
-                  <Chip size="small" label={taskSlots.length} variant="outlined" />
+                <Typography variant="body2">Reminders overlay</Typography>
+                <Tooltip title="Show reminder-enabled task slots alongside appointments">
+                  <Chip
+                    size="small"
+                    label={taskSlots.filter((slot) => slot.reminderEnabled).length}
+                    variant="outlined"
+                  />
                 </Tooltip>
               </Stack>
             }

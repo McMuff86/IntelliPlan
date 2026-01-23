@@ -30,9 +30,7 @@
         "DELETE /api/projects/:id"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-001"
-      ],
+      "dependencies": ["US-TP-001"],
       "priority": 2,
       "passes": true
     },
@@ -48,10 +46,7 @@
         "DELETE /api/tasks/:id"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-001",
-        "US-TP-002"
-      ],
+      "dependencies": ["US-TP-001", "US-TP-002"],
       "priority": 3,
       "passes": true
     },
@@ -66,9 +61,7 @@
         "Validation: end time is after start time"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-003"
-      ],
+      "dependencies": ["US-TP-003"],
       "priority": 4,
       "passes": true
     },
@@ -83,9 +76,7 @@
         "DELETE /api/tasks/:id/dependencies/:dependencyId"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-003"
-      ],
+      "dependencies": ["US-TP-003"],
       "priority": 5,
       "passes": true
     },
@@ -98,9 +89,7 @@
         "Start action is only possible when dependencies are fulfilled"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-005"
-      ],
+      "dependencies": ["US-TP-005"],
       "priority": 6,
       "passes": true
     },
@@ -114,10 +103,7 @@
         "Cascading respects dependency types"
       ],
       "technicalNotes": "Phase 1 can be basic; Phase 2 should differentiate dependency types.",
-      "dependencies": [
-        "US-TP-004",
-        "US-TP-005"
-      ],
+      "dependencies": ["US-TP-004", "US-TP-005"],
       "priority": 7,
       "passes": true
     },
@@ -131,10 +117,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-002",
-        "US-TP-003"
-      ],
+      "dependencies": ["US-TP-002", "US-TP-003"],
       "priority": 8,
       "passes": true
     },
@@ -149,11 +132,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-003",
-        "US-TP-004",
-        "US-TP-005"
-      ],
+      "dependencies": ["US-TP-003", "US-TP-004", "US-TP-005"],
       "priority": 9,
       "passes": true
     },
@@ -167,9 +146,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-008"
-      ],
+      "dependencies": ["US-TP-008"],
       "priority": 10,
       "passes": true
     },
@@ -183,11 +160,9 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-004"
-      ],
+      "dependencies": ["US-TP-004"],
       "priority": 11,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-TP-012",
@@ -199,9 +174,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "technicalNotes": "",
-      "dependencies": [
-        "US-TP-002"
-      ],
+      "dependencies": ["US-TP-002"],
       "priority": 12,
       "passes": false
     },
@@ -256,9 +229,7 @@
         "Update prd.json status on completion"
       ],
       "technicalNotes": "Reverse planning works backward from deadline. Consider resource constraints, working hours, dependencies. Integrate with existing appointment overlap detection.",
-      "dependencies": [
-        "US-TP-001"
-      ],
+      "dependencies": ["US-TP-001"],
       "priority": 15,
       "passes": false
     },
@@ -295,9 +266,7 @@
         "Include call-to-action for 50-200 CHF/user pricing"
       ],
       "technicalNotes": "Demo should showcase reverse-planning and conflict resolution. Use sample data for Swiss carpentry shop. Make it visually impressive for LinkedIn sharing.",
-      "dependencies": [
-        "US-017"
-      ],
+      "dependencies": ["US-017"],
       "priority": 17,
       "passes": false
     }

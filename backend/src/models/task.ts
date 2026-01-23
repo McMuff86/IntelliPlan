@@ -16,6 +16,7 @@ export interface Task {
   resource_id: string | null;
   start_date: string | null;
   due_date: string | null;
+  reminder_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +36,7 @@ export interface TaskResponse {
   resourceType?: ResourceType | null;
   startDate: string | null;
   dueDate: string | null;
+  reminderEnabled: boolean;
   createdAt: string;
   updatedAt: string;
   isBlocked?: boolean;
@@ -52,6 +54,7 @@ export interface CreateTaskDTO {
   resource_id?: string | null;
   start_date?: string | null;
   due_date?: string | null;
+  reminder_enabled?: boolean;
 }
 
 export interface UpdateTaskDTO {
@@ -64,6 +67,7 @@ export interface UpdateTaskDTO {
   resource_id?: string | null;
   start_date?: string | null;
   due_date?: string | null;
+  reminder_enabled?: boolean;
 }
 
 export interface TaskDependency {
@@ -89,6 +93,7 @@ export interface TaskWorkSlot {
   end_time: string;
   is_fixed: boolean;
   is_all_day: boolean;
+  reminder_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -100,12 +105,17 @@ export interface TaskWorkSlotResponse {
   endTime: string;
   isFixed: boolean;
   isAllDay: boolean;
+  reminderEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
 export const toTaskResponse = (
-  task: Task & { is_blocked?: boolean | null; resource_name?: string | null; resource_type?: ResourceType | null }
+  task: Task & {
+    is_blocked?: boolean | null;
+    resource_name?: string | null;
+    resource_type?: ResourceType | null;
+  }
 ): TaskResponse => ({
   id: task.id,
   projectId: task.project_id,
@@ -121,6 +131,7 @@ export const toTaskResponse = (
   resourceType: task.resource_type ?? null,
   startDate: task.start_date,
   dueDate: task.due_date,
+  reminderEnabled: task.reminder_enabled,
   createdAt: task.created_at,
   updatedAt: task.updated_at,
   isBlocked: task.is_blocked ?? undefined,
@@ -141,6 +152,7 @@ export const toTaskWorkSlotResponse = (slot: TaskWorkSlot): TaskWorkSlotResponse
   endTime: slot.end_time,
   isFixed: slot.is_fixed,
   isAllDay: slot.is_all_day,
+  reminderEnabled: slot.reminder_enabled,
   createdAt: slot.created_at,
   updatedAt: slot.updated_at,
 });

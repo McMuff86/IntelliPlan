@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -18,41 +18,52 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-} from '@mui/material';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AddIcon from '@mui/icons-material/Add';
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
-import { addDays, format, startOfDay } from 'date-fns';
-import axios from 'axios';
-import type { DependencyType, Resource, Task, TaskDependency, TaskStatus, TaskWorkSlot } from '../types';
-import { taskService } from '../services/taskService';
-import { resourceService } from '../services/resourceService';
-import Breadcrumbs from '../components/Breadcrumbs';
+} from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AddIcon from "@mui/icons-material/Add";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { addDays, format, startOfDay } from "date-fns";
+import axios from "axios";
+import type {
+  DependencyType,
+  Resource,
+  Task,
+  TaskDependency,
+  TaskStatus,
+  TaskWorkSlot,
+} from "../types";
+import { taskService } from "../services/taskService";
+import { resourceService } from "../services/resourceService";
+import Breadcrumbs from "../components/Breadcrumbs";
 
-const dependencyOptions: DependencyType[] = ['finish_start', 'start_start', 'finish_finish'];
+const dependencyOptions: DependencyType[] = [
+  "finish_start",
+  "start_start",
+  "finish_finish",
+];
 
 const dependencyLabel = (value: DependencyType) => {
-  if (value === 'start_start') return 'Start to Start';
-  if (value === 'finish_finish') return 'Finish to Finish';
-  return 'Finish to Start';
+  if (value === "start_start") return "Start to Start";
+  if (value === "finish_finish") return "Finish to Finish";
+  return "Finish to Start";
 };
 
 const statusLabel = (status: TaskStatus) =>
   ({
-    planned: 'Planned',
-    in_progress: 'In Progress',
-    blocked: 'Blocked',
-    done: 'Done',
+    planned: "Planned",
+    in_progress: "In Progress",
+    blocked: "Blocked",
+    done: "Done",
   })[status];
 
 const statusColor = (status: TaskStatus) => {
-  if (status === 'done') return 'success';
-  if (status === 'blocked') return 'warning';
-  if (status === 'in_progress') return 'info';
-  return 'default';
+  if (status === "done") return "success";
+  if (status === "blocked") return "warning";
+  if (status === "in_progress") return "info";
+  return "default";
 };
 
 export default function TaskDetail() {
@@ -66,21 +77,23 @@ export default function TaskDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
-  const [resourceLabel, setResourceLabel] = useState('');
-  const [resourceId, setResourceId] = useState('');
+  const [resourceLabel, setResourceLabel] = useState("");
+  const [resourceId, setResourceId] = useState("");
   const [savingResource, setSavingResource] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resettingStatus, setResettingStatus] = useState(false);
 
-  const [dependsOnTaskId, setDependsOnTaskId] = useState('');
-  const [dependencyType, setDependencyType] = useState<DependencyType>('finish_start');
+  const [dependsOnTaskId, setDependsOnTaskId] = useState("");
+  const [dependencyType, setDependencyType] =
+    useState<DependencyType>("finish_start");
 
   const [slotStart, setSlotStart] = useState<Date | null>(null);
   const [slotEnd, setSlotEnd] = useState<Date | null>(null);
   const [slotFixed, setSlotFixed] = useState(false);
   const [slotAllDay, setSlotAllDay] = useState(false);
   const [slotDate, setSlotDate] = useState<Date | null>(null);
-  const [shiftDays, setShiftDays] = useState<number | ''>('');
+  const [slotReminderEnabled, setSlotReminderEnabled] = useState(false);
+  const [shiftDays, setShiftDays] = useState<number | "">("");
   const [cascadeShift, setCascadeShift] = useState(true);
   const [shiftBlock, setShiftBlock] = useState(false);
 
@@ -103,7 +116,7 @@ export default function TaskDetail() {
       setWorkSlots(slotsData);
     } catch (err) {
       console.error(err);
-      setError('Failed to load task');
+      setError("Failed to load task");
     } finally {
       setLoading(false);
     }
@@ -128,13 +141,14 @@ export default function TaskDetail() {
 
   useEffect(() => {
     if (task) {
-      setResourceLabel(task.resourceLabel ?? '');
-      setResourceId(task.resourceId ?? '');
+      setResourceLabel(task.resourceLabel ?? "");
+      setResourceId(task.resourceId ?? "");
+      setSlotReminderEnabled(task.reminderEnabled);
     }
   }, [task?.id]);
 
   const formatDuration = (minutes?: number | null) => {
-    if (!minutes) return '';
+    if (!minutes) return "";
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (hours && mins) return `${hours}h ${mins}m`;
@@ -149,26 +163,33 @@ export default function TaskDetail() {
   const isBlocked = useMemo(() => {
     return dependencies.some((dep) => {
       const depTask = dependencyMap.get(dep.dependsOnTaskId);
-      return !depTask || depTask.status !== 'done';
+      return !depTask || depTask.status !== "done";
     });
   }, [dependencies, dependencyMap]);
   const blockedNow = task?.isBlocked ?? isBlocked;
-  const canAddSlot = slotAllDay ? Boolean(slotDate) : Boolean(slotStart && slotEnd);
+  const canAddSlot = slotAllDay
+    ? Boolean(slotDate)
+    : Boolean(slotStart && slotEnd);
 
   const handleStartTask = async () => {
     if (!task) return;
     try {
       setActionLoading(true);
-      const updated = await taskService.update(task.id, { status: 'in_progress' });
+      const updated = await taskService.update(task.id, {
+        status: "in_progress",
+      });
       setTask(updated);
     } catch (err) {
       console.error(err);
       if (axios.isAxiosError(err)) {
-        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
-        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
-        setError(message || 'Failed to start task');
+        const data = err.response?.data as
+          | { error?: string | { message?: string } }
+          | undefined;
+        const message =
+          typeof data?.error === "string" ? data.error : data?.error?.message;
+        setError(message || "Failed to start task");
       } else {
-        setError('Failed to start task');
+        setError("Failed to start task");
       }
     } finally {
       setActionLoading(false);
@@ -179,11 +200,11 @@ export default function TaskDetail() {
     if (!task) return;
     try {
       setActionLoading(true);
-      const updated = await taskService.update(task.id, { status: 'done' });
+      const updated = await taskService.update(task.id, { status: "done" });
       setTask(updated);
     } catch (err) {
       console.error(err);
-      setError('Failed to complete task');
+      setError("Failed to complete task");
     } finally {
       setActionLoading(false);
     }
@@ -193,12 +214,12 @@ export default function TaskDetail() {
     if (!task) return;
     try {
       setResettingStatus(true);
-      const updated = await taskService.update(task.id, { status: 'planned' });
+      const updated = await taskService.update(task.id, { status: "planned" });
       setTask(updated);
       setResetDialogOpen(false);
     } catch (err) {
       console.error(err);
-      setError('Failed to reset task status');
+      setError("Failed to reset task status");
     } finally {
       setResettingStatus(false);
     }
@@ -217,11 +238,14 @@ export default function TaskDetail() {
     } catch (err) {
       console.error(err);
       if (axios.isAxiosError(err)) {
-        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
-        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
-        setError(message || 'Failed to update resource');
+        const data = err.response?.data as
+          | { error?: string | { message?: string } }
+          | undefined;
+        const message =
+          typeof data?.error === "string" ? data.error : data?.error?.message;
+        setError(message || "Failed to update resource");
       } else {
-        setError('Failed to update resource');
+        setError("Failed to update resource");
       }
     } finally {
       setSavingResource(false);
@@ -237,10 +261,10 @@ export default function TaskDetail() {
         dependencyType,
       });
       setDependencies((prev) => [...prev, created]);
-      setDependsOnTaskId('');
+      setDependsOnTaskId("");
     } catch (err) {
       console.error(err);
-      setError('Failed to add dependency');
+      setError("Failed to add dependency");
     } finally {
       setActionLoading(false);
     }
@@ -254,7 +278,7 @@ export default function TaskDetail() {
       setDependencies((prev) => prev.filter((dep) => dep.id !== dependencyId));
     } catch (err) {
       console.error(err);
-      setError('Failed to remove dependency');
+      setError("Failed to remove dependency");
     } finally {
       setActionLoading(false);
     }
@@ -268,29 +292,37 @@ export default function TaskDetail() {
       setActionLoading(true);
       const baseDate = slotDate ? startOfDay(slotDate) : null;
       const startTime = slotAllDay ? (baseDate as Date) : (slotStart as Date);
-      const endTime = slotAllDay ? addDays(baseDate as Date, 1) : (slotEnd as Date);
+      const endTime = slotAllDay
+        ? addDays(baseDate as Date, 1)
+        : (slotEnd as Date);
       const created = await taskService.createWorkSlot(task.id, {
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         isFixed: slotAllDay ? false : slotFixed,
         isAllDay: slotAllDay,
+        reminderEnabled: slotReminderEnabled,
       });
-      setWorkSlots((prev) => [...prev, created].sort((a, b) => a.startTime.localeCompare(b.startTime)));
+      setWorkSlots((prev) =>
+        [...prev, created].sort((a, b) =>
+          a.startTime.localeCompare(b.startTime),
+        ),
+      );
       setSlotStart(null);
       setSlotEnd(null);
       setSlotFixed(false);
       setSlotAllDay(false);
       setSlotDate(null);
+      setSlotReminderEnabled(task.reminderEnabled);
     } catch (err) {
       console.error(err);
-      setError('Failed to add work slot');
+      setError("Failed to add work slot");
     } finally {
       setActionLoading(false);
     }
   };
 
   const handleShiftSchedule = async () => {
-    if (!task || shiftDays === '' || Number.isNaN(shiftDays)) return;
+    if (!task || shiftDays === "" || Number.isNaN(shiftDays)) return;
     try {
       setActionLoading(true);
       await taskService.shiftSchedule(task.id, {
@@ -299,10 +331,10 @@ export default function TaskDetail() {
         shiftBlock,
       });
       await loadTask();
-      setShiftDays('');
+      setShiftDays("");
     } catch (err) {
       console.error(err);
-      setError('Failed to shift schedule');
+      setError("Failed to shift schedule");
     } finally {
       setActionLoading(false);
     }
@@ -316,7 +348,43 @@ export default function TaskDetail() {
       setWorkSlots((prev) => prev.filter((slot) => slot.id !== slotId));
     } catch (err) {
       console.error(err);
-      setError('Failed to remove work slot');
+      setError("Failed to remove work slot");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleToggleTaskReminder = async (enabled: boolean) => {
+    if (!task) return;
+    try {
+      setActionLoading(true);
+      const updated = await taskService.update(task.id, {
+        reminderEnabled: enabled,
+      });
+      setTask(updated);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to update task reminder");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleToggleSlotReminder = async (slotId: string, enabled: boolean) => {
+    if (!task) return;
+    try {
+      setActionLoading(true);
+      const updated = await taskService.updateWorkSlotReminder(
+        task.id,
+        slotId,
+        enabled,
+      );
+      setWorkSlots((prev) =>
+        prev.map((slot) => (slot.id === updated.id ? updated : slot)),
+      );
+    } catch (err) {
+      console.error(err);
+      setError("Failed to update work slot reminder");
     } finally {
       setActionLoading(false);
     }
@@ -324,7 +392,12 @@ export default function TaskDetail() {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="40vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="40vh"
+      >
         <CircularProgress />
       </Box>
     );
@@ -334,9 +407,12 @@ export default function TaskDetail() {
     return (
       <Box>
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error || 'Task not found'}
+          {error || "Task not found"}
         </Alert>
-        <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/projects')}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/projects")}
+        >
           Back to Projects
         </Button>
       </Box>
@@ -349,34 +425,45 @@ export default function TaskDetail() {
     <Box>
       <Breadcrumbs
         items={[
-          { label: 'Projects', path: '/projects' },
+          { label: "Projects", path: "/projects" },
           { label: task.title },
         ]}
       />
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Box>
           <Typography variant="h4" component="h1">
             {task.title}
           </Typography>
           <Stack direction="row" spacing={1} alignItems="center" mt={1}>
-            <Chip size="small" label={statusLabel(task.status)} color={statusColor(task.status)} />
-            {blockedNow && task.status !== 'done' && task.status !== 'blocked' && (
-              <Chip size="small" label="Blocked" color="warning" />
-            )}
-            {task.schedulingMode === 'auto' ? (
+            <Chip
+              size="small"
+              label={statusLabel(task.status)}
+              color={statusColor(task.status)}
+            />
+            {blockedNow &&
+              task.status !== "done" &&
+              task.status !== "blocked" && (
+                <Chip size="small" label="Blocked" color="warning" />
+              )}
+            {task.schedulingMode === "auto" ? (
               <Chip size="small" label="Auto scheduling" variant="outlined" />
             ) : (
               <Chip size="small" label="Manual scheduling" variant="outlined" />
             )}
           </Stack>
         </Box>
-        <Button variant="outlined" onClick={() => navigate('/projects')}>
+        <Button variant="outlined" onClick={() => navigate("/projects")}>
           All Projects
         </Button>
       </Box>
 
-      {blockedNow && task.status !== 'done' && (
+      {blockedNow && task.status !== "done" && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           This task is blocked by unfinished dependencies.
         </Alert>
@@ -387,7 +474,11 @@ export default function TaskDetail() {
           Resource
         </Typography>
         <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={2}
+            alignItems="center"
+          >
             <TextField
               select
               label="Assigned resource"
@@ -409,7 +500,7 @@ export default function TaskDetail() {
               onClick={handleSaveResource}
               disabled={savingResource}
             >
-              {savingResource ? 'Saving...' : 'Save'}
+              {savingResource ? "Saving..." : "Save"}
             </Button>
           </Stack>
           <TextField
@@ -421,8 +512,33 @@ export default function TaskDetail() {
         </Stack>
       </Paper>
 
+      <Paper sx={{ p: 2.5, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Reminders
+        </Typography>
+        <Divider sx={{ mb: 2 }} />
+        <Stack spacing={1}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={task.reminderEnabled}
+                onChange={(event) =>
+                  handleToggleTaskReminder(event.target.checked)
+                }
+                disabled={actionLoading}
+              />
+            }
+            label="Show task reminders in calendar"
+          />
+          <Typography variant="body2" color="text.secondary">
+            Reminders are calendar-only placeholders and do not create
+            appointments.
+          </Typography>
+        </Stack>
+      </Paper>
+
       <Stack direction="row" spacing={2} mb={3}>
-        {task.status === 'planned' && (
+        {task.status === "planned" && (
           <Button
             variant="contained"
             onClick={handleStartTask}
@@ -431,7 +547,7 @@ export default function TaskDetail() {
             Start Task
           </Button>
         )}
-        {task.status === 'in_progress' && (
+        {task.status === "in_progress" && (
           <Button
             variant="contained"
             onClick={handleMarkDone}
@@ -440,7 +556,7 @@ export default function TaskDetail() {
             Mark Done
           </Button>
         )}
-        {task.status !== 'planned' && (
+        {task.status !== "planned" && (
           <Button
             variant="outlined"
             onClick={() => setResetDialogOpen(true)}
@@ -465,28 +581,33 @@ export default function TaskDetail() {
                 key={dep.id}
                 sx={{
                   p: 1.5,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   gap: 2,
                 }}
               >
                 <Box>
                   <Typography variant="subtitle2">
-                    {dependencyMap.get(dep.dependsOnTaskId)?.title || 'Unknown task'}
+                    {dependencyMap.get(dep.dependsOnTaskId)?.title ||
+                      "Unknown task"}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {dependencyLabel(dep.dependencyType)}
                   </Typography>
                 </Box>
-                <Button variant="outlined" size="small" onClick={() => handleRemoveDependency(dep.id)}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleRemoveDependency(dep.id)}
+                >
                   Remove
                 </Button>
               </Paper>
             ))}
           </Stack>
         )}
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+        <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <TextField
             select
             label="Depends on"
@@ -504,7 +625,9 @@ export default function TaskDetail() {
             select
             label="Dependency type"
             value={dependencyType}
-            onChange={(event) => setDependencyType(event.target.value as DependencyType)}
+            onChange={(event) =>
+              setDependencyType(event.target.value as DependencyType)
+            }
             fullWidth
           >
             {dependencyOptions.map((value) => (
@@ -538,35 +661,60 @@ export default function TaskDetail() {
                 key={slot.id}
                 sx={{
                   p: 1.5,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
                   gap: 2,
                 }}
               >
                 <Box>
                   <Typography variant="subtitle2">
                     {slot.isAllDay
-                      ? format(new Date(slot.startTime), 'MMM d, yyyy')
-                      : `${format(new Date(slot.startTime), 'MMM d, yyyy h:mm a')} - ${format(new Date(slot.endTime), 'MMM d, yyyy h:mm a')}`}
+                      ? format(new Date(slot.startTime), "MMM d, yyyy")
+                      : `${format(new Date(slot.startTime), "MMM d, yyyy h:mm a")} - ${format(new Date(slot.endTime), "MMM d, yyyy h:mm a")}`}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {slot.isAllDay
-                      ? `All day${task?.durationMinutes ? ` | ${formatDuration(task.durationMinutes)}` : ''}`
+                      ? `All day${task?.durationMinutes ? ` | ${formatDuration(task.durationMinutes)}` : ""}`
                       : slot.isFixed
-                        ? 'Fixed'
-                        : 'Flexible'}
+                        ? "Fixed"
+                        : "Flexible"}
                   </Typography>
                 </Box>
-                <Button variant="outlined" size="small" onClick={() => handleRemoveSlot(slot.id)}>
-                  Remove
-                </Button>
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={slot.reminderEnabled}
+                        onChange={(event) =>
+                          handleToggleSlotReminder(
+                            slot.id,
+                            event.target.checked,
+                          )
+                        }
+                        disabled={actionLoading}
+                      />
+                    }
+                    label="Reminder"
+                  />
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => handleRemoveSlot(slot.id)}
+                  >
+                    Remove
+                  </Button>
+                </Stack>
               </Paper>
             ))}
           </Stack>
         )}
         <LocalizationProvider dateAdapter={AdapterDateFns}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+          <Stack
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems="center"
+          >
             {slotAllDay ? (
               <DatePicker
                 label="Day"
@@ -591,7 +739,7 @@ export default function TaskDetail() {
               </>
             )}
             <Button
-              variant={slotAllDay ? 'contained' : 'outlined'}
+              variant={slotAllDay ? "contained" : "outlined"}
               onClick={() => {
                 setSlotAllDay((prev) => {
                   const next = !prev;
@@ -618,6 +766,17 @@ export default function TaskDetail() {
               }
               label="Fixed"
             />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={slotReminderEnabled}
+                  onChange={(event) =>
+                    setSlotReminderEnabled(event.target.checked)
+                  }
+                />
+              }
+              label="Reminder"
+            />
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -635,14 +794,18 @@ export default function TaskDetail() {
           Shift Schedule
         </Typography>
         <Divider sx={{ mb: 2 }} />
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          alignItems="center"
+        >
           <TextField
             label="Shift by (days)"
             type="number"
             value={shiftDays}
             onChange={(event) => {
               const value = event.target.value;
-              setShiftDays(value === '' ? '' : Number(value));
+              setShiftDays(value === "" ? "" : Number(value));
             }}
             helperText="Use negative numbers to move earlier"
             fullWidth
@@ -675,7 +838,7 @@ export default function TaskDetail() {
           <Button
             variant="contained"
             onClick={handleShiftSchedule}
-            disabled={shiftDays === '' || actionLoading}
+            disabled={shiftDays === "" || actionLoading}
           >
             Shift Schedule
           </Button>
@@ -686,20 +849,26 @@ export default function TaskDetail() {
         <DialogTitle>Change task status?</DialogTitle>
         <DialogContent>
           <Typography>
-            This task is already {task.status.replace('_', ' ')}. Do you want to reset it to
-            Not Started?
+            This task is already {task.status.replace("_", " ")}. Do you want to
+            reset it to Not Started?
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setResetDialogOpen(false)} disabled={resettingStatus}>
+          <Button
+            onClick={() => setResetDialogOpen(false)}
+            disabled={resettingStatus}
+          >
             Cancel
           </Button>
-          <Button onClick={handleConfirmReset} variant="contained" disabled={resettingStatus}>
-            {resettingStatus ? 'Updating...' : 'Set to Not Started'}
+          <Button
+            onClick={handleConfirmReset}
+            variant="contained"
+            disabled={resettingStatus}
+          >
+            {resettingStatus ? "Updating..." : "Set to Not Started"}
           </Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
 }
-

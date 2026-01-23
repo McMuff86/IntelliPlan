@@ -6,8 +6,8 @@ import type {
   TaskDependency,
   TaskWorkSlot,
   TaskWorkSlotCalendar,
-} from '../types';
-import api from './api';
+} from "../types";
+import api from "./api";
 
 interface ApiResponse<T> {
   success: boolean;
@@ -16,12 +16,17 @@ interface ApiResponse<T> {
 
 export const taskService = {
   async createInProject(projectId: string, data: CreateTaskDTO): Promise<Task> {
-    const response = await api.post<ApiResponse<Task>>(`/projects/${projectId}/tasks`, data);
+    const response = await api.post<ApiResponse<Task>>(
+      `/projects/${projectId}/tasks`,
+      data,
+    );
     return response.data.data;
   },
 
   async getByProject(projectId: string): Promise<Task[]> {
-    const response = await api.get<ApiResponse<Task[]>>(`/projects/${projectId}/tasks`);
+    const response = await api.get<ApiResponse<Task[]>>(
+      `/projects/${projectId}/tasks`,
+    );
     return response.data.data;
   },
 
@@ -40,12 +45,20 @@ export const taskService = {
   },
 
   async listDependencies(taskId: string): Promise<TaskDependency[]> {
-    const response = await api.get<ApiResponse<TaskDependency[]>>(`/tasks/${taskId}/dependencies`);
+    const response = await api.get<ApiResponse<TaskDependency[]>>(
+      `/tasks/${taskId}/dependencies`,
+    );
     return response.data.data;
   },
 
-  async createDependency(taskId: string, data: CreateDependencyDTO): Promise<TaskDependency> {
-    const response = await api.post<ApiResponse<TaskDependency>>(`/tasks/${taskId}/dependencies`, data);
+  async createDependency(
+    taskId: string,
+    data: CreateDependencyDTO,
+  ): Promise<TaskDependency> {
+    const response = await api.post<ApiResponse<TaskDependency>>(
+      `/tasks/${taskId}/dependencies`,
+      data,
+    );
     return response.data.data;
   },
 
@@ -54,12 +67,20 @@ export const taskService = {
   },
 
   async listWorkSlots(taskId: string): Promise<TaskWorkSlot[]> {
-    const response = await api.get<ApiResponse<TaskWorkSlot[]>>(`/tasks/${taskId}/work-slots`);
+    const response = await api.get<ApiResponse<TaskWorkSlot[]>>(
+      `/tasks/${taskId}/work-slots`,
+    );
     return response.data.data;
   },
 
-  async createWorkSlot(taskId: string, data: CreateWorkSlotDTO): Promise<TaskWorkSlot> {
-    const response = await api.post<ApiResponse<TaskWorkSlot>>(`/tasks/${taskId}/work-slots`, data);
+  async createWorkSlot(
+    taskId: string,
+    data: CreateWorkSlotDTO,
+  ): Promise<TaskWorkSlot> {
+    const response = await api.post<ApiResponse<TaskWorkSlot>>(
+      `/tasks/${taskId}/work-slots`,
+      data,
+    );
     return response.data.data;
   },
 
@@ -67,18 +88,41 @@ export const taskService = {
     await api.delete(`/tasks/${taskId}/work-slots/${slotId}`);
   },
 
+  async updateWorkSlotReminder(
+    taskId: string,
+    slotId: string,
+    reminderEnabled: boolean,
+  ): Promise<TaskWorkSlot> {
+    const response = await api.put<ApiResponse<TaskWorkSlot>>(
+      `/tasks/${taskId}/work-slots/${slotId}/reminder`,
+      {
+        reminderEnabled,
+      },
+    );
+    return response.data.data;
+  },
+
   async shiftSchedule(
     taskId: string,
-    data: { deltaDays: number; cascade?: boolean; shiftBlock?: boolean }
-  ): Promise<{ shiftedTaskIds: string[]; deltaDays: number; shiftedTasks?: { taskId: string; deltaDays: number }[] }> {
+    data: { deltaDays: number; cascade?: boolean; shiftBlock?: boolean },
+  ): Promise<{
+    shiftedTaskIds: string[];
+    deltaDays: number;
+    shiftedTasks?: { taskId: string; deltaDays: number }[];
+  }> {
     const response = await api.post<
-      ApiResponse<{ shiftedTaskIds: string[]; deltaDays: number; shiftedTasks?: { taskId: string; deltaDays: number }[] }>
+      ApiResponse<{
+        shiftedTaskIds: string[];
+        deltaDays: number;
+        shiftedTasks?: { taskId: string; deltaDays: number }[];
+      }>
     >(`/tasks/${taskId}/shift`, data);
     return response.data.data;
   },
 
   async getWorkSlotsForCalendar(): Promise<TaskWorkSlotCalendar[]> {
-    const response = await api.get<ApiResponse<TaskWorkSlotCalendar[]>>('/tasks/work-slots');
+    const response =
+      await api.get<ApiResponse<TaskWorkSlotCalendar[]>>("/tasks/work-slots");
     return response.data.data;
   },
 };
