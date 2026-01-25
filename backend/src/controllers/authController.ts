@@ -5,9 +5,11 @@ import {
   getUserByEmail,
   getUserByEmailVerificationToken,
   getUserByPasswordResetToken,
+  getUserById,
   markUserEmailVerified,
   setPasswordResetToken,
   updateUserPassword,
+  updateUserProfile,
 } from '../services/userService';
 import { generateToken, hashPassword, hashToken, signToken, verifyPassword } from '../services/authService';
 import { sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService';
@@ -178,6 +180,63 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
     const passwordHash = await hashPassword(password);
     await updateUserPassword(user.id, passwordHash);
     res.status(200).json({ success: true, data: { message: 'Password updated' } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const user = await getUserById(userId);
+    if (!user) {
+      res.status(404).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: toUserResponse(user) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    // In MVP: no token blacklist, just acknowledge the logout
+    // Future enhancement: add audit logging here
+    res.status(200).json({ success: true, data: { message: 'Logged out successfully' } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateProfile(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = (req as any).userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { name, timezone } = req.body;
+    const updateData: { name?: string; timezone?: string } = {};
+
+    if (name !== undefined) updateData.name = name;
+    if (timezone !== undefined) updateData.timezone = timezone;
+
+    const user = await updateUserProfile(userId, updateData);
+    res.status(200).json({ success: true, data: toUserResponse(user) });
   } catch (error) {
     next(error);
   }

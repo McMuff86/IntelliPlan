@@ -40,4 +40,18 @@ export const authService = {
     });
     return response.data.data;
   },
+
+  async getCurrentUser(): Promise<User> {
+    const response = await api.get<ApiResponse<User>>('/auth/me');
+    return response.data.data;
+  },
+
+  async logout(): Promise<void> {
+    await api.post('/auth/logout');
+  },
+
+  async updateProfile(payload: { name?: string; timezone?: string }): Promise<User> {
+    const response = await api.put<ApiResponse<User>>('/auth/profile', payload);
+    return response.data.data;
+  },
 };

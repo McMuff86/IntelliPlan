@@ -17,6 +17,7 @@ import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { authService } from '../services/authService';
 import { useTimezone } from '../hooks/useTimezone';
+import { useAuth } from '../contexts/AuthContext';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 type AuthMode = 'login' | 'register' | 'reset-request' | 'reset-confirm';
@@ -25,6 +26,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { timezone, availableTimezones } = useTimezone();
+  const { login: contextLogin, setUser, setToken } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -80,9 +82,8 @@ export default function Auth() {
           timezone: selectedTimezone,
         });
         if (response.token) {
-          localStorage.setItem('token', response.token);
-          localStorage.setItem('userId', response.user.id);
-          window.dispatchEvent(new Event('auth-change'));
+          setToken(response.token);
+          setUser(response.user);
           navigate('/');
           return;
         }
@@ -93,10 +94,7 @@ export default function Auth() {
         return;
       }
       if (mode === 'login') {
-        const response = await authService.login(email.trim(), password);
-        localStorage.setItem('token', response.token);
-        localStorage.setItem('userId', response.user.id);
-        window.dispatchEvent(new Event('auth-change'));
+        await contextLogin(email.trim(), password);
         navigate('/');
         return;
       }

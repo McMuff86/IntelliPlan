@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { NavLink, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
@@ -27,6 +27,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp';
 import { useLayoutPreference } from '../../hooks/useLayoutPreference';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface LayoutProps {
   children: ReactNode;
@@ -50,7 +51,7 @@ const Layout = ({ children }: LayoutProps) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(Boolean(localStorage.getItem('token')));
+  const { isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const { layout } = useLayoutPreference();
   const containerWidth = layout === 'wide' ? 'xl' : 'lg';
@@ -69,28 +70,9 @@ const Layout = ({ children }: LayoutProps) => {
     navigate('/');
   };
 
-  useEffect(() => {
-    const handleStorage = () => {
-      setIsAuthenticated(Boolean(localStorage.getItem('token')));
-    };
-    const handleAuthChange = () => {
-      setIsAuthenticated(Boolean(localStorage.getItem('token')));
-    };
-    window.addEventListener('storage', handleStorage);
-    window.addEventListener('auth-change', handleAuthChange);
-    return () => {
-      window.removeEventListener('storage', handleStorage);
-      window.removeEventListener('auth-change', handleAuthChange);
-    };
-  }, []);
-
-  const handleAuthClick = () => {
+  const handleAuthClick = async () => {
     if (isAuthenticated) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('userId');
-      setIsAuthenticated(false);
-      window.dispatchEvent(new Event('auth-change'));
-      navigate('/');
+      await logout();
     } else {
       navigate('/auth');
     }

@@ -53,3 +53,16 @@ export const resetPasswordValidator: ValidationChain[] = [
     .isLength({ min: 8 })
     .withMessage('password must be at least 8 characters'),
 ];
+
+export const updateProfileValidator: ValidationChain[] = [
+  body('name')
+    .optional()
+    .trim()
+    .isLength({ max: 255 })
+    .withMessage('name must be less than 255 characters'),
+  body('timezone')
+    .optional()
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage('timezone must be less than 100 characters'),
+];

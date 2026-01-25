@@ -131,3 +131,34 @@ export async function getUserTeamId(userId: string): Promise<string | null> {
 
   return result.rows[0]?.team_id || null;
 }
+
+export async function updateUserProfile(
+  userId: string,
+  data: { name?: string; timezone?: string }
+): Promise<User> {
+  const updates: string[] = [];
+  const values: (string | Date)[] = [];
+  let paramIndex = 1;
+
+  if (data.name !== undefined) {
+    updates.push(`name = $${paramIndex++}`);
+    values.push(data.name);
+  }
+
+  if (data.timezone !== undefined) {
+    updates.push(`timezone = $${paramIndex++}`);
+    values.push(data.timezone);
+  }
+
+  updates.push(`updated_at = $${paramIndex++}`);
+  values.push(new Date());
+
+  values.push(userId);
+
+  const result = await pool.query<User>(
+    `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
+    values
+  );
+
+  return result.rows[0];
+}
