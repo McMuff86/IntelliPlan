@@ -888,3 +888,23 @@ Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
 - Document test setup requirements clearly in comments
 - Code review feedback is valuable for production readiness
 ---
+
+## OPEN TASK: Datenbank-Daten vom Home-PC zum Work-PC übertragen
+
+**Status:** Offen - Aktion erforderlich auf Home-PC
+
+**Auf Home-PC ausführen:**
+```bash
+docker exec intelliplan-postgres pg_dump -U postgres intelliplan > intelliplan_backup.sql
+```
+
+**Datei übertragen** (USB, Cloud, Git ignoriert, etc.)
+
+**Auf Work-PC ausführen:**
+```bash
+docker exec -i intelliplan-postgres psql -U postgres intelliplan < intelliplan_backup.sql
+```
+
+**Hinweis:** Die .sql Datei enthält alle Projekte, Tasks, Termine und User-Daten. Nach dem Import sind alle Testdaten vom Home-PC verfügbar.
+
+---
