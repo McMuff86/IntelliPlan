@@ -4,12 +4,15 @@ import * as taskController from '../controllers/taskController';
 import { loadUser, requireUserId } from '../middleware/roleMiddleware';
 import { createProjectValidator, shiftProjectValidator, updateProjectValidator } from '../validators/projectValidator';
 import { createTaskValidator } from '../validators/taskValidator';
+import { searchProjectsValidator } from '../validators/searchValidator';
+import { searchProjectsHandler } from '../controllers/searchController';
 
 const router = Router();
 
 router.use(requireUserId);
 router.use(loadUser);
 
+router.get('/search', searchProjectsValidator, searchProjectsHandler);
 router.get('/', projectController.list);
 router.post('/', createProjectValidator, projectController.create);
 router.get('/:id', projectController.getById);

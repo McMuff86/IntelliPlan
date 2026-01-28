@@ -393,19 +393,32 @@ cd backend
 TEST_USER_ID=<your-uuid> node test_ai_conflict.js
 ```
 
-### Unit Tests (geplant)
+### Unit Tests
 
 ```bash
-npm test                # Alle Tests
-npm test -- --watch     # Watch Mode
-npm test -- --coverage  # Coverage Report
+cd backend
+npm test                # Alle Tests (Vitest)
+npm run test:watch      # Watch Mode
+npm run test:coverage   # Coverage Report
 ```
 
-### Integration Tests (geplant)
+**Test-Dateien:**
+- `src/services/__tests__/authService.test.ts` — bcrypt, JWT, token blacklist
+- `src/services/__tests__/aiConflictService.test.ts` — AI-Strategien, Conflict Patterns
+- `src/services/__tests__/appointmentService.test.ts` — CRUD, Overlap, Pagination
+- `src/services/__tests__/taskService.test.ts` — Tasks, Dependencies, Scheduling
+- `src/validators/__tests__/appointmentValidator.test.ts` — Input Validation
+
+**Vitest Config:** `backend/vitest.config.ts` (setzt `JWT_SECRET` für Test-Isolation)
+
+### Integration Tests
 
 ```bash
-npm run test:integration
+cd backend
+npm test                # Läuft auch Integration Tests mit
 ```
+
+- `src/routes/__tests__/auth.integration.test.ts` — Auth Endpoints via Supertest
 
 ## 🐛 Debugging
 

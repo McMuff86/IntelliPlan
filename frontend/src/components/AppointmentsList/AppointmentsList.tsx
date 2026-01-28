@@ -17,13 +17,22 @@ import { Delete as DeleteIcon, Visibility as ViewIcon } from '@mui/icons-materia
 import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../../services/appointmentService';
+import { searchService } from '../../services/searchService';
 import axios from 'axios';
 import type { Appointment } from '../../types';
 import { useTimezone } from '../../hooks/useTimezone';
 import EmptyState from '../EmptyState';
 import ConfirmDialog from '../ConfirmDialog';
 
-export default function AppointmentsList() {
+interface AppointmentsListProps {
+  searchFilters?: {
+    q?: string;
+    from?: string;
+    to?: string;
+  };
+}
+
+export default function AppointmentsList({ searchFilters }: AppointmentsListProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { timezone: preferredTimezone } = useTimezone();
@@ -55,16 +64,30 @@ export default function AppointmentsList() {
     return null;
   };
 
+  const hasSearchFilters = searchFilters && (searchFilters.q || searchFilters.from || searchFilters.to);
+
   const fetchAppointments = async () => {
     try {
       setLoading(true);
       setError(null);
-      const rangeParams = getRangeParams();
-      const response = await appointmentService.getAll(rangeParams || undefined);
-      const sorted = [...response.appointments].sort(
-        (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
-      );
-      setAppointments(sorted);
+
+      if (hasSearchFilters) {
+        // Use search API when filters are active
+        const result = await searchService.searchAppointments({
+          q: searchFilters.q,
+          from: searchFilters.from,
+          to: searchFilters.to,
+          limit: 100,
+        });
+        setAppointments(result.appointments);
+      } else {
+        const rangeParams = getRangeParams();
+        const response = await appointmentService.getAll(rangeParams || undefined);
+        const sorted = [...response.appointments].sort(
+          (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+        );
+        setAppointments(sorted);
+      }
     } catch (err) {
       if (axios.isAxiosError(err)) {
         const data = err.response?.data as { error?: string | { message?: string } } | undefined;
@@ -81,7 +104,7 @@ export default function AppointmentsList() {
 
   useEffect(() => {
     fetchAppointments();
-  }, [range]);
+  }, [range, searchFilters?.q, searchFilters?.from, searchFilters?.to]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleViewClick = (id: string) => {
     navigate(`/appointments/${id}`);

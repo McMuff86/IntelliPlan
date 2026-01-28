@@ -242,3 +242,40 @@ export interface CreateResourceDTO {
   isActive?: boolean;
   availabilityEnabled?: boolean;
 }
+
+// Search types
+export interface PaginatedSearchResult<T> {
+  total: number;
+  page: number;
+  totalPages: number;
+  items: T[];
+}
+
+export interface SearchAppointmentsParams {
+  q?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface SearchProjectsParams {
+  q?: string;
+  status?: 'active' | 'completed' | 'archived';
+  page?: number;
+  limit?: number;
+}
+
+export interface SearchTasksParams {
+  q?: string;
+  projectId?: string;
+  status?: 'planned' | 'in_progress' | 'blocked' | 'done';
+  page?: number;
+  limit?: number;
+}
+
+export interface GlobalSearchResult {
+  appointments: Appointment[];
+  projects: Project[];
+  tasks: Task[];
+}
