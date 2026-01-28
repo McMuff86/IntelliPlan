@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { pool } from '../config/database';
 import appointmentsRouter from './appointments';
 import authRouter from './auth';
 import projectsRouter from './projects';
@@ -7,11 +8,27 @@ import resourcesRouter from './resources';
 
 const router = Router();
 
-router.get('/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'IntelliPlan API is running',
+router.get('/health', async (_req, res) => {
+  const checks: Record<string, { status: string; latencyMs?: number; error?: string }> = {};
+
+  // Database check
+  const dbStart = Date.now();
+  try {
+    await pool.query('SELECT 1');
+    checks.database = { status: 'ok', latencyMs: Date.now() - dbStart };
+  } catch (err) {
+    checks.database = { status: 'error', latencyMs: Date.now() - dbStart, error: (err as Error).message };
+  }
+
+  const allHealthy = Object.values(checks).every(c => c.status === 'ok');
+
+  res.status(allHealthy ? 200 : 503).json({
+    success: allHealthy,
+    status: allHealthy ? 'healthy' : 'degraded',
+    version: process.env.npm_package_version || '0.0.0',
+    uptime: Math.floor(process.uptime()),
     timestamp: new Date().toISOString(),
+    checks,
   });
 });
 
