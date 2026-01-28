@@ -1,4 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
+
+// Must set JWT_SECRET before importing authService (it checks on load)
+process.env.JWT_SECRET = 'test-secret-for-vitest-unit-tests';
+
 import {
   hashPassword,
   verifyPassword,
