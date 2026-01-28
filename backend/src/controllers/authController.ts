@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
+import logger from '../config/logger';
 import {
   createUser,
   getUserByEmail,
@@ -11,7 +12,7 @@ import {
   updateUserPassword,
   updateUserProfile,
 } from '../services/userService';
-import { blacklistToken, generateToken, hashPassword, hashToken, signToken, verifyPassword } from '../services/authService';
+import { blacklistToken, generateToken, hashPassword, hashToken, isTokenBlacklisted, signToken, verifyPassword, verifyToken } from '../services/authService';
 import { sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService';
 import { toUserResponse } from '../models/user';
 
@@ -57,7 +58,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
       });
 
       if (!emailSent) {
-        console.log(`Verify email: ${verificationLink}`);
+        logger.info({ verificationLink }, 'Email sending unavailable, verification link logged');
       }
     }
 
@@ -152,7 +153,7 @@ export async function requestPasswordReset(req: Request, res: Response, next: Ne
       });
 
       if (!emailSent) {
-        console.log(`Password reset: ${resetLink}`);
+        logger.info({ resetLink }, 'Email sending unavailable, password reset link logged');
       }
     }
 
@@ -213,6 +214,48 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
     }
 
     res.status(200).json({ success: true, data: { message: 'Logged out successfully' } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ success: false, error: 'No token provided' });
+      return;
+    }
+
+    const token = authHeader.slice(7).trim();
+    if (isTokenBlacklisted(token)) {
+      res.status(401).json({ success: false, error: 'Token is blacklisted' });
+      return;
+    }
+
+    const userId = verifyToken(token);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Invalid or expired token' });
+      return;
+    }
+
+    const user = await getUserById(userId);
+    if (!user) {
+      res.status(401).json({ success: false, error: 'User not found' });
+      return;
+    }
+
+    // Blacklist the old token and issue a new one
+    blacklistToken(token);
+    const newToken = signToken(userId);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        token: newToken,
+        user: toUserResponse(user),
+      },
+    });
   } catch (error) {
     next(error);
   }

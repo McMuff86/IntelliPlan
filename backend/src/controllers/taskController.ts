@@ -101,8 +101,22 @@ export async function listByProject(
       return;
     }
 
-    const tasks = await listTasksByProject(projectId, userId);
-    res.status(200).json({ success: true, data: tasks.map(toTaskResponse) });
+    const { limit, offset } = req.query;
+    const result = await listTasksByProject({
+      projectId,
+      ownerId: userId,
+      limit: limit ? parseInt(limit as string, 10) : undefined,
+      offset: offset ? parseInt(offset as string, 10) : undefined,
+    });
+    res.status(200).json({
+      success: true,
+      data: result.data.map(toTaskResponse),
+      pagination: {
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset,
+      },
+    });
   } catch (error) {
     next(error);
   }

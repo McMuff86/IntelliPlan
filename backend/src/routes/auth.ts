@@ -18,6 +18,7 @@ router.post('/login', authLimiter, loginValidator, authController.login);
 router.post('/verify', verifyEmailValidator, authController.verifyEmail);
 router.post('/password-reset', authLimiter, requestPasswordResetValidator, authController.requestPasswordReset);
 router.post('/password-reset/confirm', authLimiter, resetPasswordValidator, authController.resetPassword);
+router.post('/refresh', authLimiter, authController.refresh);
 router.get('/me', requireUserId, authController.getCurrentUser);
 router.post('/logout', requireUserId, authController.logout);
 router.put('/profile', requireUserId, updateProfileValidator, authController.updateProfile);

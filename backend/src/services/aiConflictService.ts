@@ -9,6 +9,7 @@
 import { Appointment } from '../models/appointment';
 import { pool } from '../config/database';
 import { join } from 'path';
+import logger from '../config/logger';
 
 export interface ConflictSuggestion {
   type: 'reschedule' | 'split' | 'shorten' | 'swap' | 'move_earlier';
@@ -432,7 +433,7 @@ async function logConflictLearning(data: {
     await writeFile(learningsFile, JSON.stringify(learnings, null, 2));
   } catch {
     // Silently fail - logging is not critical
-    console.warn('Failed to log conflict learning');
+    logger.warn('Failed to log conflict learning');
   }
 }
 

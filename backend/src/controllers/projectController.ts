@@ -103,10 +103,20 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       return;
     }
 
-    const projects = await listProjects(userId);
+    const { limit, offset } = req.query;
+    const result = await listProjects({
+      ownerId: userId,
+      limit: limit ? parseInt(limit as string, 10) : undefined,
+      offset: offset ? parseInt(offset as string, 10) : undefined,
+    });
     res.status(200).json({
       success: true,
-      data: projects.map(toProjectResponse),
+      data: result.data.map(toProjectResponse),
+      pagination: {
+        total: result.total,
+        limit: result.limit,
+        offset: result.offset,
+      },
     });
   } catch (error) {
     next(error);
