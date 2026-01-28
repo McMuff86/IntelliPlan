@@ -17,6 +17,10 @@ import {
   ListItemText,
   useMediaQuery,
   useTheme,
+  Avatar,
+  Menu,
+  MenuItem,
+  Divider,
 } from '@mui/material';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -24,6 +28,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import EventIcon from '@mui/icons-material/Event';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SettingsIcon from '@mui/icons-material/Settings';
+import LogoutIcon from '@mui/icons-material/Logout';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp';
 import GlobalSearchBar from '../GlobalSearchBar';
@@ -52,9 +57,10 @@ const Layout = ({ children }: LayoutProps) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [shortcutsHelpOpen, setShortcutsHelpOpen] = useState(false);
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, user } = useAuth();
   const navigate = useNavigate();
   const { layout } = useLayoutPreference();
+  const [avatarMenuAnchor, setAvatarMenuAnchor] = useState<null | HTMLElement>(null);
   const containerWidth = layout === 'wide' ? 'xl' : 'lg';
 
   useHotkeys([
@@ -108,7 +114,7 @@ const Layout = ({ children }: LayoutProps) => {
         <ListItem disablePadding>
           <ListItemButton onClick={handleAuthClick}>
             <ListItemIcon>
-              <SettingsIcon />
+              <LogoutIcon />
             </ListItemIcon>
             <ListItemText primary={isAuthenticated ? 'Sign Out' : 'Sign In'} />
           </ListItemButton>
@@ -173,14 +179,71 @@ const Layout = ({ children }: LayoutProps) => {
             )}
             {!isMobile && isAuthenticated && <GlobalSearchBar />}
             {!isMobile && !isAuthenticated && <Box sx={{ flexGrow: 1 }} />}
-            {!isMobile && (
+            {!isMobile && isAuthenticated && (
+              <>
+                <IconButton
+                  onClick={(e) => setAvatarMenuAnchor(e.currentTarget)}
+                  sx={{ ml: 1 }}
+                  aria-label="Account menu"
+                >
+                  <Avatar
+                    sx={{
+                      width: 34,
+                      height: 34,
+                      bgcolor: 'rgba(255,255,255,0.24)',
+                      color: 'inherit',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                    }}
+                  >
+                    {user?.name?.charAt(0).toUpperCase() ?? '?'}
+                  </Avatar>
+                </IconButton>
+                <Menu
+                  anchorEl={avatarMenuAnchor}
+                  open={Boolean(avatarMenuAnchor)}
+                  onClose={() => setAvatarMenuAnchor(null)}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                >
+                  <MenuItem disabled sx={{ opacity: '1 !important' }}>
+                    <Typography variant="body2" fontWeight={600}>
+                      {user?.name}
+                    </Typography>
+                  </MenuItem>
+                  <MenuItem disabled sx={{ opacity: '0.7 !important', mt: -0.5 }}>
+                    <Typography variant="caption">{user?.email}</Typography>
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem
+                    onClick={() => {
+                      setAvatarMenuAnchor(null);
+                      navigate('/settings');
+                    }}
+                  >
+                    <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
+                    Settings
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setAvatarMenuAnchor(null);
+                      handleAuthClick();
+                    }}
+                  >
+                    <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
+                    Sign Out
+                  </MenuItem>
+                </Menu>
+              </>
+            )}
+            {!isMobile && !isAuthenticated && (
               <Button
                 color="inherit"
                 variant="outlined"
                 onClick={handleAuthClick}
                 sx={{ borderColor: 'rgba(255, 255, 255, 0.35)' }}
               >
-                {isAuthenticated ? 'Sign Out' : 'Sign In'}
+                Sign In
               </Button>
             )}
           </Container>
