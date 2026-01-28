@@ -43,7 +43,34 @@ IntelliPlan ist eine moderne Web-Anwendung zur effizienten Planung und Verwaltun
 - **DSGVO-konform**: Datenschutz nach Schweizer/EU-Standards (in Entwicklung)
 - **Verschlüsselung**: Sichere Speicherung sensibler Daten
 
-## 🚀 Quick Start
+## 🐳 Quick Start with Docker
+
+Der schnellste Weg, IntelliPlan lokal zu starten:
+
+```bash
+# Alle Services starten (Postgres, Mailpit, Backend, Frontend)
+docker compose up -d
+
+# App:  http://localhost:5173
+# API:  http://localhost:3000
+# Mail: http://localhost:8025
+```
+
+Nur Infrastruktur (Postgres + Mailpit) ohne Backend/Frontend:
+
+```bash
+docker compose up -d postgres mailpit
+```
+
+```bash
+# Logs anzeigen
+docker compose logs -f
+
+# Alles stoppen
+docker compose down
+```
+
+## 🚀 Quick Start (manuell)
 
 ### Voraussetzungen
 
