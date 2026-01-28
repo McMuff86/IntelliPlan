@@ -1,9 +1,10 @@
-import { useMemo, useCallback, useEffect } from 'react';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import { Box, Typography, Button, ToggleButtonGroup, ToggleButton, CircularProgress } from '@mui/material';
 import { Add as AddIcon, ViewList, CalendarMonth } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import AppointmentsList from '../components/AppointmentsList';
 import CalendarView from '../components/CalendarView';
+import AppointmentFilters from '../components/AppointmentFilters';
 
 type ViewMode = 'list' | 'calendar';
 
@@ -12,6 +13,11 @@ const VIEW_STORAGE_KEY = 'intelliplan-view-preference';
 export default function Appointments() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchFilters, setSearchFilters] = useState<{
+    q?: string;
+    from?: string;
+    to?: string;
+  }>({});
 
   const viewMode = useMemo<ViewMode>(() => {
     if (location.pathname === '/appointments/calendar') return 'calendar';
@@ -36,6 +42,10 @@ export default function Appointments() {
       navigate(targetPath, { replace: true });
     }
   }, [location.pathname, navigate]);
+
+  const handleFiltersChange = useCallback((filters: { q?: string; from?: string; to?: string }) => {
+    setSearchFilters(filters);
+  }, []);
 
   if (location.pathname === '/appointments') {
     return (
@@ -76,8 +86,11 @@ export default function Appointments() {
           </Button>
         </Box>
       </Box>
+      {viewMode === 'list' && (
+        <AppointmentFilters onFiltersChange={handleFiltersChange} />
+      )}
       <Box sx={{ transition: 'opacity 0.2s ease-in-out' }}>
-        {viewMode === 'list' ? <AppointmentsList /> : <CalendarView />}
+        {viewMode === 'list' ? <AppointmentsList searchFilters={searchFilters} /> : <CalendarView />}
       </Box>
     </Box>
   );

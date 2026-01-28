@@ -26,6 +26,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp';
+import GlobalSearchBar from '../GlobalSearchBar';
 import { useLayoutPreference } from '../../hooks/useLayoutPreference';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -148,7 +149,7 @@ const Layout = ({ children }: LayoutProps) => {
               </Typography>
             </Box>
             {!isMobile && (
-              <Box sx={{ display: 'flex', gap: 1, flexGrow: 1 }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
                 {navItems.map((item) => (
                   <Button
                     key={item.path}
@@ -170,6 +171,8 @@ const Layout = ({ children }: LayoutProps) => {
                 ))}
               </Box>
             )}
+            {!isMobile && isAuthenticated && <GlobalSearchBar />}
+            {!isMobile && !isAuthenticated && <Box sx={{ flexGrow: 1 }} />}
             {!isMobile && (
               <Button
                 color="inherit"
