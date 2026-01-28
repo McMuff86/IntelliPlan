@@ -68,9 +68,22 @@ export interface AppointmentFormData {
   timezone: string;
 }
 
+export interface AISuggestion {
+  type: 'reschedule' | 'split' | 'shorten' | 'swap' | 'move_earlier';
+  confidence: number;
+  description: string;
+  proposedTime?: {
+    startTime: string;
+    endTime: string;
+  };
+  reasoning: string;
+}
+
 export interface OverlapConflict {
   hasOverlap: boolean;
   conflicts: Appointment[];
+  aiSuggestions?: AISuggestion[];
+  conflictPattern?: string;
 }
 
 export interface User {

@@ -1,10 +1,5 @@
 import axios from 'axios';
 
-const envUserId = import.meta.env.VITE_USER_ID;
-if (envUserId && !localStorage.getItem('userId')) {
-  localStorage.setItem('userId', envUserId);
-}
-
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3001/api',
   headers: {
@@ -18,10 +13,6 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    const userId = localStorage.getItem('userId') || import.meta.env.VITE_USER_ID;
-    if (userId) {
-      config.headers['x-user-id'] = userId;
-    }
     return config;
   },
   (error) => {
@@ -34,6 +25,11 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      // Redirect to auth page if not already there
+      if (window.location.pathname !== '/auth') {
+        window.location.href = '/auth';
+      }
     }
     return Promise.reject(error);
   }
