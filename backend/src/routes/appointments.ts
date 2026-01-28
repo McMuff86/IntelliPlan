@@ -5,6 +5,8 @@ import {
   reversePlanValidator,
   updateAppointmentValidator,
 } from '../validators/appointmentValidator';
+import { searchAppointmentsValidator } from '../validators/searchValidator';
+import { searchAppointmentsHandler } from '../controllers/searchController';
 import { loadUser, requireUserId } from '../middleware/roleMiddleware';
 
 const router = Router();
@@ -12,6 +14,7 @@ const router = Router();
 router.use(requireUserId);
 router.use(loadUser);
 
+router.get('/search', searchAppointmentsValidator, searchAppointmentsHandler);
 router.get('/', appointmentController.list);
 router.get('/:id', appointmentController.getById);
 router.post('/', createAppointmentValidator, appointmentController.create);

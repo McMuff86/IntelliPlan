@@ -8,12 +8,15 @@ import {
   updateTaskValidator,
   updateWorkSlotReminderValidator,
 } from '../validators/taskValidator';
+import { searchTasksValidator } from '../validators/searchValidator';
+import { searchTasksHandler } from '../controllers/searchController';
 
 const router = Router();
 
 router.use(requireUserId);
 router.use(loadUser);
 
+router.get('/search', searchTasksValidator, searchTasksHandler);
 router.get('/work-slots', taskController.listCalendarWorkSlots);
 router.get('/:id', taskController.getById);
 router.put('/:id', updateTaskValidator, taskController.update);
