@@ -80,7 +80,7 @@ export async function listTasksByProject(
      LEFT JOIN task_dependencies td ON td.task_id = t.id
      LEFT JOIN tasks dep ON td.depends_on_task_id = dep.id
      LEFT JOIN resources r ON t.resource_id = r.id
-     WHERE t.project_id = $1 AND t.owner_id = $2
+     WHERE t.project_id = $1 AND t.owner_id = $2 AND t.deleted_at IS NULL
      GROUP BY t.id, r.name, r.resource_type
      ORDER BY t.created_at DESC`,
     [projectId, ownerId]
@@ -102,7 +102,7 @@ export async function getTaskById(
      LEFT JOIN task_dependencies td ON td.task_id = t.id
      LEFT JOIN tasks dep ON td.depends_on_task_id = dep.id
      LEFT JOIN resources r ON t.resource_id = r.id
-     WHERE t.id = $1 AND t.owner_id = $2
+     WHERE t.id = $1 AND t.owner_id = $2 AND t.deleted_at IS NULL
      GROUP BY t.id, r.name, r.resource_type`,
     [taskId, ownerId]
   );
@@ -169,7 +169,7 @@ export async function updateTask(
 
   const result = await pool.query<Task>(
     `UPDATE tasks SET ${fields.join(', ')}
-     WHERE id = $${paramIndex} AND owner_id = $${paramIndex + 1}
+     WHERE id = $${paramIndex} AND owner_id = $${paramIndex + 1} AND deleted_at IS NULL
      RETURNING *`,
     values
   );
@@ -178,10 +178,10 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query(`DELETE FROM tasks WHERE id = $1 AND owner_id = $2`, [
-    taskId,
-    ownerId,
-  ]);
+  const result = await pool.query(
+    `UPDATE tasks SET deleted_at = NOW() WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
+    [taskId, ownerId]
+  );
 
   return result.rowCount !== null && result.rowCount > 0;
 }
@@ -297,7 +297,7 @@ export async function listWorkSlotsForCalendar(ownerId: string): Promise<TaskWor
      FROM task_work_slots tws
      JOIN tasks t ON tws.task_id = t.id
      JOIN projects p ON t.project_id = p.id
-     WHERE t.owner_id = $1
+     WHERE t.owner_id = $1 AND t.deleted_at IS NULL
      ORDER BY tws.start_time ASC`,
     [ownerId]
   );
@@ -471,7 +471,7 @@ export async function shiftProjectSchedule(
   }
 
   const result = await pool.query<{ id: string }>(
-    `SELECT id FROM tasks WHERE project_id = $1 AND owner_id = $2`,
+    `SELECT id FROM tasks WHERE project_id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
     [projectId, ownerId]
   );
 

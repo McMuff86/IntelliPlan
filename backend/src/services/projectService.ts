@@ -41,7 +41,7 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
 
 export async function listProjects(ownerId: string): Promise<Project[]> {
   const result = await pool.query<Project>(
-    `SELECT * FROM projects WHERE owner_id = $1 ORDER BY created_at DESC`,
+    `SELECT * FROM projects WHERE owner_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`,
     [ownerId]
   );
 
@@ -50,7 +50,7 @@ export async function listProjects(ownerId: string): Promise<Project[]> {
 
 export async function getProjectById(id: string, ownerId: string): Promise<Project | null> {
   const result = await pool.query<Project>(
-    `SELECT * FROM projects WHERE id = $1 AND owner_id = $2`,
+    `SELECT * FROM projects WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
     [id, ownerId]
   );
 
@@ -99,7 +99,7 @@ export async function updateProject(
   values.push(id, ownerId);
 
   const result = await pool.query<Project>(
-    `UPDATE projects SET ${fields.join(', ')} WHERE id = $${paramIndex} AND owner_id = $${paramIndex + 1} RETURNING *`,
+    `UPDATE projects SET ${fields.join(', ')} WHERE id = $${paramIndex} AND owner_id = $${paramIndex + 1} AND deleted_at IS NULL RETURNING *`,
     values
   );
 
@@ -107,10 +107,10 @@ export async function updateProject(
 }
 
 export async function deleteProject(id: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query(`DELETE FROM projects WHERE id = $1 AND owner_id = $2`, [
-    id,
-    ownerId,
-  ]);
+  const result = await pool.query(
+    `UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
+    [id, ownerId]
+  );
 
   return result.rowCount !== null && result.rowCount > 0;
 }
