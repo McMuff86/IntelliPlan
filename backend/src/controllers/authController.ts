@@ -187,13 +187,12 @@ export async function resetPassword(req: Request, res: Response, next: NextFunct
 
 export async function getCurrentUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const userId = (req as any).userId;
-    if (!userId) {
+    if (!req.userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
 
-    const user = await getUserById(userId);
+    const user = await getUserById(req.userId);
     if (!user) {
       res.status(404).json({ success: false, error: 'User not found' });
       return;
@@ -227,8 +226,7 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const userId = (req as any).userId;
-    if (!userId) {
+    if (!req.userId) {
       res.status(401).json({ success: false, error: 'Unauthorized' });
       return;
     }
@@ -239,7 +237,7 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
     if (name !== undefined) updateData.name = name;
     if (timezone !== undefined) updateData.timezone = timezone;
 
-    const user = await updateUserProfile(userId, updateData);
+    const user = await updateUserProfile(req.userId, updateData);
     res.status(200).json({ success: true, data: toUserResponse(user) });
   } catch (error) {
     next(error);
