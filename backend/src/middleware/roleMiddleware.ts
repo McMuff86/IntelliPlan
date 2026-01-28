@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import { getUserById } from '../services/userService';
-import { verifyToken } from '../services/authService';
+import { verifyToken, isTokenBlacklisted } from '../services/authService';
 import type { User } from '../models/user';
 import { UserRole } from '../models/user';
 
@@ -17,6 +17,9 @@ const resolveUserId = (req: Request): string | null => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
+    if (isTokenBlacklisted(token)) {
+      return null;
+    }
     return verifyToken(token);
   }
 
