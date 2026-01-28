@@ -17,15 +17,10 @@ const resolveUserId = (req: Request): string | null => {
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
-    const tokenUserId = verifyToken(token);
-    if (tokenUserId) {
-      return tokenUserId;
-    }
+    return verifyToken(token);
   }
 
-  const userIdHeader = req.headers['x-user-id'];
-  const userId = Array.isArray(userIdHeader) ? userIdHeader[0] : userIdHeader;
-  return userId || null;
+  return null;
 };
 
 export function requireUserId(req: Request, res: Response, next: NextFunction): void {
