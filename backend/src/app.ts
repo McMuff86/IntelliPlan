@@ -4,12 +4,14 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { globalLimiter } from './middleware/rateLimiter';
 
 dotenv.config();
 
 const app: Application = express();
 
 app.use(helmet());
+app.use(globalLimiter);
 
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
