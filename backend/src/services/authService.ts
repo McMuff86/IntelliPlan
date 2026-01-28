@@ -13,6 +13,11 @@ export function isTokenBlacklisted(token: string): boolean {
   return tokenBlacklist.has(token);
 }
 
+/** Clear all blacklisted tokens. Only use in tests. */
+export function clearTokenBlacklist(): void {
+  tokenBlacklist.clear();
+}
+
 if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is not set. Aborting startup.');
 }

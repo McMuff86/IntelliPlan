@@ -35,6 +35,7 @@ vi.mock('../../services/emailService', () => ({
 // ---------------------------------------------------------------------------
 import app from '../../app';
 import { pool } from '../../config/database';
+import { clearTokenBlacklist } from '../../services/authService';
 
 const mockedPool = vi.mocked(pool);
 
@@ -83,6 +84,7 @@ async function loginAndGetToken(): Promise<string> {
 describe('Auth Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    clearTokenBlacklist();
   });
 
   // -----------------------------------------------------------------------
