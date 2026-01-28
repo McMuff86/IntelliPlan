@@ -11,7 +11,7 @@ import {
   updateUserPassword,
   updateUserProfile,
 } from '../services/userService';
-import { generateToken, hashPassword, hashToken, signToken, verifyPassword } from '../services/authService';
+import { blacklistToken, generateToken, hashPassword, hashToken, signToken, verifyPassword } from '../services/authService';
 import { sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService';
 import { toUserResponse } from '../models/user';
 
@@ -207,8 +207,12 @@ export async function getCurrentUser(req: Request, res: Response, next: NextFunc
 
 export async function logout(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // In MVP: no token blacklist, just acknowledge the logout
-    // Future enhancement: add audit logging here
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      blacklistToken(token);
+    }
+
     res.status(200).json({ success: true, data: { message: 'Logged out successfully' } });
   } catch (error) {
     next(error);
