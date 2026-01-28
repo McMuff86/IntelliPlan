@@ -1,5 +1,6 @@
 import { Typography, Box, Grid } from '@mui/material';
 import UpcomingAppointments from '../components/UpcomingAppointments';
+import UpcomingReminders from '../components/UpcomingReminders';
 import QuickActions from '../components/QuickActions';
 import StatsCards from '../components/StatsCards';
 
@@ -35,6 +36,9 @@ const Home = () => {
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <QuickActions />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <UpcomingReminders />
         </Grid>
       </Grid>
     </Box>
