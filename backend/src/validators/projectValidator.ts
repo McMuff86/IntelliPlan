@@ -5,6 +5,7 @@ const templateValues = ['weekday_8_17', 'weekday_8_17_with_weekends', 'custom'];
 export const createProjectValidator: ValidationChain[] = [
   body('name')
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('Name is required')
     .isLength({ max: 255 })
@@ -12,6 +13,7 @@ export const createProjectValidator: ValidationChain[] = [
   body('description')
     .optional()
     .trim()
+    // No .escape() — description may contain markdown
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
   body('includeWeekends').optional().isBoolean().withMessage('includeWeekends must be boolean'),
@@ -33,6 +35,7 @@ export const updateProjectValidator: ValidationChain[] = [
   body('name')
     .optional()
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('Name cannot be empty')
     .isLength({ max: 255 })
@@ -40,6 +43,7 @@ export const updateProjectValidator: ValidationChain[] = [
   body('description')
     .optional()
     .trim()
+    // No .escape() — description may contain markdown
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
   body('includeWeekends').optional().isBoolean().withMessage('includeWeekends must be boolean'),

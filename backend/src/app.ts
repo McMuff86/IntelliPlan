@@ -11,6 +11,11 @@ dotenv.config();
 
 const app: Application = express();
 
+// Security headers via helmet (defaults are appropriate for a REST API):
+// - X-Content-Type-Options: nosniff
+// - X-Frame-Options: SAMEORIGIN
+// - Strict-Transport-Security (HSTS)
+// - Removes X-Powered-By
 app.use(helmet());
 app.use(globalLimiter);
 
@@ -29,8 +34,20 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
+// Support multiple origins via comma-separated CORS_ORIGIN env var
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim());
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g. server-to-server, curl)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 

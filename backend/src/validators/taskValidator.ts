@@ -7,6 +7,7 @@ const dependencyValues = ['finish_start', 'start_start', 'finish_finish'];
 export const createTaskValidator: ValidationChain[] = [
   body('title')
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('Title is required')
     .isLength({ max: 255 })
@@ -14,6 +15,7 @@ export const createTaskValidator: ValidationChain[] = [
   body('description')
     .optional()
     .trim()
+    // No .escape() — description may contain markdown
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
   body('status')
@@ -43,6 +45,7 @@ export const updateTaskValidator: ValidationChain[] = [
   body('title')
     .optional()
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('Title cannot be empty')
     .isLength({ max: 255 })
@@ -50,6 +53,7 @@ export const updateTaskValidator: ValidationChain[] = [
   body('description')
     .optional()
     .trim()
+    // No .escape() — description may contain markdown
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
   body('status')

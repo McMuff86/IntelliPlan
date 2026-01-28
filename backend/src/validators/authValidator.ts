@@ -3,6 +3,7 @@ import { body, ValidationChain } from 'express-validator';
 export const registerValidator: ValidationChain[] = [
   body('name')
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('name is required')
     .isLength({ max: 255 })
@@ -10,7 +11,8 @@ export const registerValidator: ValidationChain[] = [
   body('email')
     .trim()
     .isEmail()
-    .withMessage('email must be a valid email'),
+    .withMessage('email must be a valid email')
+    .normalizeEmail(),
   body('password')
     .isLength({ min: 8 })
     .withMessage('password must be at least 8 characters'),
@@ -25,7 +27,8 @@ export const loginValidator: ValidationChain[] = [
   body('email')
     .trim()
     .isEmail()
-    .withMessage('email must be a valid email'),
+    .withMessage('email must be a valid email')
+    .normalizeEmail(),
   body('password')
     .notEmpty()
     .withMessage('password is required'),
@@ -42,7 +45,8 @@ export const requestPasswordResetValidator: ValidationChain[] = [
   body('email')
     .trim()
     .isEmail()
-    .withMessage('email must be a valid email'),
+    .withMessage('email must be a valid email')
+    .normalizeEmail(),
 ];
 
 export const resetPasswordValidator: ValidationChain[] = [
@@ -58,6 +62,7 @@ export const updateProfileValidator: ValidationChain[] = [
   body('name')
     .optional()
     .trim()
+    .escape()
     .isLength({ max: 255 })
     .withMessage('name must be less than 255 characters'),
   body('timezone')

@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16
@@ -27,6 +25,47 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+
+  backend:
+    build: ./backend
+    container_name: intelliplan-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: intelliplan
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      JWT_SECRET: dev-docker-secret-change-in-production
+      EMAIL_VERIFY_BYPASS: "true"
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      CORS_ORIGIN: http://localhost:5173
+      APP_BASE_URL: http://localhost:5173
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/src:/app/src  # hot reload
+    command: npm run dev
+
+  frontend:
+    build: ./frontend
+    container_name: intelliplan-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3000/api
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src  # hot reload
+    command: npm run dev -- --host 0.0.0.0
 
 volumes:
   intelliplan-postgres-data:
