@@ -3,6 +3,7 @@ import { body, ValidationChain } from 'express-validator';
 export const createAppointmentValidator: ValidationChain[] = [
   body('title')
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('Title is required')
     .isLength({ max: 255 })
@@ -11,6 +12,7 @@ export const createAppointmentValidator: ValidationChain[] = [
   body('description')
     .optional()
     .trim()
+    // No .escape() — description may contain markdown
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
 
@@ -45,6 +47,7 @@ export const updateAppointmentValidator: ValidationChain[] = [
   body('title')
     .optional()
     .trim()
+    .escape()
     .notEmpty()
     .withMessage('Title cannot be empty')
     .isLength({ max: 255 })
@@ -53,6 +56,7 @@ export const updateAppointmentValidator: ValidationChain[] = [
   body('description')
     .optional()
     .trim()
+    // No .escape() — description may contain markdown
     .isLength({ max: 5000 })
     .withMessage('Description must be less than 5000 characters'),
 
@@ -89,6 +93,8 @@ export const reversePlanValidator: ValidationChain[] = [
     .withMessage('endDate must be a valid ISO 8601 date'),
   body('tasks').isArray({ min: 1 }).withMessage('tasks must be a non-empty array'),
   body('tasks.*.title')
+    .trim()
+    .escape()
     .notEmpty()
     .withMessage('task title is required')
     .isLength({ max: 255 })
