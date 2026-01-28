@@ -2,7 +2,11 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import jwt, { type Secret } from 'jsonwebtoken';
 
-const JWT_SECRET: Secret = process.env.JWT_SECRET || 'dev-insecure-secret';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is not set. Aborting startup.');
+}
+
+const JWT_SECRET: Secret = process.env.JWT_SECRET;
 const TOKEN_EXPIRY = process.env.JWT_EXPIRY || '7d';
 
 export function hashPassword(password: string): Promise<string> {
