@@ -5,6 +5,9 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
+    env: {
+      JWT_SECRET: 'test-secret-for-vitest-unit-tests',
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov'],

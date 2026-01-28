@@ -9,23 +9,29 @@ import {
   ListItemText,
   Typography,
   Box,
+  Divider,
 } from '@mui/material';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import type { Appointment } from '../../types';
+import type { Appointment, AISuggestion } from '../../types';
+import AISuggestions from '../AISuggestions';
 
 interface OverlapWarningDialogProps {
   open: boolean;
   conflicts: Appointment[];
+  aiSuggestions?: AISuggestion[];
   onCancel: () => void;
   onConfirm: () => void;
+  onApplySuggestion?: (suggestion: AISuggestion) => void;
   isSubmitting?: boolean;
 }
 
 export default function OverlapWarningDialog({
   open,
   conflicts,
+  aiSuggestions,
   onCancel,
   onConfirm,
+  onApplySuggestion,
   isSubmitting = false,
 }: OverlapWarningDialogProps) {
   return (
@@ -65,8 +71,22 @@ export default function OverlapWarningDialog({
             </ListItem>
           ))}
         </List>
+
+        {aiSuggestions && aiSuggestions.length > 0 && onApplySuggestion && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            <AISuggestions
+              suggestions={aiSuggestions}
+              onApply={onApplySuggestion}
+              disabled={isSubmitting}
+            />
+          </>
+        )}
+
         <Typography variant="body2" sx={{ mt: 2, color: 'text.secondary' }}>
-          Would you like to create this appointment anyway, or go back to modify it?
+          {aiSuggestions && aiSuggestions.length > 0
+            ? 'Apply a suggestion above, create anyway, or go back to modify manually.'
+            : 'Would you like to create this appointment anyway, or go back to modify it?'}
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>

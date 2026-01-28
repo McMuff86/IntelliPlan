@@ -13,7 +13,7 @@ import {
 import { DateTimePicker } from '@mui/x-date-pickers/DateTimePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import type { AppointmentFormData, Appointment, OverlapConflict } from '../../types';
+import type { AppointmentFormData, Appointment, OverlapConflict, AISuggestion } from '../../types';
 import { appointmentService } from '../../services/appointmentService';
 import OverlapWarningDialog from '../OverlapWarningDialog';
 import { formatISO } from 'date-fns';
@@ -43,6 +43,7 @@ export default function AppointmentForm({
     handleSubmit,
     formState: { errors },
     getValues,
+    setValue,
   } = useForm<AppointmentFormData>({
     defaultValues: {
       title: initialData?.title || '',
@@ -85,6 +86,8 @@ export default function AppointmentForm({
         setOverlapConflict({
           hasOverlap: true,
           conflicts: err.response.data.conflicts || [],
+          aiSuggestions: err.response.data.aiSuggestions || [],
+          conflictPattern: err.response.data.conflictPattern,
         });
       } else if (axios.isAxiosError(err)) {
         const data = err.response?.data as
@@ -113,6 +116,16 @@ export default function AppointmentForm({
     submitForm(data, true);
   };
 
+  const handleApplySuggestion = (suggestion: AISuggestion) => {
+    if (suggestion.proposedTime) {
+      const newStart = new Date(suggestion.proposedTime.startTime);
+      const newEnd = new Date(suggestion.proposedTime.endTime);
+      setValue('startDate', newStart);
+      setValue('endDate', newEnd);
+    }
+    setOverlapConflict(null);
+  };
+
   return (
     <LocalizationProvider dateAdapter={AdapterDateFns}>
       <Paper elevation={2} sx={{ p: 3, maxWidth: 600, mx: 'auto' }}>
@@ -129,8 +142,10 @@ export default function AppointmentForm({
         <OverlapWarningDialog
           open={!!overlapConflict}
           conflicts={overlapConflict?.conflicts || []}
+          aiSuggestions={overlapConflict?.aiSuggestions}
           onCancel={() => setOverlapConflict(null)}
           onConfirm={handleForceSubmit}
+          onApplySuggestion={handleApplySuggestion}
           isSubmitting={isSubmitting}
         />
 
