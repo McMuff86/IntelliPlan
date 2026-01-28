@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import * as appointmentController from '../controllers/appointmentController';
+import * as reminderController from '../controllers/reminderController';
 import {
   createAppointmentValidator,
   reversePlanValidator,
@@ -16,6 +17,7 @@ router.use(loadUser);
 
 router.get('/search', searchAppointmentsValidator, searchAppointmentsHandler);
 router.get('/', appointmentController.list);
+router.get('/:id/reminders', reminderController.getForAppointment);
 router.get('/:id', appointmentController.getById);
 router.post('/', createAppointmentValidator, appointmentController.create);
 router.post('/reverse-plan', reversePlanValidator, appointmentController.reversePlan);

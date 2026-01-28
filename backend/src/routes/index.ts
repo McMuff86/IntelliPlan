@@ -5,6 +5,7 @@ import authRouter from './auth';
 import projectsRouter from './projects';
 import tasksRouter from './tasks';
 import resourcesRouter from './resources';
+import remindersRouter from './reminders';
 
 const router = Router();
 
@@ -37,5 +38,6 @@ router.use('/appointments', appointmentsRouter);
 router.use('/projects', projectsRouter);
 router.use('/tasks', tasksRouter);
 router.use('/resources', resourcesRouter);
+router.use('/reminders', remindersRouter);
 
 export default router;
