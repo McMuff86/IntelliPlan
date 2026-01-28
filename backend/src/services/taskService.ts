@@ -67,10 +67,30 @@ type TaskWithBlocked = Task & {
   resource_type?: ResourceType | null;
 };
 
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ListTasksOptions {
+  projectId: string;
+  ownerId: string;
+  limit?: number;
+  offset?: number;
+}
+
 export async function listTasksByProject(
-  projectId: string,
-  ownerId: string
-): Promise<TaskWithBlocked[]> {
+  options: ListTasksOptions
+): Promise<PaginatedResult<TaskWithBlocked>> {
+  const { projectId, ownerId, limit = 50, offset = 0 } = options;
+
+  const countResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM tasks WHERE project_id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
+    [projectId, ownerId]
+  );
+
   const result = await pool.query<TaskWithBlocked>(
     `SELECT t.*,
             r.name AS resource_name,
@@ -82,11 +102,17 @@ export async function listTasksByProject(
      LEFT JOIN resources r ON t.resource_id = r.id
      WHERE t.project_id = $1 AND t.owner_id = $2 AND t.deleted_at IS NULL
      GROUP BY t.id, r.name, r.resource_type
-     ORDER BY t.created_at DESC`,
-    [projectId, ownerId]
+     ORDER BY t.created_at DESC
+     LIMIT $3 OFFSET $4`,
+    [projectId, ownerId, limit, offset]
   );
 
-  return result.rows;
+  return {
+    data: result.rows,
+    total: parseInt(countResult.rows[0].count, 10),
+    limit,
+    offset,
+  };
 }
 
 export async function getTaskById(

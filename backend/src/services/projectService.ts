@@ -39,13 +39,38 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
   return result.rows[0];
 }
 
-export async function listProjects(ownerId: string): Promise<Project[]> {
-  const result = await pool.query<Project>(
-    `SELECT * FROM projects WHERE owner_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC`,
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface ListProjectsOptions {
+  ownerId: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function listProjects(options: ListProjectsOptions): Promise<PaginatedResult<Project>> {
+  const { ownerId, limit = 50, offset = 0 } = options;
+
+  const countResult = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM projects WHERE owner_id = $1 AND deleted_at IS NULL`,
     [ownerId]
   );
 
-  return result.rows;
+  const result = await pool.query<Project>(
+    `SELECT * FROM projects WHERE owner_id = $1 AND deleted_at IS NULL ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
+    [ownerId, limit, offset]
+  );
+
+  return {
+    data: result.rows,
+    total: parseInt(countResult.rows[0].count, 10),
+    limit,
+    offset,
+  };
 }
 
 export async function getProjectById(id: string, ownerId: string): Promise<Project | null> {

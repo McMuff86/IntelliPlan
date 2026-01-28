@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import logger from '../config/logger';
 
 type EmailPayload = {
   to: string;
@@ -62,7 +63,7 @@ export async function sendEmail(payload: EmailPayload): Promise<boolean> {
     });
     return true;
   } catch (error) {
-    console.error('Email send failed:', error);
+    logger.error({ err: error }, 'Email send failed');
     return false;
   }
 }

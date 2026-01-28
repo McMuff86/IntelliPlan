@@ -50,6 +50,11 @@ export const authService = {
     await api.post('/auth/logout');
   },
 
+  async refreshToken(): Promise<AuthResponse> {
+    const response = await api.post<ApiResponse<AuthResponse>>('/auth/refresh');
+    return response.data.data;
+  },
+
   async updateProfile(payload: { name?: string; timezone?: string }): Promise<User> {
     const response = await api.put<ApiResponse<User>>('/auth/profile', payload);
     return response.data.data;

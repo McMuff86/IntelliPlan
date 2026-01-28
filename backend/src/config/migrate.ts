@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { pool } from './database';
+import logger from './logger';
 
 async function runMigrations(): Promise<void> {
   const migrationsDir = path.join(__dirname, '../../migrations');
@@ -25,7 +26,7 @@ async function runMigrations(): Promise<void> {
       );
 
       if (result.rows.length === 0) {
-        console.log(`Running migration: ${file}`);
+        logger.info({ migration: file }, 'Running migration');
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf-8');
         
         await pool.query(sql);
@@ -34,15 +35,15 @@ async function runMigrations(): Promise<void> {
           [file]
         );
         
-        console.log(`Completed: ${file}`);
+        logger.info({ migration: file }, 'Migration completed');
       } else {
-        console.log(`Skipping (already run): ${file}`);
+        logger.debug({ migration: file }, 'Skipping (already run)');
       }
     }
 
-    console.log('All migrations complete');
+    logger.info('All migrations complete');
   } catch (error) {
-    console.error('Migration failed:', error);
+    logger.error({ err: error }, 'Migration failed');
     throw error;
   }
 }

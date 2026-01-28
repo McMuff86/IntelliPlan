@@ -1,5 +1,6 @@
 import { pool } from '../config/database';
 import { hashPassword } from '../services/authService';
+import logger from '../config/logger';
 
 interface SeedOptions {
   email: string;
@@ -31,19 +32,17 @@ async function seedUser(): Promise<void> {
   );
 
   const userId = result.rows[0]?.id;
-  console.log('Seed user ready');
-  console.log(`User ID: ${userId}`);
-  console.log(`Email: ${options.email}`);
-  console.log(`Role: ${options.role}`);
-  console.log(`Timezone: ${options.timezone}`);
-  if (options.password) {
-    console.log(`Password: ${options.password}`);
-  }
+  logger.info({
+    userId,
+    email: options.email,
+    role: options.role,
+    timezone: options.timezone,
+  }, 'Seed user ready');
 }
 
 seedUser()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error('Seed user failed:', error);
+    logger.error({ err: error }, 'Seed user failed');
     process.exit(1);
   });
