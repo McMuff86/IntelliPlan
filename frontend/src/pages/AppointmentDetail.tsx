@@ -10,20 +10,38 @@ import {
   Alert,
   Divider,
   Chip,
+  List,
+  ListItem,
+  ListItemText,
+  IconButton,
+  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
+  NotificationsActive as NotificationsIcon,
+  DoneAll as DismissIcon,
+  DeleteOutline as RemoveIcon,
 } from '@mui/icons-material';
 import { format, parseISO } from 'date-fns';
 import { toZonedTime } from 'date-fns-tz';
 import { appointmentService } from '../services/appointmentService';
+import { reminderService } from '../services/reminderService';
+import type { Reminder } from '../services/reminderService';
 import type { Appointment } from '../types';
 import AppointmentForm from '../components/AppointmentForm';
 import { useTimezone } from '../hooks/useTimezone';
 import Breadcrumbs from '../components/Breadcrumbs';
 import ConfirmDialog from '../components/ConfirmDialog';
+
+const REMINDER_PRESETS = [
+  { label: '5 min', minutes: 5 },
+  { label: '15 min', minutes: 15 },
+  { label: '30 min', minutes: 30 },
+  { label: '1 hour', minutes: 60 },
+  { label: '1 day', minutes: 1440 },
+];
 
 export default function AppointmentDetail() {
   const { id } = useParams<{ id: string }>();
@@ -36,6 +54,9 @@ export default function AppointmentDetail() {
   const [isEditing, setIsEditing] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [remindersLoading, setRemindersLoading] = useState(false);
+  const [addingReminder, setAddingReminder] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -56,6 +77,55 @@ export default function AppointmentDetail() {
 
     fetchAppointment();
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchReminders = async () => {
+      try {
+        setRemindersLoading(true);
+        const data = await reminderService.getForAppointment(id);
+        setReminders(data);
+      } catch (err) {
+        console.error('Failed to load reminders', err);
+      } finally {
+        setRemindersLoading(false);
+      }
+    };
+    fetchReminders();
+  }, [id]);
+
+  const handleAddReminder = async (offsetMinutes: number) => {
+    if (!id) return;
+    try {
+      setAddingReminder(true);
+      const newReminder = await reminderService.create(id, offsetMinutes);
+      setReminders((prev) => [...prev, newReminder]);
+    } catch (err) {
+      console.error('Failed to add reminder', err);
+    } finally {
+      setAddingReminder(false);
+    }
+  };
+
+  const handleDismissReminder = async (reminderId: string) => {
+    try {
+      await reminderService.dismiss(reminderId);
+      setReminders((prev) =>
+        prev.map((r) => (r.id === reminderId ? { ...r, status: 'dismissed' as const } : r))
+      );
+    } catch (err) {
+      console.error('Failed to dismiss reminder', err);
+    }
+  };
+
+  const handleRemoveReminder = async (reminderId: string) => {
+    try {
+      await reminderService.remove(reminderId);
+      setReminders((prev) => prev.filter((r) => r.id !== reminderId));
+    } catch (err) {
+      console.error('Failed to remove reminder', err);
+    }
+  };
 
   const formatDateTime = (isoString: string) => {
     const utcDate = parseISO(isoString);
@@ -246,6 +316,106 @@ export default function AppointmentDetail() {
               </Typography>
             </Box>
           </Box>
+        </Box>
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Reminders Section */}
+        <Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <NotificationsIcon color="primary" />
+            <Typography variant="h6">Reminders</Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+            {REMINDER_PRESETS.map((preset) => (
+              <Chip
+                key={preset.minutes}
+                label={`${preset.label} before`}
+                onClick={() => handleAddReminder(preset.minutes)}
+                variant="outlined"
+                color="primary"
+                disabled={addingReminder}
+                clickable
+              />
+            ))}
+          </Box>
+
+          {remindersLoading ? (
+            <CircularProgress size={24} />
+          ) : reminders.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              No reminders set. Click a preset above to add one.
+            </Typography>
+          ) : (
+            <List disablePadding>
+              {reminders.map((reminder) => (
+                <ListItem
+                  key={reminder.id}
+                  sx={{
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    mb: 1,
+                    px: 2,
+                  }}
+                  secondaryAction={
+                    <Box>
+                      {reminder.status === 'pending' && (
+                        <Tooltip title="Dismiss">
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            onClick={() => handleDismissReminder(reminder.id)}
+                            sx={{ mr: 0.5 }}
+                          >
+                            <DismissIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="Delete">
+                        <IconButton
+                          edge="end"
+                          size="small"
+                          onClick={() => handleRemoveReminder(reminder.id)}
+                        >
+                          <RemoveIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  }
+                >
+                  <ListItemText
+                    primary={
+                      reminder.offsetMinutes != null
+                        ? `${reminder.offsetMinutes >= 1440
+                            ? `${reminder.offsetMinutes / 1440} day(s)`
+                            : reminder.offsetMinutes >= 60
+                              ? `${reminder.offsetMinutes / 60} hour(s)`
+                              : `${reminder.offsetMinutes} min`
+                          } before`
+                        : format(parseISO(reminder.remindAt), 'MMM d, yyyy h:mm a')
+                    }
+                    secondary={
+                      <Chip
+                        label={reminder.status}
+                        size="small"
+                        color={
+                          reminder.status === 'pending'
+                            ? 'info'
+                            : reminder.status === 'sent'
+                              ? 'success'
+                              : 'default'
+                        }
+                        variant="outlined"
+                        sx={{ mt: 0.5 }}
+                      />
+                    }
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </Box>
       </Paper>
 
