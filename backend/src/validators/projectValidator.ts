@@ -29,6 +29,10 @@ export const createProjectValidator: ValidationChain[] = [
     .optional()
     .isIn(templateValues)
     .withMessage(`workTemplate must be one of: ${templateValues.join(', ')}`),
+  body('taskTemplateId')
+    .optional({ values: 'null' })
+    .isUUID()
+    .withMessage('taskTemplateId must be a valid UUID'),
 ];
 
 export const updateProjectValidator: ValidationChain[] = [

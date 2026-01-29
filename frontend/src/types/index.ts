@@ -93,6 +93,7 @@ export interface User {
   role: "admin" | "single" | "team";
   teamId?: string;
   timezone: string;
+  industryId?: string | null;
   emailVerified?: boolean;
   createdAt: string;
 }
@@ -116,6 +117,7 @@ export interface Project {
   workdayStart: string;
   workdayEnd: string;
   workTemplate: string;
+  taskTemplateId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -182,6 +184,7 @@ export interface CreateProjectDTO {
   workdayStart?: string;
   workdayEnd?: string;
   workTemplate?: string;
+  taskTemplateId?: string;
 }
 
 export interface CreateTaskDTO {
@@ -278,4 +281,83 @@ export interface GlobalSearchResult {
   appointments: Appointment[];
   projects: Project[];
   tasks: Task[];
+}
+
+// ─── Industry / Template Types ───
+
+export type TaskCategory =
+  | 'planning'
+  | 'procurement'
+  | 'production'
+  | 'treatment'
+  | 'assembly'
+  | 'delivery'
+  | 'approval'
+  | 'documentation';
+
+export interface IndustrySettings {
+  usePhases: boolean;
+  supportsSubtasks: boolean;
+  terminology: {
+    project: string;
+    task: string;
+    client: string;
+  };
+}
+
+export interface Industry {
+  id: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  settings: IndustrySettings;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductType {
+  id: string;
+  industryId: string;
+  name: string;
+  description: string | null;
+  icon: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TemplateTask {
+  id: string;
+  order: number;
+  code?: string;
+  name: string;
+  description?: string;
+  estimatedDuration?: number;
+  durationUnit: 'hours' | 'days';
+  dependsOn?: string[];
+  category: TaskCategory;
+  isOptional: boolean;
+  defaultAssignee?: string;
+  checklistItems?: string[];
+}
+
+export interface TaskTemplate {
+  id: string;
+  productTypeId: string;
+  name: string;
+  description: string | null;
+  tasks: TemplateTask[];
+  isDefault: boolean;
+  isSystem: boolean;
+  ownerId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTaskTemplateDTO {
+  productTypeId: string;
+  name: string;
+  description?: string;
+  tasks: TemplateTask[];
+  isDefault?: boolean;
 }

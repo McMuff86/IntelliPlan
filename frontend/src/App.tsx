@@ -17,6 +17,8 @@ import ProjectDetail from './pages/ProjectDetail';
 import ProjectTimeline from './pages/ProjectTimeline';
 import TaskDetail from './pages/TaskDetail';
 import WorkingTimeTemplates from './pages/WorkingTimeTemplates';
+import TemplateManagement from './pages/TemplateManagement';
+import Onboarding from './pages/Onboarding';
 import Demo from './pages/Demo';
 
 function App() {
@@ -38,6 +40,7 @@ function App() {
               <Route path="/auth" element={<Auth />} />
               <Route path="/demo" element={<Demo />} />
               <Route element={<ProtectedRoute />}>
+                <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="/" element={<Home />} />
                 <Route path="/appointments" element={<Appointments />} />
                 <Route path="/appointments/list" element={<Appointments />} />
@@ -50,6 +53,7 @@ function App() {
                 <Route path="/tasks/:id" element={<TaskDetail />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/working-times" element={<WorkingTimeTemplates />} />
+                <Route path="/settings/templates" element={<TemplateManagement />} />
                 <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />
               </Route>
             </Routes>

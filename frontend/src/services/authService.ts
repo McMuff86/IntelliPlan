@@ -60,6 +60,11 @@ export const authService = {
     return response.data.data;
   },
 
+  async updateIndustry(industryId: string | null): Promise<User> {
+    const response = await api.put<ApiResponse<User>>('/auth/industry', { industryId });
+    return response.data.data;
+  },
+
   async exportData(): Promise<Record<string, unknown>> {
     const response = await api.get<ApiResponse<Record<string, unknown>>>('/auth/export');
     return response.data.data;

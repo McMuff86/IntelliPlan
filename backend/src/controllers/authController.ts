@@ -311,6 +311,27 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
   }
 }
 
+export async function updateIndustry(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const { industryId } = req.body;
+    if (industryId !== undefined && industryId !== null && typeof industryId !== 'string') {
+      res.status(400).json({ success: false, error: 'industryId must be a string or null' });
+      return;
+    }
+
+    const { updateUserIndustry } = await import('../services/userService');
+    const user = await updateUserIndustry(req.userId, industryId ?? null);
+    res.status(200).json({ success: true, data: toUserResponse(user) });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function exportData(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (!req.userId) {

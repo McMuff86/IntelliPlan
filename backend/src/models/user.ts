@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   team_id: string | null;
   timezone: string;
+  industry_id: string | null;
   password_hash?: string | null;
   email_verified_at?: Date | null;
   email_verification_token?: string | null;
@@ -24,6 +25,7 @@ export interface UserResponse {
   role: UserRole;
   teamId: string | null;
   timezone: string;
+  industryId: string | null;
   emailVerified: boolean;
   createdAt: string;
   updatedAt: string;
@@ -37,6 +39,7 @@ export function toUserResponse(user: User): UserResponse {
     role: user.role,
     teamId: user.team_id,
     timezone: user.timezone,
+    industryId: user.industry_id,
     emailVerified: Boolean(user.email_verified_at),
     createdAt: user.created_at.toISOString(),
     updatedAt: user.updated_at.toISOString(),

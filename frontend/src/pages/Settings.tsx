@@ -211,6 +211,19 @@ export default function Settings() {
         </Button>
       </Paper>
 
+      {/* Branchen-Templates */}
+      <Paper sx={{ p: 3, maxWidth: 500, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Branchen-Templates
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Verwalten Sie Aufgaben-Vorlagen und Produkttypen für Ihre Branche.
+        </Typography>
+        <Button variant="outlined" onClick={() => navigate('/settings/templates')}>
+          Templates verwalten
+        </Button>
+      </Paper>
+
       {/* GDPR / Datenschutz */}
       <Paper sx={{ p: 3, maxWidth: 500, mt: 3 }}>
         <Typography variant="h6" gutterBottom>

@@ -9,6 +9,7 @@ export interface CreateProjectDTO {
   workday_start?: string;
   workday_end?: string;
   work_template?: string;
+  task_template_id?: string | null;
 }
 
 export interface UpdateProjectDTO {
@@ -22,8 +23,8 @@ export interface UpdateProjectDTO {
 
 export async function createProject(data: CreateProjectDTO): Promise<Project> {
   const result = await pool.query<Project>(
-    `INSERT INTO projects (name, description, owner_id, include_weekends, workday_start, workday_end, work_template)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO projects (name, description, owner_id, include_weekends, workday_start, workday_end, work_template, task_template_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING *`,
     [
       data.name,
@@ -33,6 +34,7 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
       data.workday_start || '08:00',
       data.workday_end || '17:00',
       data.work_template || 'weekday_8_17',
+      data.task_template_id || null,
     ]
   );
 

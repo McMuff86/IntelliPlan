@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "migrate": "ts-node src/config/migrate.ts",
-    "seed:user": "ts-node src/scripts/seedUser.ts"
+    "seed:user": "ts-node src/scripts/seedUser.ts",
+    "seed:industries": "ts-node src/scripts/seedIndustries.ts"
   },
   "keywords": [],
   "author": "",

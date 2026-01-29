@@ -8,6 +8,7 @@ import {
   updateProject,
 } from '../services/projectService';
 import { shiftProjectSchedule } from '../services/taskService';
+import { applyTemplateToProject } from '../services/templateApplicationService';
 import { createProjectActivity, listProjectActivity } from '../services/activityService';
 import { toProjectResponse } from '../models/project';
 import type { Project } from '../models/project';
@@ -137,7 +138,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, description, includeWeekends, workdayStart, workdayEnd, workTemplate } = req.body;
+    const { name, description, includeWeekends, workdayStart, workdayEnd, workTemplate, taskTemplateId } = req.body;
     const templateDefaults = resolveTemplateDefaults(workTemplate);
     const resolvedIncludeWeekends = templateDefaults
       ? templateDefaults.includeWeekends
@@ -155,15 +156,21 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       workday_start: resolvedWorkdayStart,
       workday_end: resolvedWorkdayEnd,
       work_template: resolvedTemplate,
+      task_template_id: taskTemplateId,
     });
+
+    // Apply task template if provided
+    if (taskTemplateId) {
+      await applyTemplateToProject(project.id, taskTemplateId, userId);
+    }
 
     await createProjectActivity({
       project_id: project.id,
       actor_user_id: userId,
       entity_type: 'project',
       action: 'created',
-      summary: `Project created: ${project.name}`,
-      metadata: { projectId: project.id },
+      summary: `Project created: ${project.name}${taskTemplateId ? ' (with template)' : ''}`,
+      metadata: { projectId: project.id, taskTemplateId },
     });
 
     res.status(201).json({ success: true, data: toProjectResponse(project) });
@@ -309,6 +316,44 @@ export async function shiftSchedule(
     });
 
     res.status(200).json({ success: true, data: shiftResult });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function applyTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const { templateId } = req.body;
+    if (!templateId) {
+      res.status(400).json({ success: false, error: 'templateId is required' });
+      return;
+    }
+
+    const tasks = await applyTemplateToProject(projectId, templateId, userId);
+
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'project',
+      action: 'template_applied',
+      summary: `Template applied to project: ${project.name}`,
+      metadata: { projectId, templateId, taskCount: tasks.length },
+    });
+
+    res.status(200).json({ success: true, data: { taskCount: tasks.length } });
   } catch (error) {
     next(error);
   }

@@ -48,8 +48,12 @@ import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import TimelineIcon from "@mui/icons-material/Timeline";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
-import type { Project, TaskWorkSlotCalendar } from "../types";
+import { industryService } from "../services/industryService";
+import { productTypeService } from "../services/productTypeService";
+import { taskTemplateService } from "../services/taskTemplateService";
+import type { Project, TaskWorkSlotCalendar, Industry, ProductType, TaskTemplate } from "../types";
 import EmptyState from "../components/EmptyState";
+import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 
 const defaultWorkdayStart = "08:00";
@@ -104,6 +108,7 @@ const formatDuration = (minutes?: number | null) => {
 
 export default function Projects() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,6 +121,12 @@ export default function Projects() {
   const [includeWeekends, setIncludeWeekends] = useState(true);
   const [workdayStart, setWorkdayStart] = useState(defaultWorkdayStart);
   const [workdayEnd, setWorkdayEnd] = useState(defaultWorkdayEnd);
+  const [industries, setIndustries] = useState<Industry[]>([]);
+  const [productTypes, setProductTypes] = useState<ProductType[]>([]);
+  const [taskTemplates, setTaskTemplates] = useState<TaskTemplate[]>([]);
+  const [selectedIndustryId, setSelectedIndustryId] = useState("");
+  const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const resolvedView = useMemo<"grid" | "calendar" | "gantt">(() => {
     const view = searchParams.get("view");
     if (view === "calendar" || view === "gantt") {
@@ -207,6 +218,52 @@ export default function Projects() {
     setViewMode(resolvedView);
   }, [resolvedView]);
 
+  // Load industries when dialog opens, preselect user's industry
+  useEffect(() => {
+    if (dialogOpen && industries.length === 0) {
+      industryService.getAll().then((inds) => {
+        setIndustries(inds);
+        if (user?.industryId) {
+          setSelectedIndustryId(user.industryId);
+        }
+      }).catch(console.error);
+    } else if (dialogOpen && user?.industryId && !selectedIndustryId) {
+      setSelectedIndustryId(user.industryId);
+    }
+  }, [dialogOpen]);
+
+  // Load product types when industry changes
+  useEffect(() => {
+    if (selectedIndustryId) {
+      setSelectedProductTypeId("");
+      setSelectedTemplateId("");
+      setTaskTemplates([]);
+      productTypeService
+        .getAll(selectedIndustryId)
+        .then(setProductTypes)
+        .catch(console.error);
+    } else {
+      setProductTypes([]);
+      setSelectedProductTypeId("");
+      setSelectedTemplateId("");
+      setTaskTemplates([]);
+    }
+  }, [selectedIndustryId]);
+
+  // Load templates when product type changes
+  useEffect(() => {
+    if (selectedProductTypeId) {
+      setSelectedTemplateId("");
+      taskTemplateService
+        .getAll(selectedProductTypeId)
+        .then(setTaskTemplates)
+        .catch(console.error);
+    } else {
+      setTaskTemplates([]);
+      setSelectedTemplateId("");
+    }
+  }, [selectedProductTypeId]);
+
   const resetForm = () => {
     setName("");
     setDescription("");
@@ -214,6 +271,11 @@ export default function Projects() {
     setIncludeWeekends(true);
     setWorkdayStart(defaultWorkdayStart);
     setWorkdayEnd(defaultWorkdayEnd);
+    setSelectedIndustryId("");
+    setSelectedProductTypeId("");
+    setSelectedTemplateId("");
+    setProductTypes([]);
+    setTaskTemplates([]);
   };
 
   const handleWorkTemplateChange = (value: string) => {
@@ -732,6 +794,7 @@ export default function Projects() {
         workdayStart,
         workdayEnd,
         workTemplate,
+        taskTemplateId: selectedTemplateId || undefined,
       });
       setProjects((prev) => [created, ...prev]);
       setDialogOpen(false);
@@ -1596,6 +1659,81 @@ export default function Projects() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
+
+          {/* Cascading template selection */}
+          <TextField
+            select
+            label="Branche (optional)"
+            fullWidth
+            margin="normal"
+            value={selectedIndustryId}
+            onChange={(event) => setSelectedIndustryId(event.target.value)}
+          >
+            <MenuItem value="">Keine Branche</MenuItem>
+            {industries.map((ind) => (
+              <MenuItem key={ind.id} value={ind.id}>
+                {ind.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          {selectedIndustryId && productTypes.length > 0 && (
+            <TextField
+              select
+              label="Produkttyp"
+              fullWidth
+              margin="normal"
+              value={selectedProductTypeId}
+              onChange={(event) => setSelectedProductTypeId(event.target.value)}
+            >
+              <MenuItem value="">Produkttyp wählen</MenuItem>
+              {productTypes.map((pt) => (
+                <MenuItem key={pt.id} value={pt.id}>
+                  {pt.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+
+          {selectedProductTypeId && taskTemplates.length > 0 && (
+            <>
+              <TextField
+                select
+                label="Aufgaben-Vorlage"
+                fullWidth
+                margin="normal"
+                value={selectedTemplateId}
+                onChange={(event) => setSelectedTemplateId(event.target.value)}
+              >
+                <MenuItem value="">Keine Vorlage</MenuItem>
+                {taskTemplates.map((tmpl) => (
+                  <MenuItem key={tmpl.id} value={tmpl.id}>
+                    {tmpl.name} ({tmpl.tasks.length} Schritte)
+                    {tmpl.isSystem ? " — System" : ""}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              {selectedTemplateId && (() => {
+                const tmpl = taskTemplates.find((t) => t.id === selectedTemplateId);
+                if (!tmpl) return null;
+                return (
+                  <Paper variant="outlined" sx={{ p: 1.5, mt: 1, mb: 1, maxHeight: 200, overflow: 'auto' }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                      Vorschau: {tmpl.tasks.length} Aufgaben
+                    </Typography>
+                    {tmpl.tasks.map((task, idx) => (
+                      <Typography key={task.id} variant="body2" sx={{ fontSize: '0.8rem' }}>
+                        {idx + 1}. {task.name}
+                        {task.estimatedDuration ? ` (${task.estimatedDuration}${task.durationUnit === 'days' ? 'd' : 'h'})` : ''}
+                      </Typography>
+                    ))}
+                  </Paper>
+                );
+              })()}
+            </>
+          )}
+
           <TextField
             select
             label="Working time template"

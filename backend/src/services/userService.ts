@@ -132,6 +132,14 @@ export async function getUserTeamId(userId: string): Promise<string | null> {
   return result.rows[0]?.team_id || null;
 }
 
+export async function updateUserIndustry(userId: string, industryId: string | null): Promise<User> {
+  const result = await pool.query<User>(
+    `UPDATE users SET industry_id = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+    [industryId, userId]
+  );
+  return result.rows[0];
+}
+
 export async function updateUserProfile(
   userId: string,
   data: { name?: string; timezone?: string }

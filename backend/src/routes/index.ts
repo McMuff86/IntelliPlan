@@ -7,6 +7,9 @@ import tasksRouter from './tasks';
 import resourcesRouter from './resources';
 import remindersRouter from './reminders';
 import workingTimeTemplatesRouter from './workingTimeTemplates';
+import industriesRouter from './industries';
+import productTypesRouter from './productTypes';
+import taskTemplatesRouter from './taskTemplates';
 
 const router = Router();
 
@@ -41,5 +44,8 @@ router.use('/tasks', tasksRouter);
 router.use('/resources', resourcesRouter);
 router.use('/reminders', remindersRouter);
 router.use('/working-time-templates', workingTimeTemplatesRouter);
+router.use('/industries', industriesRouter);
+router.use('/product-types', productTypesRouter);
+router.use('/task-templates', taskTemplatesRouter);
 
 export default router;

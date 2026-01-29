@@ -186,7 +186,7 @@ git log --oneline -10
 | `prd.json.example`        | Example PRD format for reference                  |
 | `progress.txt`            | Append-only learnings for future iterations       |
 | `AGENTS.md`               | This file - agent instructions and patterns       |
-| `CASHFLOW_PLAN.md`        | Business-agent brief for first cashflow           |
+| `docs/cashflow-plan.md`        | Business-agent brief for first cashflow           |
 
 ## Workflow (Ralph Only)
 
@@ -217,7 +217,7 @@ git log --oneline -10
 
 Wenn der Fokus auf dem ersten Umsatz liegt, nutze den Cashflow-Plan als Briefing für einen Business-Agent:
 
-- [CASHFLOW_PLAN.md](CASHFLOW_PLAN.md)
+- [docs/cashflow-plan.md](docs/cashflow-plan.md)
 
 ## Critical Concepts
 

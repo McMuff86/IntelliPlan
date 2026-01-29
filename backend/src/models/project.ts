@@ -7,6 +7,7 @@ export interface Project {
   workday_start: string;
   workday_end: string;
   work_template: string;
+  task_template_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -20,6 +21,7 @@ export interface ProjectResponse {
   workdayStart: string;
   workdayEnd: string;
   workTemplate: string;
+  taskTemplateId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +35,7 @@ export const toProjectResponse = (project: Project): ProjectResponse => ({
   workdayStart: project.workday_start,
   workdayEnd: project.workday_end,
   workTemplate: project.work_template,
+  taskTemplateId: project.task_template_id,
   createdAt: project.created_at,
   updatedAt: project.updated_at,
 });
