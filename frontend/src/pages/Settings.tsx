@@ -1,5 +1,6 @@
 import { Box, Typography, Paper, TextField, MenuItem, Button, Snackbar, Alert, Divider } from '@mui/material';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTimezone } from '../hooks/useTimezone';
 import { useThemePreference } from '../hooks/useThemePreference';
 import { useLayoutPreference } from '../hooks/useLayoutPreference';
@@ -8,6 +9,7 @@ import { authService } from '../services/authService';
 import Breadcrumbs from '../components/Breadcrumbs';
 
 export default function Settings() {
+  const navigate = useNavigate();
   const { user, refreshUser } = useAuth();
   const { timezone, setTimezone, availableTimezones } = useTimezone();
   const { theme, setTheme, themeOptions } = useThemePreference();
@@ -153,6 +155,19 @@ export default function Settings() {
             Save Settings
           </Button>
         </Box>
+      </Paper>
+
+      {/* Working Time Templates */}
+      <Paper sx={{ p: 3, maxWidth: 500, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Arbeitszeiten
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Verwalten Sie Arbeitszeitvorlagen für die Terminplanung.
+        </Typography>
+        <Button variant="outlined" onClick={() => navigate('/settings/working-times')}>
+          Arbeitszeitvorlagen verwalten
+        </Button>
       </Paper>
 
       <Snackbar
