@@ -17,6 +17,7 @@ import ProjectDetail from './pages/ProjectDetail';
 import ProjectTimeline from './pages/ProjectTimeline';
 import TaskDetail from './pages/TaskDetail';
 import WorkingTimeTemplates from './pages/WorkingTimeTemplates';
+import Demo from './pages/Demo';
 
 function App() {
   const { theme } = useThemePreference();
@@ -35,6 +36,7 @@ function App() {
           <Layout>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/demo" element={<Demo />} />
               <Route element={<ProtectedRoute />}>
                 <Route path="/" element={<Home />} />
                 <Route path="/appointments" element={<Appointments />} />

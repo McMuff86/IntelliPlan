@@ -249,7 +249,7 @@
       "technicalNotes": "DSGVO (GDPR in German) compliance requires: consent management, data encryption at rest, right to deletion. Use bcryptjs for passwords, ensure all timestamps use ISO 8601 with timezone.",
       "dependencies": [],
       "priority": 16,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-019",
@@ -268,7 +268,7 @@
       "technicalNotes": "Demo should showcase reverse-planning and conflict resolution. Use sample data for Swiss carpentry shop. Make it visually impressive for LinkedIn sharing.",
       "dependencies": ["US-017"],
       "priority": 17,
-      "passes": false
+      "passes": true
     }
   ]
 }

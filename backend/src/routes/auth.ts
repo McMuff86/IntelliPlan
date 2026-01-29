@@ -22,5 +22,7 @@ router.post('/refresh', authLimiter, authController.refresh);
 router.get('/me', requireUserId, authController.getCurrentUser);
 router.post('/logout', requireUserId, authController.logout);
 router.put('/profile', requireUserId, updateProfileValidator, authController.updateProfile);
+router.get('/export', requireUserId, authController.exportData);
+router.delete('/account', requireUserId, authController.deleteAccount);
 
 export default router;

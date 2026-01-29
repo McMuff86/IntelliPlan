@@ -162,3 +162,66 @@ export async function updateUserProfile(
 
   return result.rows[0];
 }
+
+export async function getUserAllData(userId: string): Promise<Record<string, unknown>> {
+  const userResult = await pool.query(
+    `SELECT id, email, name, role, team_id, timezone, created_at, updated_at FROM users WHERE id = $1`,
+    [userId]
+  );
+  const appointmentsResult = await pool.query(
+    `SELECT id, title, description, start_time, end_time, timezone, created_at, updated_at FROM appointments WHERE user_id = $1 AND deleted_at IS NULL`,
+    [userId]
+  );
+  const projectsResult = await pool.query(
+    `SELECT id, name, description, include_weekends, workday_start, workday_end, created_at, updated_at FROM projects WHERE owner_id = $1 AND deleted_at IS NULL`,
+    [userId]
+  );
+  const tasksResult = await pool.query(
+    `SELECT t.id, t.title, t.description, t.status, t.duration_minutes, t.start_date, t.due_date, t.created_at, t.updated_at
+     FROM tasks t JOIN projects p ON t.project_id = p.id WHERE p.owner_id = $1 AND t.deleted_at IS NULL`,
+    [userId]
+  );
+  const remindersResult = await pool.query(
+    `SELECT id, title, description, remind_at, is_recurring, recurrence_pattern, created_at FROM reminders WHERE user_id = $1`,
+    [userId]
+  );
+  const auditResult = await pool.query(
+    `SELECT action, entity_type, created_at FROM audit_logs WHERE user_id = $1 ORDER BY created_at DESC`,
+    [userId]
+  );
+
+  return {
+    exportDate: new Date().toISOString(),
+    gdprArticle: 'Article 20 - Right to Data Portability',
+    user: userResult.rows[0] || null,
+    appointments: appointmentsResult.rows,
+    projects: projectsResult.rows,
+    tasks: tasksResult.rows,
+    reminders: remindersResult.rows,
+    auditLog: auditResult.rows,
+  };
+}
+
+export async function softDeleteUser(userId: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`UPDATE appointments SET deleted_at = NOW() WHERE user_id = $1 AND deleted_at IS NULL`, [userId]);
+    const projectIds = await client.query<{ id: string }>(`SELECT id FROM projects WHERE owner_id = $1 AND deleted_at IS NULL`, [userId]);
+    for (const row of projectIds.rows) {
+      await client.query(`UPDATE tasks SET deleted_at = NOW() WHERE project_id = $1 AND deleted_at IS NULL`, [row.id]);
+    }
+    await client.query(`UPDATE projects SET deleted_at = NOW() WHERE owner_id = $1 AND deleted_at IS NULL`, [userId]);
+    await client.query(`DELETE FROM reminders WHERE user_id = $1`, [userId]);
+    await client.query(
+      `UPDATE users SET name = 'Deleted User', email = 'deleted_' || id || '@deleted.local', password_hash = NULL, email_verification_token = NULL, password_reset_token = NULL, updated_at = NOW() WHERE id = $1`,
+      [userId]
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}

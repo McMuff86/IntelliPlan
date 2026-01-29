@@ -11,7 +11,10 @@ import {
   setPasswordResetToken,
   updateUserPassword,
   updateUserProfile,
+  getUserAllData,
+  softDeleteUser,
 } from '../services/userService';
+import { logAuditEvent } from '../services/auditService';
 import { blacklistToken, generateToken, hashPassword, hashToken, isTokenBlacklisted, signToken, verifyPassword, verifyToken } from '../services/authService';
 import { sendPasswordResetEmail, sendVerificationEmail } from '../services/emailService';
 import { toUserResponse } from '../models/user';
@@ -102,6 +105,16 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
     }
 
     const token = signToken(user.id);
+
+    await logAuditEvent({
+      userId: user.id,
+      action: 'login',
+      entityType: 'user',
+      entityId: user.id,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] as string | undefined,
+    });
+
     res.status(200).json({
       success: true,
       data: {
@@ -213,6 +226,17 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
       blacklistToken(token);
     }
 
+    if (req.userId) {
+      await logAuditEvent({
+        userId: req.userId,
+        action: 'logout',
+        entityType: 'user',
+        entityId: req.userId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'] as string | undefined,
+      });
+    }
+
     res.status(200).json({ success: true, data: { message: 'Logged out successfully' } });
   } catch (error) {
     next(error);
@@ -282,6 +306,60 @@ export async function updateProfile(req: Request, res: Response, next: NextFunct
 
     const user = await updateUserProfile(req.userId, updateData);
     res.status(200).json({ success: true, data: toUserResponse(user) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function exportData(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    const data = await getUserAllData(req.userId);
+
+    await logAuditEvent({
+      userId: req.userId,
+      action: 'data_export',
+      entityType: 'user',
+      entityId: req.userId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] as string | undefined,
+    });
+
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (!req.userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized' });
+      return;
+    }
+
+    await logAuditEvent({
+      userId: req.userId,
+      action: 'account_deletion',
+      entityType: 'user',
+      entityId: req.userId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'] as string | undefined,
+    });
+
+    await softDeleteUser(req.userId);
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7).trim();
+      blacklistToken(token);
+    }
+
+    res.status(200).json({ success: true, data: { message: 'Account deleted successfully. All data has been anonymized.' } });
   } catch (error) {
     next(error);
   }

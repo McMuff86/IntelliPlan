@@ -1,4 +1,6 @@
 import { Box, Typography, Paper, TextField, MenuItem, Button, Snackbar, Alert, Divider } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
+import DeleteForeverIcon from '@mui/icons-material/DeleteForever';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTimezone } from '../hooks/useTimezone';
@@ -7,10 +9,11 @@ import { useLayoutPreference } from '../hooks/useLayoutPreference';
 import { useAuth } from '../contexts/AuthContext';
 import { authService } from '../services/authService';
 import Breadcrumbs from '../components/Breadcrumbs';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, refreshUser, logout } = useAuth();
   const { timezone, setTimezone, availableTimezones } = useTimezone();
   const { theme, setTheme, themeOptions } = useThemePreference();
   const { layout, setLayout, layoutOptions } = useLayoutPreference();
@@ -23,6 +26,11 @@ export default function Settings() {
   const [profileName, setProfileName] = useState(user?.name ?? '');
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileFeedback, setProfileFeedback] = useState<{ severity: 'success' | 'error'; message: string } | null>(null);
+
+  // GDPR state
+  const [exporting, setExporting] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const handleSave = () => {
     setTimezone(selectedTimezone);
@@ -41,6 +49,39 @@ export default function Settings() {
       setProfileFeedback({ severity: 'error', message: 'Failed to update profile' });
     } finally {
       setProfileSaving(false);
+    }
+  };
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      const data = await authService.exportData();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `intelliplan-data-export-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setProfileFeedback({ severity: 'success', message: 'Data export downloaded successfully' });
+    } catch {
+      setProfileFeedback({ severity: 'error', message: 'Failed to export data' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await authService.deleteAccount();
+      setDeleteDialogOpen(false);
+      logout();
+    } catch {
+      setProfileFeedback({ severity: 'error', message: 'Failed to delete account' });
+      setDeleting(false);
     }
   };
 
@@ -169,6 +210,53 @@ export default function Settings() {
           Arbeitszeitvorlagen verwalten
         </Button>
       </Paper>
+
+      {/* GDPR / Datenschutz */}
+      <Paper sx={{ p: 3, maxWidth: 500, mt: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Datenschutz (DSGVO)
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          Verwalten Sie Ihre Daten gemäss den DSGVO-Richtlinien (Art. 17 & 20).
+        </Typography>
+
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleExportData}
+            disabled={exporting}
+          >
+            {exporting ? 'Exportiere…' : 'Alle Daten exportieren'}
+          </Button>
+
+          <Divider />
+
+          <Typography variant="body2" color="error.main" sx={{ mt: 1 }}>
+            Achtung: Das Löschen Ihres Kontos ist unwiderruflich. Alle Ihre Daten werden anonymisiert.
+          </Typography>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteForeverIcon />}
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            Konto löschen
+          </Button>
+        </Box>
+      </Paper>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        title="Konto unwiderruflich löschen?"
+        message="Alle Ihre Termine, Projekte, Aufgaben und persönlichen Daten werden anonymisiert. Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmLabel="Konto löschen"
+        cancelLabel="Abbrechen"
+        destructive
+        loading={deleting}
+        onConfirm={handleDeleteAccount}
+        onCancel={() => setDeleteDialogOpen(false)}
+      />
 
       <Snackbar
         open={saved}

@@ -830,6 +830,7 @@ export default function Projects() {
           <EmptyState
             title="No projects yet"
             description="Create your first project to start planning tasks."
+            actionLabel="Create Project"
             onAction={() => setDialogOpen(true)}
           />
         ) : (

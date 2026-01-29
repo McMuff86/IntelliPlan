@@ -889,6 +889,67 @@ Thread: https://ampcode.com/threads/$AMP_CURRENT_THREAD_ID
 - Code review feedback is valuable for production readiness
 ---
 
+## 2026-01-29 - US-018 Wave 2+3: GDPR Compliance Complete
+Thread: N/A (Claude Code)
+- Created audit_logs table migration (020_create_audit_logs.sql)
+- Created auditService.ts for logging auth events (login, logout, data export, account deletion)
+- Added GET /auth/export endpoint for GDPR Article 20 (Data Portability)
+- Added DELETE /auth/account endpoint for GDPR Article 17 (Right to Erasure)
+- Integrated audit logging into login, logout, exportData, deleteAccount
+- Soft-delete cascade: appointments, projects, tasks, reminders; user anonymized
+- Frontend: Added DSGVO section in Settings page (data export download, account deletion with confirm dialog)
+- Frontend: authService extended with exportData() and deleteAccount() methods
+- All timestamps already use UTC + ISO 8601 (Wave 3 requirement met)
+
+**Files created:**
+- backend/migrations/020_create_audit_logs.sql
+- backend/src/services/auditService.ts
+
+**Files modified:**
+- backend/src/services/userService.ts - Added getUserAllData(), softDeleteUser()
+- backend/src/controllers/authController.ts - Added exportData(), deleteAccount(), audit logging
+- backend/src/routes/auth.ts - Added GET /export, DELETE /account routes
+- frontend/src/services/authService.ts - Added exportData(), deleteAccount()
+- frontend/src/pages/Settings.tsx - Added DSGVO section with export + delete
+
+**Learnings for future iterations:**
+- Use pool.connect() for transactions in soft-delete cascade
+- Anonymize user data instead of hard-deleting (keeps audit trail intact)
+- Download JSON via Blob + temporary anchor element pattern
+- ConfirmDialog component reusable for destructive actions
+---
+
+## 2026-01-29 - US-019: Inbound Marketing Demo Page
+Thread: N/A (Claude Code)
+- Created /demo public route (no auth required)
+- Hero section with value proposition for Schreinereien
+- Feature grid: Terminplanung, Projektmanagement, KI-Konfliktlösung, Rückwärtsplanung, DSGVO, Arbeitszeitvorlagen
+- Demo schedule: sample Swiss carpentry shop daily plan
+- Pricing section: Starter (50 CHF), Professional (120 CHF), Enterprise (200 CHF)
+- PDF export via jsPDF (lazy-loaded)
+- CTA buttons linking to /auth registration
+
+**Files created:**
+- frontend/src/pages/Demo.tsx
+
+**Files modified:**
+- frontend/src/App.tsx - Added /demo route (public, outside ProtectedRoute)
+- frontend/package.json - Added jspdf dependency
+
+**Learnings for future iterations:**
+- Use dynamic import() for jsPDF to keep bundle size small
+- Public routes must be placed outside ProtectedRoute wrapper in App.tsx
+- Swiss pricing in CHF, target 50-200/user/month
+---
+
+## 2026-01-29 - Fix: Projects empty state button label
+Thread: N/A (Claude Code)
+- Changed "Create Appointment" to "Create Project" on Projects empty state
+
+**Files modified:**
+- frontend/src/pages/Projects.tsx - Added actionLabel="Create Project" to EmptyState
+---
+
 ## OPEN TASK: Datenbank-Daten vom Home-PC zum Work-PC übertragen
 
 **Status:** Offen - Aktion erforderlich auf Home-PC

@@ -59,4 +59,14 @@ export const authService = {
     const response = await api.put<ApiResponse<User>>('/auth/profile', payload);
     return response.data.data;
   },
+
+  async exportData(): Promise<Record<string, unknown>> {
+    const response = await api.get<ApiResponse<Record<string, unknown>>>('/auth/export');
+    return response.data.data;
+  },
+
+  async deleteAccount(): Promise<{ message: string }> {
+    const response = await api.delete<ApiResponse<{ message: string }>>('/auth/account');
+    return response.data.data;
+  },
 };
