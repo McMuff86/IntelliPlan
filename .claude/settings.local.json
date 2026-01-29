@@ -10,7 +10,21 @@
       "Bash(npm install:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: GDPR compliance \\(US-018\\) + demo marketing page \\(US-019\\)\n\nUS-018: Add GDPR data export \\(GET /auth/export\\), account deletion\n\\(DELETE /auth/account\\), audit logging for auth events, and DSGVO\nsection in Settings page with export download and account deletion.\n\nUS-019: Add public /demo route with feature showcase, sample Swiss\ncarpentry schedule, pricing tiers, and PDF export via jsPDF.\n\nAlso fix Projects empty state button label to \"Create Project\".\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
-      "Bash(git push)"
+      "Bash(git push)",
+      "Bash(npm run dev)",
+      "Bash(powershell -Command \"cd ''C:\\\\Users\\\\Adi.Muff\\\\repos\\\\IntelliPlan\\\\backend''; npm run dev\")",
+      "Bash(powershell -Command \"cd ''C:\\\\Users\\\\Adi.Muff\\\\repos\\\\IntelliPlan\\\\frontend''; npm run dev\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\Users\\\\Adi.Muff\\\\repos\\\\IntelliPlan\\\\backend && npm.cmd run dev\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\Users\\\\Adi.Muff\\\\repos\\\\IntelliPlan\\\\frontend & npm.cmd run dev\")",
+      "Bash(npx.cmd:*)",
+      "Bash(node -e \"process.chdir\\(''C:/Users/Adi.Muff/repos/IntelliPlan/backend''\\); require\\(''child_process''\\).execSync\\(''npx.cmd nodemon src/index.ts'', {stdio: ''inherit''}\\)\")",
+      "Bash(node -e \"process.chdir\\(''C:/Users/Adi.Muff/repos/IntelliPlan''\\); require\\(''child_process''\\).execSync\\(''docker compose up -d'', {stdio: ''inherit''}\\)\")",
+      "Bash(cmd.exe /c start http://localhost:5173)",
+      "Bash(node -e \"process.chdir\\(''C:/Users/Adi.Muff/repos/IntelliPlan/backend''\\); require\\(''child_process''\\).execSync\\(''npm install'', {stdio: ''inherit''}\\)\")",
+      "Bash(node -e \"process.chdir\\(''C:/Users/Adi.Muff/repos/IntelliPlan/backend''\\); require\\(''child_process''\\).execSync\\(''npx.cmd ts-node src/scripts/seedIndustries.ts'', {stdio: ''inherit''}\\)\")",
+      "Bash(curl:*)",
+      "Bash(git commit:*)",
+      "Bash(powershell -Command:*)"
     ]
   }
 }
