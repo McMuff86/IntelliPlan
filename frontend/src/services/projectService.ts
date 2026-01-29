@@ -45,4 +45,9 @@ export const projectService = {
     const response = await api.get<ApiResponse<ProjectActivity[]>>(`/projects/${id}/activity`);
     return response.data.data;
   },
+
+  async resetToTemplate(id: string): Promise<{ taskCount: number }> {
+    const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/reset-template`);
+    return response.data.data;
+  },
 };

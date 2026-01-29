@@ -3,6 +3,48 @@ import { getTaskTemplateById } from './taskTemplateService';
 import type { TemplateTask } from '../models/taskTemplate';
 import type { Task } from '../models/task';
 
+export async function resetProjectTasks(
+  projectId: string,
+  templateId: string,
+  ownerId: string
+): Promise<Task[]> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Delete existing task dependencies first (foreign key constraint)
+    await client.query(
+      `DELETE FROM task_dependencies
+       WHERE task_id IN (SELECT id FROM tasks WHERE project_id = $1 AND owner_id = $2)
+          OR depends_on_task_id IN (SELECT id FROM tasks WHERE project_id = $1 AND owner_id = $2)`,
+      [projectId, ownerId]
+    );
+
+    // Delete existing work slots
+    await client.query(
+      `DELETE FROM task_work_slots
+       WHERE task_id IN (SELECT id FROM tasks WHERE project_id = $1 AND owner_id = $2)`,
+      [projectId, ownerId]
+    );
+
+    // Delete existing tasks
+    await client.query(
+      `DELETE FROM tasks WHERE project_id = $1 AND owner_id = $2`,
+      [projectId, ownerId]
+    );
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  // Re-apply the template
+  return applyTemplateToProject(projectId, templateId, ownerId);
+}
+
 export async function applyTemplateToProject(
   projectId: string,
   templateId: string,

@@ -21,6 +21,7 @@ router.delete('/:id', projectController.remove);
 router.post('/:id/shift', shiftProjectValidator, projectController.shiftSchedule);
 router.get('/:id/activity', projectController.listActivity);
 router.post('/:id/apply-template', projectController.applyTemplate);
+router.post('/:id/reset-template', projectController.resetProjectToTemplate);
 
 router.get('/:projectId/tasks', taskController.listByProject);
 router.post('/:projectId/tasks', createTaskValidator, taskController.createInProject);

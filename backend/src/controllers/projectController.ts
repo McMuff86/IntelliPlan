@@ -8,7 +8,7 @@ import {
   updateProject,
 } from '../services/projectService';
 import { shiftProjectSchedule } from '../services/taskService';
-import { applyTemplateToProject } from '../services/templateApplicationService';
+import { applyTemplateToProject, resetProjectTasks } from '../services/templateApplicationService';
 import { createProjectActivity, listProjectActivity } from '../services/activityService';
 import { toProjectResponse } from '../models/project';
 import type { Project } from '../models/project';
@@ -351,6 +351,43 @@ export async function applyTemplate(req: Request, res: Response, next: NextFunct
       action: 'template_applied',
       summary: `Template applied to project: ${project.name}`,
       metadata: { projectId, templateId, taskCount: tasks.length },
+    });
+
+    res.status(200).json({ success: true, data: { taskCount: tasks.length } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function resetProjectToTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    if (!project.task_template_id) {
+      res.status(400).json({ success: false, error: 'Project has no task template assigned' });
+      return;
+    }
+
+    const tasks = await resetProjectTasks(projectId, project.task_template_id, userId);
+
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'project',
+      action: 'template_reset',
+      summary: `Project tasks reset to template: ${project.name}`,
+      metadata: { projectId, templateId: project.task_template_id, taskCount: tasks.length },
     });
 
     res.status(200).json({ success: true, data: { taskCount: tasks.length } });

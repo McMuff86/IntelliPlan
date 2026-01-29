@@ -15,11 +15,17 @@ import {
   Tooltip,
   FormControlLabel,
   Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import RestoreIcon from '@mui/icons-material/Restore';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -85,8 +91,14 @@ export default function ProjectDetail() {
   const [dueDate, setDueDate] = useState<Date | null>(null);
   const [shiftDays, setShiftDays] = useState<number | ''>('');
   const [taskSortOrder, setTaskSortOrder] = useState<
-    'title_asc' | 'title_desc' | 'start_asc' | 'start_desc' | 'due_asc' | 'due_desc' | 'created_asc' | 'created_desc'
+    'title_asc' | 'title_desc' | 'start_asc' | 'start_desc' | 'due_asc' | 'due_desc' | 'created_asc' | 'created_desc' | 'workflow'
   >('title_asc');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'overdue' | 'date_range'>('all');
+  const [filterDateFrom, setFilterDateFrom] = useState<Date | null>(null);
+  const [filterDateTo, setFilterDateTo] = useState<Date | null>(null);
+  const [taskDependencies, setTaskDependencies] = useState<Map<string, string[]>>(new Map());
+  const [resetting, setResetting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [layoutOrder, setLayoutOrder] = useState<LayoutSectionKey[]>([...defaultLayoutOrder]);
@@ -114,6 +126,7 @@ export default function ProjectDetail() {
       setTasks(taskData);
       void loadActivity(projectData.id);
       void loadResources();
+      void loadDependencies(taskData);
     } catch (err) {
       console.error(err);
       setError('Failed to load project');
@@ -140,9 +153,25 @@ export default function ProjectDetail() {
     }
   };
 
+  const loadDependencies = async (taskList: Task[]) => {
+    const depMap = new Map<string, string[]>();
+    try {
+      for (const task of taskList) {
+        const deps = await taskService.listDependencies(task.id);
+        if (deps.length > 0) {
+          depMap.set(task.id, deps.map((d) => d.dependsOnTaskId));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load dependencies', err);
+    }
+    setTaskDependencies(depMap);
+  };
+
   const refreshTasks = async (projectId: string) => {
     const taskData = await taskService.getByProject(projectId);
     setTasks(taskData);
+    void loadDependencies(taskData);
   };
 
   useEffect(() => {
@@ -191,8 +220,88 @@ export default function ProjectDetail() {
     return `${mins}m`;
   };
 
-  const sortedTasks = useMemo(() => {
-    const list = [...tasks];
+  const filteredAndSortedTasks = useMemo(() => {
+    // 1. Filter
+    let list = [...tasks];
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+
+    if (taskFilter === 'overdue') {
+      list = list.filter((t) => {
+        if (!t.dueDate || t.status === 'done') return false;
+        return new Date(t.dueDate) < now;
+      });
+    } else if (taskFilter === 'date_range') {
+      list = list.filter((t) => {
+        if (!t.dueDate) return false;
+        const due = new Date(t.dueDate);
+        if (filterDateFrom && due < filterDateFrom) return false;
+        if (filterDateTo) {
+          const toEnd = new Date(filterDateTo);
+          toEnd.setHours(23, 59, 59, 999);
+          if (due > toEnd) return false;
+        }
+        return true;
+      });
+    }
+
+    // 2. Sort
+    if (taskSortOrder === 'workflow') {
+      // Topological sort using dependencies
+      const taskIds = new Set(list.map((t) => t.id));
+      const inDegree = new Map<string, number>();
+      const adjacency = new Map<string, string[]>();
+      for (const t of list) {
+        inDegree.set(t.id, 0);
+        adjacency.set(t.id, []);
+      }
+      for (const t of list) {
+        const deps = taskDependencies.get(t.id) || [];
+        for (const depId of deps) {
+          if (taskIds.has(depId)) {
+            inDegree.set(t.id, (inDegree.get(t.id) || 0) + 1);
+            adjacency.get(depId)?.push(t.id);
+          }
+        }
+      }
+      const queue: string[] = [];
+      for (const [id, deg] of inDegree) {
+        if (deg === 0) queue.push(id);
+      }
+      // Stable sort: among tasks with same in-degree, sort by createdAt
+      queue.sort((a, b) => {
+        const ta = list.find((t) => t.id === a)!;
+        const tb = list.find((t) => t.id === b)!;
+        return new Date(ta.createdAt).getTime() - new Date(tb.createdAt).getTime();
+      });
+      const sorted: Task[] = [];
+      const taskMap = new Map(list.map((t) => [t.id, t]));
+      while (queue.length > 0) {
+        const current = queue.shift()!;
+        sorted.push(taskMap.get(current)!);
+        const neighbors = adjacency.get(current) || [];
+        for (const neighbor of neighbors) {
+          const newDeg = (inDegree.get(neighbor) || 1) - 1;
+          inDegree.set(neighbor, newDeg);
+          if (newDeg === 0) {
+            // Insert in createdAt order
+            const nt = taskMap.get(neighbor)!;
+            const insertIdx = queue.findIndex((qId) => {
+              const qt = taskMap.get(qId)!;
+              return new Date(qt.createdAt).getTime() > new Date(nt.createdAt).getTime();
+            });
+            if (insertIdx === -1) queue.push(neighbor);
+            else queue.splice(insertIdx, 0, neighbor);
+          }
+        }
+      }
+      // Add any remaining tasks (cycles, if any)
+      for (const t of list) {
+        if (!sorted.find((s) => s.id === t.id)) sorted.push(t);
+      }
+      return sorted;
+    }
+
     list.sort((a, b) => {
       switch (taskSortOrder) {
         case 'title_asc':
@@ -228,7 +337,7 @@ export default function ProjectDetail() {
       }
     });
     return list;
-  }, [tasks, taskSortOrder]);
+  }, [tasks, taskSortOrder, taskFilter, filterDateFrom, filterDateTo, taskDependencies]);
 
   const normalizeLayoutOrder = (order: LayoutSectionKey[]) => {
     const seen = new Set<LayoutSectionKey>();
@@ -405,6 +514,29 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleResetTemplate = async () => {
+    if (!project) return;
+    try {
+      setResetting(true);
+      setError(null);
+      await projectService.resetToTemplate(project.id);
+      await refreshTasks(project.id);
+      void loadActivity(project.id);
+      setResetDialogOpen(false);
+    } catch (err) {
+      console.error(err);
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to reset template');
+      } else {
+        setError('Failed to reset template');
+      }
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const resetResourceForm = () => {
     setResourceName('');
     setResourceType('person');
@@ -482,35 +614,71 @@ export default function ProjectDetail() {
 
   const sectionActions: Partial<Record<LayoutSectionKey, ReactNode>> = {
     tasks: (
-      <TextField
-        select
-        label="Sort"
-        size="small"
-        value={taskSortOrder}
-        onChange={(event) =>
-          setTaskSortOrder(
-            event.target.value as
-              | 'title_asc'
-              | 'title_desc'
-              | 'start_asc'
-              | 'start_desc'
-              | 'due_asc'
-              | 'due_desc'
-              | 'created_asc'
-              | 'created_desc'
-          )
-        }
-        sx={{ minWidth: 160 }}
-      >
-        <MenuItem value="title_asc">Title A-Z</MenuItem>
-        <MenuItem value="title_desc">Title Z-A</MenuItem>
-        <MenuItem value="start_asc">Start date (oldest)</MenuItem>
-        <MenuItem value="start_desc">Start date (newest)</MenuItem>
-        <MenuItem value="due_asc">Due date (oldest)</MenuItem>
-        <MenuItem value="due_desc">Due date (newest)</MenuItem>
-        <MenuItem value="created_asc">Created (oldest)</MenuItem>
-        <MenuItem value="created_desc">Created (newest)</MenuItem>
-      </TextField>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+        <TextField
+          select
+          label="Sort"
+          size="small"
+          value={taskSortOrder}
+          onChange={(event) =>
+            setTaskSortOrder(
+              event.target.value as typeof taskSortOrder
+            )
+          }
+          sx={{ minWidth: 160 }}
+        >
+          <MenuItem value="title_asc">Title A-Z</MenuItem>
+          <MenuItem value="title_desc">Title Z-A</MenuItem>
+          <MenuItem value="start_asc">Start date (oldest)</MenuItem>
+          <MenuItem value="start_desc">Start date (newest)</MenuItem>
+          <MenuItem value="due_asc">Due date (oldest)</MenuItem>
+          <MenuItem value="due_desc">Due date (newest)</MenuItem>
+          <MenuItem value="created_asc">Created (oldest)</MenuItem>
+          <MenuItem value="created_desc">Created (newest)</MenuItem>
+          <MenuItem value="workflow">Workflow order</MenuItem>
+        </TextField>
+        <TextField
+          select
+          label="Filter"
+          size="small"
+          value={taskFilter}
+          onChange={(event) => setTaskFilter(event.target.value as 'all' | 'overdue' | 'date_range')}
+          sx={{ minWidth: 140 }}
+        >
+          <MenuItem value="all">All</MenuItem>
+          <MenuItem value="overdue">Overdue</MenuItem>
+          <MenuItem value="date_range">Date range</MenuItem>
+        </TextField>
+        {taskFilter === 'date_range' && (
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <DatePicker
+              label="From"
+              value={filterDateFrom}
+              onChange={(date) => setFilterDateFrom(date)}
+              slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
+            />
+            <DatePicker
+              label="To"
+              value={filterDateTo}
+              onChange={(date) => setFilterDateTo(date)}
+              slotProps={{ textField: { size: 'small', sx: { minWidth: 140 } } }}
+            />
+          </LocalizationProvider>
+        )}
+        {project?.taskTemplateId && (
+          <Tooltip title="Reset tasks to template defaults">
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<RestoreIcon />}
+              onClick={() => setResetDialogOpen(true)}
+              disabled={resetting}
+            >
+              {resetting ? 'Resetting...' : 'Reset'}
+            </Button>
+          </Tooltip>
+        )}
+      </Stack>
     ),
   };
 
@@ -781,11 +949,11 @@ export default function ProjectDetail() {
     ),
     tasks: (
       <>
-        {sortedTasks.length === 0 ? (
+        {filteredAndSortedTasks.length === 0 ? (
           <Typography color="text.secondary">No tasks yet. Create one to get started.</Typography>
         ) : (
           <Stack spacing={1.5}>
-            {sortedTasks.map((task) => (
+            {filteredAndSortedTasks.map((task) => (
               <Paper
                 key={task.id}
                 sx={{
@@ -1080,6 +1248,23 @@ export default function ProjectDetail() {
       </Paper>
 
       {layoutOrder.map((sectionKey) => renderSection(sectionKey))}
+
+      <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
+        <DialogTitle>Reset to Template</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            All existing tasks will be deleted and replaced with the default template workflow. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setResetDialogOpen(false)} disabled={resetting}>
+            Cancel
+          </Button>
+          <Button onClick={handleResetTemplate} color="error" variant="contained" disabled={resetting}>
+            {resetting ? 'Resetting...' : 'Reset'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
