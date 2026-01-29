@@ -3,7 +3,14 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(npx tsc:*)",
-      "Bash(timeout /t 5)"
+      "Bash(timeout /t 5)",
+      "Bash(docker compose exec backend npm run migrate:*)",
+      "Bash(start:*)",
+      "Bash(docker compose:*)",
+      "Bash(npm install:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: GDPR compliance \\(US-018\\) + demo marketing page \\(US-019\\)\n\nUS-018: Add GDPR data export \\(GET /auth/export\\), account deletion\n\\(DELETE /auth/account\\), audit logging for auth events, and DSGVO\nsection in Settings page with export download and account deletion.\n\nUS-019: Add public /demo route with feature showcase, sample Swiss\ncarpentry schedule, pricing tiers, and PDF export via jsPDF.\n\nAlso fix Projects empty state button label to \"Create Project\".\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)"
     ]
   }
 }
