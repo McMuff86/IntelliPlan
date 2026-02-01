@@ -46,6 +46,16 @@ export const projectService = {
     return response.data.data;
   },
 
+  async autoSchedule(
+    id: string,
+    data: { taskIds: string[]; endDate: string }
+  ): Promise<{ scheduledTaskIds: string[]; skippedTaskIds: string[]; warnings: string[] }> {
+    const response = await api.post<
+      ApiResponse<{ scheduledTaskIds: string[]; skippedTaskIds: string[]; warnings: string[] }>
+    >(`/projects/${id}/auto-schedule`, data);
+    return response.data.data;
+  },
+
   async resetToTemplate(id: string): Promise<{ taskCount: number }> {
     const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/reset-template`);
     return response.data.data;

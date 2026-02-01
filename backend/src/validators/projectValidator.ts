@@ -65,6 +65,20 @@ export const updateProjectValidator: ValidationChain[] = [
     .withMessage(`workTemplate must be one of: ${templateValues.join(', ')}`),
 ];
 
+export const autoScheduleValidator: ValidationChain[] = [
+  body('taskIds')
+    .isArray({ min: 1 })
+    .withMessage('taskIds must be a non-empty array'),
+  body('taskIds.*')
+    .isUUID()
+    .withMessage('Each taskId must be a valid UUID'),
+  body('endDate')
+    .notEmpty()
+    .withMessage('endDate is required')
+    .isISO8601()
+    .withMessage('endDate must be a valid ISO 8601 date'),
+];
+
 export const shiftProjectValidator: ValidationChain[] = [
   body('deltaDays')
     .notEmpty()

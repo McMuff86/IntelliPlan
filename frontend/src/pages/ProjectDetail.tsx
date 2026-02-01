@@ -26,6 +26,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import RestoreIcon from '@mui/icons-material/Restore';
+import EventIcon from '@mui/icons-material/Event';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -35,6 +36,7 @@ import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
 import { resourceService } from '../services/resourceService';
 import Breadcrumbs from '../components/Breadcrumbs';
+import AutoScheduleDialog from '../components/AutoScheduleDialog/AutoScheduleDialog';
 import axios from 'axios';
 
 const statusOptions: TaskStatus[] = ['planned', 'in_progress', 'blocked', 'done'];
@@ -92,13 +94,14 @@ export default function ProjectDetail() {
   const [shiftDays, setShiftDays] = useState<number | ''>('');
   const [taskSortOrder, setTaskSortOrder] = useState<
     'title_asc' | 'title_desc' | 'start_asc' | 'start_desc' | 'due_asc' | 'due_desc' | 'created_asc' | 'created_desc' | 'workflow'
-  >('title_asc');
+  >('workflow');
   const [taskFilter, setTaskFilter] = useState<'all' | 'overdue' | 'date_range'>('all');
   const [filterDateFrom, setFilterDateFrom] = useState<Date | null>(null);
   const [filterDateTo, setFilterDateTo] = useState<Date | null>(null);
   const [taskDependencies, setTaskDependencies] = useState<Map<string, string[]>>(new Map());
   const [resetting, setResetting] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [layoutOrder, setLayoutOrder] = useState<LayoutSectionKey[]>([...defaultLayoutOrder]);
@@ -537,6 +540,13 @@ export default function ProjectDetail() {
     }
   };
 
+  const handleAutoSchedule = async (taskIds: string[], endDate: string) => {
+    if (!project) return;
+    await projectService.autoSchedule(project.id, { taskIds, endDate });
+    await refreshTasks(project.id);
+    void loadActivity(project.id);
+  };
+
   const resetResourceForm = () => {
     setResourceName('');
     setResourceType('person');
@@ -665,6 +675,14 @@ export default function ProjectDetail() {
             />
           </LocalizationProvider>
         )}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<EventIcon />}
+          onClick={() => setAutoScheduleOpen(true)}
+        >
+          Schedule Tasks
+        </Button>
         {project?.taskTemplateId && (
           <Tooltip title="Reset tasks to template defaults">
             <Button
@@ -1265,6 +1283,13 @@ export default function ProjectDetail() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <AutoScheduleDialog
+        open={autoScheduleOpen}
+        onClose={() => setAutoScheduleOpen(false)}
+        tasks={filteredAndSortedTasks}
+        onSchedule={handleAutoSchedule}
+      />
     </Box>
   );
 }

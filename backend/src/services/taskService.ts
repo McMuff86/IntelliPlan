@@ -600,6 +600,163 @@ const getTaskScheduleSnapshots = async (
   return map;
 };
 
+export interface AutoScheduleResult {
+  scheduledTaskIds: string[];
+  skippedTaskIds: string[];
+  warnings: string[];
+}
+
+/**
+ * Auto-schedule project tasks using backward planning from a deadline.
+ * Tasks are placed in reverse workflow order: the last task ends at endDate,
+ * each prior task ends where the next one starts.
+ * Duration is split into workday slots respecting project settings.
+ */
+export async function autoScheduleProjectTasks(
+  projectId: string,
+  ownerId: string,
+  taskIds: string[],
+  endDateStr: string,
+  includeWeekends: boolean,
+  workdayStart: string,
+  workdayEnd: string
+): Promise<AutoScheduleResult> {
+  const warnings: string[] = [];
+  const scheduledTaskIds: string[] = [];
+  const skippedTaskIds: string[] = [];
+
+  // Parse workday hours
+  const [startH, startM] = workdayStart.split(':').map(Number);
+  const [endH, endM] = workdayEnd.split(':').map(Number);
+  const workdayMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+
+  if (workdayMinutes <= 0) {
+    return { scheduledTaskIds: [], skippedTaskIds: taskIds, warnings: ['Invalid workday configuration'] };
+  }
+
+  // Fetch tasks in the order provided (workflow order)
+  const taskResult = await pool.query<Task>(
+    `SELECT * FROM tasks WHERE id = ANY($1::uuid[]) AND owner_id = $2 AND deleted_at IS NULL`,
+    [taskIds, ownerId]
+  );
+  const taskMap = new Map(taskResult.rows.map((t) => [t.id, t]));
+
+  // Delete existing work slots for the selected tasks
+  await pool.query(
+    `DELETE FROM task_work_slots
+     WHERE task_id = ANY($1::uuid[])
+       AND task_id IN (SELECT id FROM tasks WHERE owner_id = $2)`,
+    [taskIds, ownerId]
+  );
+
+  // Process tasks in reverse workflow order (last task first → backward planning)
+  let cursor = new Date(endDateStr + 'T00:00:00');
+  // Set cursor to end of last workday at the endDate
+  cursor.setHours(endH, endM, 0, 0);
+
+  const isWorkday = (date: Date): boolean => {
+    const day = date.getDay();
+    if (includeWeekends) return true;
+    return day !== 0 && day !== 6; // skip Sunday (0) and Saturday (6)
+  };
+
+  const prevWorkday = (date: Date): Date => {
+    const d = new Date(date);
+    d.setDate(d.getDate() - 1);
+    while (!isWorkday(d)) {
+      d.setDate(d.getDate() - 1);
+    }
+    return d;
+  };
+
+  for (let i = taskIds.length - 1; i >= 0; i--) {
+    const taskId = taskIds[i];
+    const task = taskMap.get(taskId);
+
+    if (!task) {
+      warnings.push(`Task ${taskId} not found`);
+      skippedTaskIds.push(taskId);
+      continue;
+    }
+
+    if (!task.duration_minutes || task.duration_minutes <= 0) {
+      warnings.push(`Task "${task.title}" has no duration, skipped`);
+      skippedTaskIds.push(taskId);
+      continue;
+    }
+
+    let remainingMinutes = task.duration_minutes;
+    const slots: { start: Date; end: Date }[] = [];
+
+    // Make sure cursor is on a workday
+    while (!isWorkday(cursor)) {
+      const prev = prevWorkday(cursor);
+      cursor = new Date(prev);
+      cursor.setHours(endH, endM, 0, 0);
+    }
+
+    // Fill slots backward
+    while (remainingMinutes > 0) {
+      // Available minutes in current day (from workday start to cursor position)
+      const cursorMinutesInDay = cursor.getHours() * 60 + cursor.getMinutes();
+      const workdayStartMinutes = startH * 60 + startM;
+      const availableInDay = cursorMinutesInDay - workdayStartMinutes;
+
+      if (availableInDay <= 0) {
+        // Move to previous workday end
+        const prev = prevWorkday(cursor);
+        cursor = new Date(prev);
+        cursor.setHours(endH, endM, 0, 0);
+        continue;
+      }
+
+      const slotMinutes = Math.min(remainingMinutes, availableInDay);
+      const slotEnd = new Date(cursor);
+      const slotStart = new Date(cursor);
+      slotStart.setMinutes(slotStart.getMinutes() - slotMinutes);
+
+      slots.unshift({ start: slotStart, end: slotEnd });
+      remainingMinutes -= slotMinutes;
+
+      // Move cursor to start of this slot
+      cursor = new Date(slotStart);
+
+      // If we used all available time in this day, move to previous workday
+      if (cursor.getHours() * 60 + cursor.getMinutes() <= workdayStartMinutes) {
+        const prev = prevWorkday(cursor);
+        cursor = new Date(prev);
+        cursor.setHours(endH, endM, 0, 0);
+      }
+    }
+
+    // Set task start_date and due_date
+    const taskStartDate = slots.length > 0 ? slots[0].start : cursor;
+    const taskDueDate = slots.length > 0 ? slots[slots.length - 1].end : cursor;
+
+    const startDateStr = taskStartDate.toISOString().split('T')[0];
+    const dueDateStr = taskDueDate.toISOString().split('T')[0];
+
+    await pool.query(
+      `UPDATE tasks SET start_date = $1, due_date = $2, updated_at = NOW()
+       WHERE id = $3 AND owner_id = $4`,
+      [startDateStr, dueDateStr, taskId, ownerId]
+    );
+
+    // Create work slots
+    for (const slot of slots) {
+      await pool.query(
+        `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day, reminder_enabled)
+         VALUES ($1, $2, $3, false, false, false)`,
+        [taskId, slot.start.toISOString(), slot.end.toISOString()]
+      );
+    }
+
+    scheduledTaskIds.push(taskId);
+  }
+
+  return { scheduledTaskIds, skippedTaskIds, warnings };
+}
+
 export const shiftTaskWithDependents = async (
   taskId: string,
   ownerId: string,

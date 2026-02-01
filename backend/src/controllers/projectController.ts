@@ -7,7 +7,7 @@ import {
   listProjects,
   updateProject,
 } from '../services/projectService';
-import { shiftProjectSchedule } from '../services/taskService';
+import { shiftProjectSchedule, autoScheduleProjectTasks } from '../services/taskService';
 import { applyTemplateToProject, resetProjectTasks } from '../services/templateApplicationService';
 import { createProjectActivity, listProjectActivity } from '../services/activityService';
 import { toProjectResponse } from '../models/project';
@@ -391,6 +391,53 @@ export async function resetProjectToTemplate(req: Request, res: Response, next: 
     });
 
     res.status(200).json({ success: true, data: { taskCount: tasks.length } });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function autoSchedule(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const { taskIds, endDate } = req.body;
+    const result = await autoScheduleProjectTasks(
+      projectId,
+      userId,
+      taskIds,
+      endDate,
+      project.include_weekends,
+      project.workday_start,
+      project.workday_end
+    );
+
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'project',
+      action: 'auto_scheduled',
+      summary: `Auto-scheduled ${result.scheduledTaskIds.length} tasks (deadline: ${endDate})`,
+      metadata: { projectId, endDate, scheduledTaskIds: result.scheduledTaskIds, skippedTaskIds: result.skippedTaskIds },
+    });
+
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }
