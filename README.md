@@ -223,14 +223,11 @@ npm run dev
 - [x] Ressourcenverwaltung
 - [x] KI-gestützte Konfliktlösung
 - [x] Enhanced Beads Integration für Entwickler-Workflow
-
-### 🔄 In Arbeit
-
-- [ ] **US-017**: Reverse-Planning Feature
-- [ ] **US-018**: Authentifizierung & DSGVO Compliance
-- [ ] **US-019**: Marketing Demo-Seite
-- [ ] **US-TP-011**: Optionale Erinnerungen
-- [ ] **US-TP-012**: Arbeitszeitvorlagen
+- [x] **US-TP-011**: Optionale Erinnerungen
+- [x] **US-TP-012**: Arbeitszeitvorlagen
+- [x] **US-017**: Reverse-Planning Feature
+- [x] **US-018**: Authentifizierung & DSGVO Compliance
+- [x] **US-019**: Marketing Demo-Seite
 
 ### 📋 Geplant
 

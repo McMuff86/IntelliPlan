@@ -17,7 +17,9 @@ const app: Application = express();
 // - Strict-Transport-Security (HSTS)
 // - Removes X-Powered-By
 app.use(helmet());
-app.use(globalLimiter);
+if (process.env.NODE_ENV === 'production') {
+  app.use(globalLimiter);
+}
 
 // Request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
