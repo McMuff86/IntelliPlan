@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -11,11 +11,9 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  ToggleButtonGroup,
-  ToggleButton,
+  Snackbar,
   useTheme,
 } from '@mui/material';
-import SortIcon from '@mui/icons-material/Sort';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import LinkIcon from '@mui/icons-material/Link';
@@ -108,9 +106,19 @@ export default function ProjectTimeline() {
   const [taskSlots, setTaskSlots] = useState<Record<string, TaskWorkSlot[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<'execution' | 'created'>('execution');
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragDeltaDays, setDragDeltaDays] = useState(0);
+  const [shiftingTaskId, setShiftingTaskId] = useState<string | null>(null);
+  const [shiftSnackbar, setShiftSnackbar] = useState<{
+    open: boolean;
+    taskId: string;
+    taskTitle: string;
+    deltaDays: number;
+  } | null>(null);
+  const dragStartXRef = useRef(0);
+  const dragDeltaRef = useRef(0);
 
-  const loadTimeline = async () => {
+  const loadTimeline = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
@@ -143,7 +151,7 @@ export default function ProjectTimeline() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadTimeline();
@@ -152,9 +160,7 @@ export default function ProjectTimeline() {
   const taskMap = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
   const rows = useMemo<TimelineRow[]>(() => {
-    const sortedTasks = sortMode === 'execution'
-      ? topologicalSort(tasks, (id) => (taskDependencies[id] ?? []).map((d) => d.dependsOnTaskId))
-      : [...tasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const sortedTasks = topologicalSort(tasks, (id) => (taskDependencies[id] ?? []).map((d) => d.dependsOnTaskId));
 
     return sortedTasks.map((task) => {
       const workSlots = taskSlots[task.id] ?? [];
@@ -162,7 +168,7 @@ export default function ProjectTimeline() {
       const { start, end } = getTaskRange(task, workSlots);
       return { task, start, end, dependencies, workSlots };
     });
-  }, [tasks, taskDependencies, taskSlots, sortMode]);
+  }, [tasks, taskDependencies, taskSlots]);
 
   const scheduledRows = useMemo(
     () => rows.filter((row) => row.start && row.end),
@@ -187,6 +193,75 @@ export default function ProjectTimeline() {
     const days = eachDayOfInterval({ start, end });
     return { start, end, days };
   }, [scheduledRows]);
+
+  const shiftTaskSchedule = useCallback(
+    async (taskId: string, deltaDays: number, taskTitle: string) => {
+      if (!deltaDays) return;
+      try {
+        setShiftingTaskId(taskId);
+        await taskService.shiftSchedule(taskId, { deltaDays, cascade: true });
+        await loadTimeline();
+        setShiftSnackbar({ open: true, taskId, taskTitle, deltaDays });
+      } catch (err) {
+        console.error(err);
+        setError('Failed to shift task schedule');
+      } finally {
+        setShiftingTaskId(null);
+      }
+    },
+    [loadTimeline],
+  );
+
+  const startTaskDrag = (event: React.MouseEvent, taskId: string) => {
+    event.preventDefault();
+    if (shiftingTaskId) return;
+    dragStartXRef.current = event.clientX;
+    dragDeltaRef.current = 0;
+    setDragDeltaDays(0);
+    setDraggingTaskId(taskId);
+  };
+
+  useEffect(() => {
+    if (!draggingTaskId) return;
+
+    const handleMove = (event: MouseEvent) => {
+      const deltaX = event.clientX - dragStartXRef.current;
+      const nextDelta = Math.round(deltaX / columnWidth);
+      dragDeltaRef.current = nextDelta;
+      setDragDeltaDays(nextDelta);
+    };
+
+    const handleUp = async () => {
+      const deltaDays = dragDeltaRef.current;
+      const taskId = draggingTaskId;
+      setDraggingTaskId(null);
+      setDragDeltaDays(0);
+
+      if (!taskId || deltaDays === 0) return;
+
+      const task = taskMap.get(taskId);
+      await shiftTaskSchedule(taskId, deltaDays, task?.title || 'Task');
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [draggingTaskId, shiftTaskSchedule, taskMap]);
+
+  const handleShiftSnackbarClose = () => {
+    if (!shiftSnackbar) return;
+    setShiftSnackbar({ ...shiftSnackbar, open: false });
+  };
+
+  const handleShiftUndo = async () => {
+    if (!shiftSnackbar) return;
+    const { taskId, taskTitle, deltaDays } = shiftSnackbar;
+    setShiftSnackbar(null);
+    await shiftTaskSchedule(taskId, -deltaDays, taskTitle);
+  };
 
   const getBarStyle = (task: Task, blocked: boolean) => {
     if (task.status === 'done') {
@@ -261,20 +336,6 @@ export default function ProjectTimeline() {
           </Stack>
         </Box>
         <Stack direction="row" spacing={1} alignItems="center">
-          <ToggleButtonGroup
-            value={sortMode}
-            exclusive
-            onChange={(_event, value) => { if (value) setSortMode(value); }}
-            size="small"
-          >
-            <ToggleButton value="execution" aria-label="execution order">
-              <SortIcon sx={{ mr: 0.5 }} />
-              Ausf.-Reihenfolge
-            </ToggleButton>
-            <ToggleButton value="created" aria-label="creation order">
-              Erstelldatum
-            </ToggleButton>
-          </ToggleButtonGroup>
           <Button variant="outlined" onClick={() => navigate(`/projects/${project.id}`)}>
             Project Detail
           </Button>
@@ -433,6 +494,12 @@ export default function ProjectTimeline() {
                       row.end as Date,
                       'MMM d, yyyy'
                     )}`;
+                    const isDragging = draggingTaskId === row.task.id;
+                    const offsetDays = isDragging ? dragDeltaDays : 0;
+                    const shiftLabel =
+                      isDragging && dragDeltaDays !== 0
+                        ? `${dragDeltaDays > 0 ? '+' : ''}${dragDeltaDays}d`
+                        : '';
 
                     return (
                       <Box
@@ -450,16 +517,39 @@ export default function ProjectTimeline() {
                       >
                         <Tooltip title={rangeLabel}>
                           <Box
+                            role="button"
+                            aria-label={`Shift ${row.task.title}`}
+                            onMouseDown={(e) => startTaskDrag(e, row.task.id)}
                             sx={{
                               gridColumn: `${gridStart} / ${gridEnd}`,
                               alignSelf: 'center',
                               height: 18,
                               borderRadius: 999,
                               boxShadow: '0 8px 18px rgba(15, 23, 42, 0.15)',
+                              cursor: shiftingTaskId ? 'not-allowed' : 'grab',
+                              transform: `translateX(${offsetDays * columnWidth}px)`,
+                              transition: isDragging ? 'none' : 'transform 120ms ease-out',
                               ...barStyle,
                             }}
                           />
                         </Tooltip>
+                        {shiftLabel && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 12,
+                              px: 1,
+                              py: 0.25,
+                              borderRadius: 999,
+                              backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                              color: '#fff',
+                              fontSize: 11,
+                            }}
+                          >
+                            {shiftLabel}
+                          </Box>
+                        )}
                         {row.workSlots.map((slot) => {
                           const slotStart = startOfDay(new Date(slot.startTime));
                           const slotEndBase = startOfDay(new Date(slot.endTime));
@@ -528,6 +618,30 @@ export default function ProjectTimeline() {
           </Stack>
         </Paper>
       )}
+
+      <Snackbar
+        open={Boolean(shiftSnackbar?.open)}
+        autoHideDuration={5000}
+        onClose={handleShiftSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleShiftSnackbarClose}
+          severity="success"
+          action={
+            <Button color="inherit" size="small" onClick={handleShiftUndo}>
+              Undo
+            </Button>
+          }
+          sx={{ width: '100%' }}
+        >
+          {shiftSnackbar
+            ? `${shiftSnackbar.taskTitle} shifted by ${
+                shiftSnackbar.deltaDays > 0 ? '+' : ''
+              }${shiftSnackbar.deltaDays} days`
+            : 'Task shifted'}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
