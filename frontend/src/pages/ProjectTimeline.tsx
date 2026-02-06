@@ -13,6 +13,13 @@ import {
   Tooltip,
   Snackbar,
   useTheme,
+  FormControlLabel,
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
@@ -114,6 +121,14 @@ export default function ProjectTimeline() {
     taskId: string;
     taskTitle: string;
     deltaDays: number;
+    cascade: boolean;
+  } | null>(null);
+  const [cascadeMode, setCascadeMode] = useState<boolean>(() => {
+    return localStorage.getItem('timeline-cascade-mode') !== 'false';
+  });
+  const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
+  const [pendingShift, setPendingShift] = useState<{
+    taskId: string; deltaDays: number; taskTitle: string;
   } | null>(null);
   const dragStartXRef = useRef(0);
   const dragDeltaRef = useRef(0);
@@ -194,14 +209,20 @@ export default function ProjectTimeline() {
     return { start, end, days };
   }, [scheduledRows]);
 
+  const hasDependents = useCallback((taskId: string): boolean => {
+    return Object.values(taskDependencies).some(
+      (deps) => deps.some((d) => d.dependsOnTaskId === taskId)
+    );
+  }, [taskDependencies]);
+
   const shiftTaskSchedule = useCallback(
-    async (taskId: string, deltaDays: number, taskTitle: string) => {
+    async (taskId: string, deltaDays: number, taskTitle: string, cascade: boolean) => {
       if (!deltaDays) return;
       try {
         setShiftingTaskId(taskId);
-        await taskService.shiftSchedule(taskId, { deltaDays, cascade: true });
+        await taskService.shiftSchedule(taskId, { deltaDays, cascade });
         await loadTimeline();
-        setShiftSnackbar({ open: true, taskId, taskTitle, deltaDays });
+        setShiftSnackbar({ open: true, taskId, taskTitle, deltaDays, cascade });
       } catch (err) {
         console.error(err);
         setError('Failed to shift task schedule');
@@ -240,7 +261,14 @@ export default function ProjectTimeline() {
       if (!taskId || deltaDays === 0) return;
 
       const task = taskMap.get(taskId);
-      await shiftTaskSchedule(taskId, deltaDays, task?.title || 'Task');
+      const title = task?.title || 'Task';
+
+      if (cascadeMode || !hasDependents(taskId)) {
+        await shiftTaskSchedule(taskId, deltaDays, title, cascadeMode);
+      } else {
+        setPendingShift({ taskId, deltaDays, taskTitle: title });
+        setCascadeDialogOpen(true);
+      }
     };
 
     window.addEventListener('mousemove', handleMove);
@@ -249,7 +277,7 @@ export default function ProjectTimeline() {
       window.removeEventListener('mousemove', handleMove);
       window.removeEventListener('mouseup', handleUp);
     };
-  }, [draggingTaskId, shiftTaskSchedule, taskMap]);
+  }, [draggingTaskId, shiftTaskSchedule, taskMap, cascadeMode, hasDependents]);
 
   const handleShiftSnackbarClose = () => {
     if (!shiftSnackbar) return;
@@ -258,9 +286,9 @@ export default function ProjectTimeline() {
 
   const handleShiftUndo = async () => {
     if (!shiftSnackbar) return;
-    const { taskId, taskTitle, deltaDays } = shiftSnackbar;
+    const { taskId, taskTitle, deltaDays, cascade } = shiftSnackbar;
     setShiftSnackbar(null);
-    await shiftTaskSchedule(taskId, -deltaDays, taskTitle);
+    await shiftTaskSchedule(taskId, -deltaDays, taskTitle, cascade);
   };
 
   const getBarStyle = (task: Task, blocked: boolean) => {
@@ -370,9 +398,22 @@ export default function ProjectTimeline() {
       </Paper>
 
       <Paper sx={{ p: 2.5 }}>
-        <Typography variant="h6" gutterBottom>
-          Schedule overview
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="h6">Schedule overview</Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={cascadeMode}
+                onChange={(e) => {
+                  setCascadeMode(e.target.checked);
+                  localStorage.setItem('timeline-cascade-mode', String(e.target.checked));
+                }}
+              />
+            }
+            label="Immer mit Abhängigkeiten verschieben"
+          />
+        </Stack>
         <Divider sx={{ mb: 2 }} />
 
         {scheduledRows.length === 0 || !timelineRange ? (
@@ -618,6 +659,30 @@ export default function ProjectTimeline() {
           </Stack>
         </Paper>
       )}
+
+      <Dialog
+        open={cascadeDialogOpen}
+        onClose={() => { setCascadeDialogOpen(false); setPendingShift(null); }}
+      >
+        <DialogTitle>Abhängige Tasks verschieben?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Dieser Task hat nachfolgende abhängige Tasks. Sollen diese mitbewegt werden?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={async () => {
+            setCascadeDialogOpen(false);
+            if (pendingShift) await shiftTaskSchedule(pendingShift.taskId, pendingShift.deltaDays, pendingShift.taskTitle, false);
+            setPendingShift(null);
+          }}>Nur diesen Task</Button>
+          <Button variant="contained" onClick={async () => {
+            setCascadeDialogOpen(false);
+            if (pendingShift) await shiftTaskSchedule(pendingShift.taskId, pendingShift.deltaDays, pendingShift.taskTitle, true);
+            setPendingShift(null);
+          }}>Mit Abhängigkeiten</Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={Boolean(shiftSnackbar?.open)}
