@@ -41,8 +41,10 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     workday_start: '09:00',
     workday_end: '17:00',
     work_template: 'default',
+    task_template_id: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
+    deleted_at: null,
     ...overrides,
   };
 }

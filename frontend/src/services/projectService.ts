@@ -60,4 +60,18 @@ export const projectService = {
     const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/reset-template`);
     return response.data.data;
   },
+
+  async getTrashed(): Promise<Project[]> {
+    const response = await api.get<ApiResponse<Project[]>>('/projects/trash');
+    return response.data.data;
+  },
+
+  async restore(id: string): Promise<Project> {
+    const response = await api.post<ApiResponse<Project>>(`/projects/${id}/restore`);
+    return response.data.data;
+  },
+
+  async permanentDelete(id: string): Promise<void> {
+    await api.delete(`/projects/${id}/permanent`);
+  },
 };

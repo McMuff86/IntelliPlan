@@ -27,6 +27,7 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import RestoreIcon from '@mui/icons-material/Restore';
 import EventIcon from '@mui/icons-material/Event';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -38,6 +39,7 @@ import { resourceService } from '../services/resourceService';
 import Breadcrumbs from '../components/Breadcrumbs';
 import AutoScheduleDialog from '../components/AutoScheduleDialog/AutoScheduleDialog';
 import axios from 'axios';
+import { topologicalSort } from '../utils/topologicalSort';
 
 const statusOptions: TaskStatus[] = ['planned', 'in_progress', 'blocked', 'done'];
 const schedulingOptions: SchedulingMode[] = ['manual', 'auto'];
@@ -102,6 +104,8 @@ export default function ProjectDetail() {
   const [resetting, setResetting] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [autoScheduleOpen, setAutoScheduleOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editingTaskTitle, setEditingTaskTitle] = useState('');
   const [layoutOrder, setLayoutOrder] = useState<LayoutSectionKey[]>([...defaultLayoutOrder]);
@@ -250,59 +254,7 @@ export default function ProjectDetail() {
 
     // 2. Sort
     if (taskSortOrder === 'workflow') {
-      // Topological sort using dependencies
-      const taskIds = new Set(list.map((t) => t.id));
-      const inDegree = new Map<string, number>();
-      const adjacency = new Map<string, string[]>();
-      for (const t of list) {
-        inDegree.set(t.id, 0);
-        adjacency.set(t.id, []);
-      }
-      for (const t of list) {
-        const deps = taskDependencies.get(t.id) || [];
-        for (const depId of deps) {
-          if (taskIds.has(depId)) {
-            inDegree.set(t.id, (inDegree.get(t.id) || 0) + 1);
-            adjacency.get(depId)?.push(t.id);
-          }
-        }
-      }
-      const queue: string[] = [];
-      for (const [id, deg] of inDegree) {
-        if (deg === 0) queue.push(id);
-      }
-      // Stable sort: among tasks with same in-degree, sort by createdAt
-      queue.sort((a, b) => {
-        const ta = list.find((t) => t.id === a)!;
-        const tb = list.find((t) => t.id === b)!;
-        return new Date(ta.createdAt).getTime() - new Date(tb.createdAt).getTime();
-      });
-      const sorted: Task[] = [];
-      const taskMap = new Map(list.map((t) => [t.id, t]));
-      while (queue.length > 0) {
-        const current = queue.shift()!;
-        sorted.push(taskMap.get(current)!);
-        const neighbors = adjacency.get(current) || [];
-        for (const neighbor of neighbors) {
-          const newDeg = (inDegree.get(neighbor) || 1) - 1;
-          inDegree.set(neighbor, newDeg);
-          if (newDeg === 0) {
-            // Insert in createdAt order
-            const nt = taskMap.get(neighbor)!;
-            const insertIdx = queue.findIndex((qId) => {
-              const qt = taskMap.get(qId)!;
-              return new Date(qt.createdAt).getTime() > new Date(nt.createdAt).getTime();
-            });
-            if (insertIdx === -1) queue.push(neighbor);
-            else queue.splice(insertIdx, 0, neighbor);
-          }
-        }
-      }
-      // Add any remaining tasks (cycles, if any)
-      for (const t of list) {
-        if (!sorted.find((s) => s.id === t.id)) sorted.push(t);
-      }
-      return sorted;
+      return topologicalSort(list, (id) => taskDependencies.get(id) || []);
     }
 
     list.sort((a, b) => {
@@ -545,6 +497,28 @@ export default function ProjectDetail() {
     await projectService.autoSchedule(project.id, { taskIds, endDate });
     await refreshTasks(project.id);
     void loadActivity(project.id);
+  };
+
+  const handleDeleteProject = async () => {
+    if (!project) return;
+    try {
+      setDeleting(true);
+      setError(null);
+      await projectService.delete(project.id);
+      navigate('/projects');
+    } catch (err) {
+      console.error(err);
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to delete project');
+      } else {
+        setError('Failed to delete project');
+      }
+      setDeleteDialogOpen(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const resetResourceForm = () => {
@@ -1183,6 +1157,14 @@ export default function ProjectDetail() {
           >
             Timeline
           </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteIcon />}
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            Delete
+          </Button>
         </Stack>
       </Box>
 
@@ -1280,6 +1262,23 @@ export default function ProjectDetail() {
           </Button>
           <Button onClick={handleResetTemplate} color="error" variant="contained" disabled={resetting}>
             {resetting ? 'Resetting...' : 'Reset'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Project</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This project and all its tasks will be moved to the trash. You can restore it within 5 days.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={deleting}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteProject} color="error" variant="contained" disabled={deleting}>
+            {deleting ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

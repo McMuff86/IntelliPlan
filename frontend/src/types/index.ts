@@ -120,6 +120,7 @@ export interface Project {
   taskTemplateId: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string | null;
 }
 
 export interface Task {

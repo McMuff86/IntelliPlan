@@ -5,6 +5,9 @@ import {
   deleteProject,
   getProjectById,
   listProjects,
+  listTrashedProjects,
+  permanentDeleteProject,
+  restoreProject,
   updateProject,
 } from '../services/projectService';
 import { shiftProjectSchedule, autoScheduleProjectTasks } from '../services/taskService';
@@ -460,6 +463,61 @@ export async function listActivity(req: Request, res: Response, next: NextFuncti
 
     const activity = await listProjectActivity(projectId, userId);
     res.status(200).json({ success: true, data: activity.map(toProjectActivityResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listTrash(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projects = await listTrashedProjects(userId);
+    res.status(200).json({ success: true, data: projects.map(toProjectResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function restore(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const project = await restoreProject(req.params.id as string, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found in trash' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: toProjectResponse(project) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function permanentRemove(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const deleted = await permanentDeleteProject(req.params.id as string, userId);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: 'Project not found in trash' });
+      return;
+    }
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

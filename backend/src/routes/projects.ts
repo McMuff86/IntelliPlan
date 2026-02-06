@@ -15,11 +15,14 @@ router.use(requireUserId);
 router.use(loadUser);
 
 router.get('/search', searchProjectsValidator, searchProjectsHandler);
+router.get('/trash', projectController.listTrash);
 router.get('/', projectController.list);
 router.post('/', createProjectValidator, projectController.create);
 router.get('/:id', projectController.getById);
 router.put('/:id', updateProjectValidator, projectController.update);
 router.delete('/:id', projectController.remove);
+router.post('/:id/restore', projectController.restore);
+router.delete('/:id/permanent', projectController.permanentRemove);
 router.post('/:id/shift', shiftProjectValidator, projectController.shiftSchedule);
 router.get('/:id/activity', projectController.listActivity);
 router.post('/:id/apply-template', projectController.applyTemplate);

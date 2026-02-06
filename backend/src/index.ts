@@ -1,6 +1,7 @@
 import app from './app';
 import { testConnection } from './config/database';
 import logger from './config/logger';
+import { cleanupExpiredTrash } from './services/projectService';
 import type { Server } from 'http';
 
 const PREFERRED_PORT = Number(process.env.PORT) || 3000;
@@ -26,9 +27,22 @@ const tryListen = (port: number, attempt: number): Promise<Server> => {
   });
 };
 
+const SIX_HOURS_MS = 6 * 60 * 60 * 1000;
+
 const startServer = async (): Promise<void> => {
   await testConnection();
   await tryListen(PREFERRED_PORT, 1);
+
+  setInterval(async () => {
+    try {
+      const count = await cleanupExpiredTrash();
+      if (count > 0) {
+        logger.info({ count }, 'Trash cleanup: permanently deleted expired projects');
+      }
+    } catch (err) {
+      logger.error({ err }, 'Trash cleanup failed');
+    }
+  }, SIX_HOURS_MS);
 };
 
 startServer().catch((error) => {

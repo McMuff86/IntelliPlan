@@ -11,8 +11,11 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
+  ToggleButtonGroup,
+  ToggleButton,
   useTheme,
 } from '@mui/material';
+import SortIcon from '@mui/icons-material/Sort';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import LinkIcon from '@mui/icons-material/Link';
@@ -30,6 +33,7 @@ import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
 import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
+import { topologicalSort } from '../utils/topologicalSort';
 
 type TimelineRow = {
   task: Task;
@@ -104,6 +108,7 @@ export default function ProjectTimeline() {
   const [taskSlots, setTaskSlots] = useState<Record<string, TaskWorkSlot[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<'execution' | 'created'>('execution');
 
   const loadTimeline = async () => {
     if (!id) return;
@@ -147,13 +152,17 @@ export default function ProjectTimeline() {
   const taskMap = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
   const rows = useMemo<TimelineRow[]>(() => {
-    return tasks.map((task) => {
+    const sortedTasks = sortMode === 'execution'
+      ? topologicalSort(tasks, (id) => (taskDependencies[id] ?? []).map((d) => d.dependsOnTaskId))
+      : [...tasks].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    return sortedTasks.map((task) => {
       const workSlots = taskSlots[task.id] ?? [];
       const dependencies = taskDependencies[task.id] ?? [];
       const { start, end } = getTaskRange(task, workSlots);
       return { task, start, end, dependencies, workSlots };
     });
-  }, [tasks, taskDependencies, taskSlots]);
+  }, [tasks, taskDependencies, taskSlots, sortMode]);
 
   const scheduledRows = useMemo(
     () => rows.filter((row) => row.start && row.end),
@@ -251,7 +260,21 @@ export default function ProjectTimeline() {
             {blockedCount > 0 && <Chip size="small" label={`${blockedCount} blocked`} color="warning" />}
           </Stack>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <ToggleButtonGroup
+            value={sortMode}
+            exclusive
+            onChange={(_event, value) => { if (value) setSortMode(value); }}
+            size="small"
+          >
+            <ToggleButton value="execution" aria-label="execution order">
+              <SortIcon sx={{ mr: 0.5 }} />
+              Ausf.-Reihenfolge
+            </ToggleButton>
+            <ToggleButton value="created" aria-label="creation order">
+              Erstelldatum
+            </ToggleButton>
+          </ToggleButtonGroup>
           <Button variant="outlined" onClick={() => navigate(`/projects/${project.id}`)}>
             Project Detail
           </Button>

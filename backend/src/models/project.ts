@@ -10,6 +10,7 @@ export interface Project {
   task_template_id: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 export interface ProjectResponse {
@@ -24,6 +25,7 @@ export interface ProjectResponse {
   taskTemplateId: string | null;
   createdAt: string;
   updatedAt: string;
+  deletedAt: string | null;
 }
 
 export const toProjectResponse = (project: Project): ProjectResponse => ({
@@ -38,4 +40,5 @@ export const toProjectResponse = (project: Project): ProjectResponse => ({
   taskTemplateId: project.task_template_id,
   createdAt: project.created_at,
   updatedAt: project.updated_at,
+  deletedAt: project.deleted_at,
 });

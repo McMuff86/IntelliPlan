@@ -969,3 +969,57 @@ docker exec -i intelliplan-postgres psql -U postgres intelliplan < intelliplan_b
 **Hinweis:** Die .sql Datei enthält alle Projekte, Tasks, Termine und User-Daten. Nach dem Import sind alle Testdaten vom Home-PC verfügbar.
 
 ---
+
+## 2026-02-06 - Papierkorb (Trash) + Timeline Dependency Sort
+Thread: N/A (Claude Code)
+
+### Part A: Papierkorb (Soft-Delete Trash Bin)
+
+Soft-delete-Infrastruktur existierte bereits (Migration 017, `deleted_at` Spalte, alle Queries filtern `deleted_at IS NULL`). Neu hinzugefügt: Trash-Listing, Restore, Permanent Delete, Auto-Cleanup und komplettes Frontend-UI.
+
+**Backend:**
+- `backend/src/models/project.ts` - `deleted_at` / `deletedAt` Felder zu Interfaces und Response-Mapper hinzugefügt
+- `backend/src/services/projectService.ts`:
+  - `deleteProject()` erweitert: Cascade-Soft-Delete auf Child-Tasks (transaktional via `pool.connect()`)
+  - `listTrashedProjects(ownerId)` - Zeigt alle gelöschten Projekte
+  - `restoreProject(id, ownerId)` - Stellt Projekt + Tasks wieder her (Transaktion)
+  - `permanentDeleteProject(id, ownerId)` - Prüft ob soft-deleted, dann Hard-Delete (FK-Cascades)
+  - `cleanupExpiredTrash()` - Löscht Projekte mit `deleted_at > 5 Tage`
+- `backend/src/controllers/projectController.ts` - `listTrash`, `restore`, `permanentRemove` Controller
+- `backend/src/routes/projects.ts`:
+  - `GET /trash` **vor** `GET /:id` (Express behandelt sonst "trash" als UUID)
+  - `POST /:id/restore`, `DELETE /:id/permanent`
+- `backend/src/index.ts` - Auto-Cleanup via `setInterval` alle 6 Stunden
+
+**Frontend:**
+- `frontend/src/types/index.ts` - `deletedAt` zu `Project` Interface
+- `frontend/src/services/projectService.ts` - `getTrashed()`, `restore()`, `permanentDelete()`
+- `frontend/src/pages/ProjectDetail.tsx` - Delete-Button (rot) mit Bestätigungsdialog im Header
+- `frontend/src/pages/Projects.tsx`:
+  - "Papierkorb" Toggle-Tab in der ToggleButtonGroup
+  - Trash-View: Liste gelöschter Projekte mit Name, Löschdatum, verbleibende Tage
+  - Restore-Button und "Delete Forever"-Button pro Projekt
+  - Bestätigungsdialog für permanentes Löschen
+
+### Part B: Timeline Dependency Sort
+
+Topologischer Sort (Kahn's Algorithmus) existierte inline in ProjectDetail.tsx. Extrahiert als wiederverwendbares Utility und auf Timeline angewendet.
+
+- `frontend/src/utils/topologicalSort.ts` - **Neue Datei**: Generisches Kahn's-Algorithmus-Utility
+- `frontend/src/pages/ProjectDetail.tsx` - Refactored: Inline-Sort durch Utility ersetzt
+- `frontend/src/pages/ProjectTimeline.tsx`:
+  - `sortMode` State (default: `'execution'`)
+  - Tasks werden vor dem Mapping topologisch sortiert
+  - Toggle: "Ausf.-Reihenfolge" (Abhängigkeiten) / "Erstelldatum"
+
+### Test-Fix
+- `backend/src/services/__tests__/searchService.test.ts` - Fehlende `task_template_id` und `deleted_at` Felder im Test-Fixture ergänzt
+
+**Alle 173 Tests bestehen. Frontend und Backend kompilieren fehlerfrei.**
+
+**Learnings for future iterations:**
+- Route-Reihenfolge in Express ist kritisch: `/trash` muss vor `/:id` stehen
+- `pool.connect()` + BEGIN/COMMIT für Transaktionen bei Cascade-Operations
+- Topological Sort als generisches Utility extrahieren, nicht inline duplizieren
+- Papierkorb-Pattern: 5 Tage Aufbewahrung, dann Auto-Cleanup via setInterval
+---
