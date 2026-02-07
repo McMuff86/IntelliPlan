@@ -22,6 +22,7 @@ import Onboarding from './pages/Onboarding';
 import Demo from './pages/Demo';
 import Wochenplan from './pages/Wochenplan';
 import Capacity from './pages/Capacity';
+import Import from './pages/Import';
 
 function App() {
   const { theme } = useThemePreference();
@@ -58,6 +59,7 @@ function App() {
                 <Route path="/settings/templates" element={<TemplateManagement />} />
                 <Route path="/wochenplan" element={<Wochenplan />} />
                 <Route path="/capacity" element={<Capacity />} />
+                <Route path="/import" element={<Import />} />
                 <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />
               </Route>
             </Routes>

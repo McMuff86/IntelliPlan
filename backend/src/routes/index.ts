@@ -14,6 +14,7 @@ import pendenzenRouter from './pendenzen';
 import taskAssignmentsRouter from './taskAssignments';
 import wochenplanRouter from './wochenplan';
 import capacityRouter from './capacity';
+import importRouter from './import';
 
 const router = Router();
 
@@ -55,5 +56,6 @@ router.use('/pendenzen', pendenzenRouter);
 router.use('/assignments', taskAssignmentsRouter);
 router.use('/wochenplan', wochenplanRouter);
 router.use('/capacity', capacityRouter);
+router.use('/import', importRouter);
 
 export default router;
