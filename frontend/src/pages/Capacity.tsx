@@ -14,7 +14,6 @@ import {
   Alert,
   Tooltip,
   LinearProgress,
-  Collapse,
   Chip,
   Grid,
 } from '@mui/material';
@@ -483,7 +482,7 @@ function ResourceRow({ resource }: { resource: ResourceCapacity }) {
       </TableCell>
 
       {/* Day cells */}
-      {resource.periods.map((period, idx) => (
+      {resource.periods.map((period) => (
         <TableCell key={period.date} sx={{ textAlign: 'center', px: 0.5 }}>
           <PeriodCell period={period} />
         </TableCell>
