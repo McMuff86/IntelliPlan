@@ -433,19 +433,20 @@ function parseKwSheet(worksheet: ExcelJS.Worksheet, kw: number, year: number): P
 }
 
 /**
- * Strip images/drawings from an xlsx buffer to avoid ExcelJS crashes
- * on files with embedded images (known bug with media references).
+ * Strip problematic entries from an xlsx buffer to avoid ExcelJS crashes.
+ * Removes: images/drawings (media references bug), tables (undefined table bug).
  */
-async function stripImagesFromXlsx(buffer: Buffer): Promise<Buffer> {
+async function stripProblematicEntries(buffer: Buffer): Promise<Buffer> {
   const zip = await JSZip.loadAsync(buffer);
 
-  // Remove media files (images), drawing files, and drawing rels
+  // Remove media files (images), drawing files, drawing rels, AND table files
   const toRemove: string[] = [];
   zip.forEach((relativePath) => {
     if (
       relativePath.match(/xl\/media\//) ||
       relativePath.match(/xl\/drawings\//) ||
-      relativePath.match(/xl\/drawings\/_rels\//)
+      relativePath.match(/xl\/drawings\/_rels\//) ||
+      relativePath.match(/xl\/tables\//)
     ) {
       toRemove.push(relativePath);
     }
@@ -455,18 +456,40 @@ async function stripImagesFromXlsx(buffer: Buffer): Promise<Buffer> {
     zip.remove(path);
   }
 
-  // Also clean up worksheet rels that reference drawings
+  // Clean up worksheet rels that reference drawings or tables
   const relFiles = Object.keys(zip.files).filter((f) =>
-    f.match(/xl\/worksheets\/_rels\/sheet\d+\.xml\.rels/)
+    f.match(/xl\/worksheets\/_rels\//)
   );
   for (const relFile of relFiles) {
     const content = await zip.file(relFile)!.async('string');
-    // Remove Relationship entries that reference drawings
     const cleaned = content.replace(
-      /<Relationship[^>]*Target="[^"]*drawings[^"]*"[^>]*\/>/g,
+      /<Relationship[^>]*(drawings|table)[^>]*\/>/g,
       ''
     );
     zip.file(relFile, cleaned);
+  }
+
+  // Remove <tableParts> elements from worksheet XMLs (ExcelJS crashes on orphaned refs)
+  const sheetFiles = Object.keys(zip.files).filter((f) =>
+    f.match(/xl\/worksheets\/sheet\d+\.xml$/)
+  );
+  for (const sheetFile of sheetFiles) {
+    const content = await zip.file(sheetFile)!.async('string');
+    if (content.includes('tablePart')) {
+      const cleaned = content.replace(/<tableParts[^]*?<\/tableParts>/g, '');
+      zip.file(sheetFile, cleaned);
+    }
+  }
+
+  // Clean [Content_Types].xml to remove references to removed files
+  const ctFile = zip.file('[Content_Types].xml');
+  if (ctFile) {
+    const ctContent = await ctFile.async('string');
+    const ctCleaned = ctContent.replace(
+      /<Override[^>]*PartName="[^"]*(tables|drawings|media)[^"]*"[^>]*\/>/g,
+      ''
+    );
+    zip.file('[Content_Types].xml', ctCleaned);
   }
 
   return Buffer.from(await zip.generateAsync({ type: 'nodebuffer' }));
@@ -478,20 +501,10 @@ async function stripImagesFromXlsx(buffer: Buffer): Promise<Buffer> {
 export async function parseWochenplanExcel(buffer: Buffer): Promise<ParsedWeekPlan> {
   const workbook = new ExcelJS.Workbook();
 
-  // Try loading directly first; if it fails (e.g. due to image references),
-  // strip images and retry
-  try {
-    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    if (msg.includes('Cannot read properties of undefined')) {
-      // Known ExcelJS bug with embedded images – strip them and retry
-      const cleanBuffer = await stripImagesFromXlsx(buffer);
-      await workbook.xlsx.load(cleanBuffer as unknown as ExcelJS.Buffer);
-    } else {
-      throw err;
-    }
-  }
+  // Always strip problematic entries (tables, images, drawings) before loading.
+  // ExcelJS crashes on files with tables or embedded images (known bugs).
+  const cleanBuffer = await stripProblematicEntries(buffer);
+  await workbook.xlsx.load(cleanBuffer as unknown as ExcelJS.Buffer);
 
   const sheets: ParsedWeekSheet[] = [];
   const allResourceCodes = new Set<string>();

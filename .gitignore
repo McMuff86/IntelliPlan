@@ -65,5 +65,8 @@ ENV/
 *.sqlite
 *.sqlite3
 
+# Example data (contains real/anonymized client data)
+example/
+
 # Docker
 .dockerignore

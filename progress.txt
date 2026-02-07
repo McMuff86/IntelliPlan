@@ -8,6 +8,13 @@
 - industries, product_types, task_templates all have UNIQUE constraints (migration 028)
 - `applyTemplateToProject()` accepts optional `durationOverrides` (Record<taskId, number>) and `multiplier` for scaling task durations
 - Template dialog cascade: industryService → productTypeService(industryId) → taskTemplateService(productTypeId)
+- ExcelJS crashes on xlsx files with `<tableParts>` or embedded images — must strip these from ZIP before loading (see `stripProblematicEntries` in importService.ts)
+- ExcelJS `worksheet.js:920` tries `table.name` on undefined entries from orphaned table refs — remove xl/tables/, tableParts XML elements, Content_Types overrides, AND worksheet rels
+- `resources` table lacked `deleted_at` column despite all services referencing it — Migration 038 adds it
+- Migration 037 had `WHERE deleted_at IS NULL` on resources unique index before the column existed — fixed to omit it (038 recreates with proper filter)
+- On Windows, old node.exe processes linger on ports after TaskStop — use `netstat -ano | findstr` + `taskkill //F //PID` to free ports
+- `multer` + `@types/multer` must be installed for import route (was missing from package.json)
+- PostgreSQL: `SELECT DISTINCT` with `ORDER BY table.col` fails — use column aliases instead
 
 ---
 
@@ -1053,4 +1060,56 @@ Topologischer Sort (Kahn's Algorithmus) existierte inline in ProjectDetail.tsx. 
 - Seed-Scripts müssen UNIQUE-Constraints matchen für idempotente ON CONFLICT Klauseln
 - `ON CONFLICT DO NOTHING` ohne Spalte ist wirkungslos wenn kein UNIQUE-Index existiert
 - Template-Vorschau mit editierbaren Feldern: State als Record<id, number> für Overrides
+---
+
+## 2026-02-07 - Bugfix Session: DB Migrations, Excel Import, Startup Fixes
+- **Context**: After pulling feature/wochenplan-phase2 branch, the app wouldn't start due to missing dependencies and DB migrations.
+
+### Fixes Applied
+
+**1. Missing `multer` dependency**
+- `backend/src/routes/import.ts` imports `multer` but it wasn't in package.json
+- Installed: `npm install multer && npm install -D @types/multer`
+
+**2. DB Migrations 033-038 executed**
+- 033: `task_assignments` table
+- 034: `extend_resources` (department, employee_type, etc.)
+- 035: `extend_projects` (order_number, customer_name, etc.)
+- 036: `production_phases` (`task_phase_schedules` table, production_phase ENUM)
+- 037: `model_fixes` (short_code, phase_code, status_code) — **fixed**: removed `WHERE deleted_at IS NULL` from resources index (column didn't exist yet)
+- 038: **NEW** `add_resources_deleted_at` — adds `deleted_at` to resources table + recreates short_code unique index with proper filter
+
+**3. Excel Import Parser — ExcelJS crash fix**
+- ExcelJS crashes on xlsx files with `<tableParts>` (table definitions) — `worksheet.js:920` tries `table.name` on undefined
+- Root cause: 2 table entries in `xl/tables/` + `<tableParts>` in sheet55.xml (Dropdown sheet)
+- Fix: Renamed `stripImagesFromXlsx` → `stripProblematicEntries`, now strips: `xl/tables/`, `xl/media/`, `xl/drawings/`, `<tableParts>` from sheet XMLs, `[Content_Types].xml` overrides, worksheet rels
+- Changed parser to ALWAYS strip before loading (no try/catch retry)
+
+**4. Wochenplan Conflicts SQL fix**
+- `wochenplanService.ts:670`: `ORDER BY c.assignment_date, r.short_code` failed with SELECT DISTINCT
+- Fix: Use column aliases `ORDER BY assignment_date, short_code, effective_half`
+
+**5. .gitignore**
+- Added `example/` directory (contains real/anonymized Excel data)
+
+### Files Changed
+- `.gitignore` — added `example/`
+- `backend/migrations/037_model_fixes.sql` — removed invalid `deleted_at` ref in index
+- `backend/migrations/038_add_resources_deleted_at.sql` — NEW
+- `backend/src/services/importService.ts` — `stripProblematicEntries()` with full table/image cleanup
+- `backend/src/services/wochenplanService.ts` — SQL ORDER BY fix
+- `backend/package.json` — multer dependency added
+- `progress.txt` — this entry
+
+### Status After This Session
+- **Working**: Login, Wochenplan view, Import validation (Excel parsing), Kapazität page
+- **Known remaining issue**: Wochenplan conflicts endpoint had SQL fix but wasn't retested
+- **Test user**: `adi@test.ch` / `Test1234` (seeded)
+- **Example data**: `example/Wochenplan_2026_anonymisiert.xlsx` (2.2 MB, 53 KW sheets, ~300 rows each)
+
+### Next Steps
+- Test full Excel import (Validieren → Importieren) end-to-end
+- Verify Kapazität page loads after migration 038
+- Verify Wochenplan conflicts after SQL fix
+- Review all Phase 2 features with imported data
 ---

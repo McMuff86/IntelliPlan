@@ -25,7 +25,7 @@ END $$;
 ALTER TABLE resources ADD COLUMN IF NOT EXISTS short_code VARCHAR(20);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_resources_short_code
-  ON resources(short_code) WHERE short_code IS NOT NULL AND deleted_at IS NULL;
+  ON resources(short_code) WHERE short_code IS NOT NULL;
 
 -- ═══════════════════════════════════════════════════════
 -- 3. employee_type CHECK constraint (mit apprentice/lehrling)

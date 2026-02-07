@@ -671,7 +671,7 @@ export async function getWeekConflicts(kw: number, year: number): Promise<Confli
             c.assignment_date::text AS assignment_date, c.effective_half
      FROM conflicts c
      JOIN resources r ON r.id = c.resource_id
-     ORDER BY c.assignment_date, r.short_code, c.effective_half`,
+     ORDER BY assignment_date, short_code, effective_half`,
     [from, to]
   );
 
