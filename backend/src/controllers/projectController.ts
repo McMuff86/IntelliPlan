@@ -142,7 +142,11 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, description, includeWeekends, workdayStart, workdayEnd, workTemplate, taskTemplateId } = req.body;
+    const {
+      name, description, includeWeekends, workdayStart, workdayEnd, workTemplate, taskTemplateId,
+      orderNumber, customerName, installationLocation, color, contactName, contactPhone,
+      needsCallback, sachbearbeiter, workerCount, helperCount, remarks,
+    } = req.body;
     const templateDefaults = resolveTemplateDefaults(workTemplate);
     const resolvedIncludeWeekends = templateDefaults
       ? templateDefaults.includeWeekends
@@ -161,6 +165,17 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       workday_end: resolvedWorkdayEnd,
       work_template: resolvedTemplate,
       task_template_id: taskTemplateId,
+      order_number: orderNumber,
+      customer_name: customerName,
+      installation_location: installationLocation,
+      color,
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      needs_callback: needsCallback,
+      sachbearbeiter,
+      worker_count: workerCount,
+      helper_count: helperCount,
+      remarks,
     });
 
     // Apply task template if provided
@@ -217,7 +232,11 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, description, includeWeekends, workdayStart, workdayEnd, workTemplate } = req.body;
+    const {
+      name, description, includeWeekends, workdayStart, workdayEnd, workTemplate,
+      orderNumber, customerName, installationLocation, color, contactName, contactPhone,
+      needsCallback, sachbearbeiter, workerCount, helperCount, remarks,
+    } = req.body;
     const templateDefaults = resolveTemplateDefaults(workTemplate);
     const resolvedIncludeWeekends = templateDefaults
       ? templateDefaults.includeWeekends
@@ -237,6 +256,17 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       workday_start: resolvedWorkdayStart,
       workday_end: resolvedWorkdayEnd,
       work_template: workTemplate,
+      order_number: orderNumber,
+      customer_name: customerName,
+      installation_location: installationLocation,
+      color,
+      contact_name: contactName,
+      contact_phone: contactPhone,
+      needs_callback: needsCallback,
+      sachbearbeiter,
+      worker_count: workerCount,
+      helper_count: helperCount,
+      remarks,
     });
 
     if (!updated) {

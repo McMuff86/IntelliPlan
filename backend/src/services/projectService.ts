@@ -10,6 +10,17 @@ export interface CreateProjectDTO {
   workday_end?: string;
   work_template?: string;
   task_template_id?: string | null;
+  order_number?: string | null;
+  customer_name?: string | null;
+  installation_location?: string | null;
+  color?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  needs_callback?: boolean;
+  sachbearbeiter?: string | null;
+  worker_count?: number | null;
+  helper_count?: number | null;
+  remarks?: string | null;
 }
 
 export interface UpdateProjectDTO {
@@ -19,12 +30,28 @@ export interface UpdateProjectDTO {
   workday_start?: string;
   workday_end?: string;
   work_template?: string;
+  order_number?: string | null;
+  customer_name?: string | null;
+  installation_location?: string | null;
+  color?: string | null;
+  contact_name?: string | null;
+  contact_phone?: string | null;
+  needs_callback?: boolean;
+  sachbearbeiter?: string | null;
+  worker_count?: number | null;
+  helper_count?: number | null;
+  remarks?: string | null;
 }
 
 export async function createProject(data: CreateProjectDTO): Promise<Project> {
   const result = await pool.query<Project>(
-    `INSERT INTO projects (name, description, owner_id, include_weekends, workday_start, workday_end, work_template, task_template_id)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO projects (
+       name, description, owner_id, include_weekends, workday_start, workday_end,
+       work_template, task_template_id, order_number, customer_name,
+       installation_location, color, contact_name, contact_phone,
+       needs_callback, sachbearbeiter, worker_count, helper_count, remarks
+     )
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
      RETURNING *`,
     [
       data.name,
@@ -35,6 +62,17 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
       data.workday_end || '17:00',
       data.work_template || 'weekday_8_17',
       data.task_template_id || null,
+      data.order_number ?? null,
+      data.customer_name ?? null,
+      data.installation_location ?? null,
+      data.color ?? null,
+      data.contact_name ?? null,
+      data.contact_phone ?? null,
+      data.needs_callback ?? false,
+      data.sachbearbeiter ?? null,
+      data.worker_count ?? null,
+      data.helper_count ?? null,
+      data.remarks ?? null,
     ]
   );
 
@@ -90,7 +128,7 @@ export async function updateProject(
   data: UpdateProjectDTO
 ): Promise<Project | null> {
   const fields: string[] = [];
-  const values: (string | boolean | null)[] = [];
+  const values: (string | boolean | number | null)[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {
@@ -116,6 +154,50 @@ export async function updateProject(
   if (data.work_template !== undefined) {
     fields.push(`work_template = $${paramIndex++}`);
     values.push(data.work_template);
+  }
+  if (data.order_number !== undefined) {
+    fields.push(`order_number = $${paramIndex++}`);
+    values.push(data.order_number);
+  }
+  if (data.customer_name !== undefined) {
+    fields.push(`customer_name = $${paramIndex++}`);
+    values.push(data.customer_name);
+  }
+  if (data.installation_location !== undefined) {
+    fields.push(`installation_location = $${paramIndex++}`);
+    values.push(data.installation_location);
+  }
+  if (data.color !== undefined) {
+    fields.push(`color = $${paramIndex++}`);
+    values.push(data.color);
+  }
+  if (data.contact_name !== undefined) {
+    fields.push(`contact_name = $${paramIndex++}`);
+    values.push(data.contact_name);
+  }
+  if (data.contact_phone !== undefined) {
+    fields.push(`contact_phone = $${paramIndex++}`);
+    values.push(data.contact_phone);
+  }
+  if (data.needs_callback !== undefined) {
+    fields.push(`needs_callback = $${paramIndex++}`);
+    values.push(data.needs_callback);
+  }
+  if (data.sachbearbeiter !== undefined) {
+    fields.push(`sachbearbeiter = $${paramIndex++}`);
+    values.push(data.sachbearbeiter);
+  }
+  if (data.worker_count !== undefined) {
+    fields.push(`worker_count = $${paramIndex++}`);
+    values.push(data.worker_count);
+  }
+  if (data.helper_count !== undefined) {
+    fields.push(`helper_count = $${paramIndex++}`);
+    values.push(data.helper_count);
+  }
+  if (data.remarks !== undefined) {
+    fields.push(`remarks = $${paramIndex++}`);
+    values.push(data.remarks);
   }
 
   if (fields.length === 0) {
