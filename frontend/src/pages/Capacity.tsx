@@ -595,3 +595,180 @@ function PeriodCell({ period }: { period: PeriodCapacity }) {
     </Tooltip>
   );
 }
+
+// ─── Multi-Week Trend ──────────────────────────────────
+
+interface MultiWeekTrendProps {
+  data: TrendWeekData[];
+  loading: boolean;
+  weeks: number;
+  departments: { department: string; label: string }[];
+}
+
+const TREND_DEPT_COLORS: Record<string, string> = {
+  zuschnitt: '#e65100',
+  cnc: '#1565c0',
+  produktion: '#2e7d32',
+  behandlung: '#6a1b9a',
+  beschlaege: '#f57f17',
+  transport: '#00838f',
+  montage: '#c62828',
+  buero: '#546e7a',
+};
+
+function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendProps) {
+  if (loading) {
+    return (
+      <Paper sx={{ p: 3, mb: 3, display: 'flex', justifyContent: 'center' }}>
+        <CircularProgress size={24} />
+        <Typography variant="body2" sx={{ ml: 2 }}>
+          Lade {weeks}-Wochen-Trend…
+        </Typography>
+      </Paper>
+    );
+  }
+
+  if (data.length === 0) return null;
+
+  // Get unique departments from all trend data
+  const allDepts = new Set<string>();
+  for (const week of data) {
+    for (const d of week.departments) {
+      allDepts.add(d.department);
+    }
+  }
+  const deptList = departments.filter((d) => allDepts.has(d.department));
+
+  return (
+    <Paper sx={{ p: 3, mb: 3 }}>
+      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <TrendingUpIcon />
+        {weeks}-Wochen-Trend
+      </Typography>
+
+      {/* Overall utilization bars */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" gutterBottom>
+          Gesamtauslastung
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 120 }}>
+          {data.map((week) => (
+            <Tooltip
+              key={week.kw}
+              title={`KW ${week.kw}: ${week.utilizationPercent}% (${week.totalAssignedHours}h / ${week.totalAvailableHours}h)`}
+              arrow
+            >
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <Box
+                  sx={{
+                    width: '100%',
+                    maxWidth: 40,
+                    height: `${Math.max(week.utilizationPercent, 2)}%`,
+                    bgcolor: getUtilColorHex(week.utilizationPercent),
+                    borderRadius: '4px 4px 0 0',
+                    transition: 'height 0.3s ease',
+                    minHeight: 4,
+                  }}
+                />
+                <Typography variant="caption" sx={{ mt: 0.5, fontSize: '0.65rem' }}>
+                  KW{week.kw}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  fontWeight={700}
+                  sx={{ fontSize: '0.6rem' }}
+                  color={getUtilColorHex(week.utilizationPercent)}
+                >
+                  {week.utilizationPercent}%
+                </Typography>
+              </Box>
+            </Tooltip>
+          ))}
+        </Box>
+      </Box>
+
+      {/* Per-department trend */}
+      {deptList.length > 0 && (
+        <>
+          <Typography variant="subtitle2" gutterBottom>
+            Pro Abteilung
+          </Typography>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Abteilung</TableCell>
+                  {data.map((week) => (
+                    <TableCell key={week.kw} sx={{ fontWeight: 700, textAlign: 'center', minWidth: 60 }}>
+                      KW {week.kw}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {deptList.map((dept) => (
+                  <TableRow key={dept.department} hover>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>
+                        {dept.label}
+                      </Typography>
+                    </TableCell>
+                    {data.map((week) => {
+                      const deptData = week.departments.find(
+                        (d) => d.department === dept.department
+                      );
+                      const pct = deptData?.utilizationPercent ?? 0;
+                      return (
+                        <TableCell key={week.kw} sx={{ textAlign: 'center', p: 0.5 }}>
+                          <Tooltip title={`${dept.label} KW ${week.kw}: ${pct}%`}>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: 0.25,
+                              }}
+                            >
+                              <Box
+                                sx={{
+                                  width: '80%',
+                                  height: 8,
+                                  bgcolor: 'grey.200',
+                                  borderRadius: 4,
+                                  overflow: 'hidden',
+                                }}
+                              >
+                                <Box
+                                  sx={{
+                                    width: `${Math.min(pct, 100)}%`,
+                                    height: '100%',
+                                    bgcolor:
+                                      TREND_DEPT_COLORS[dept.department] || '#757575',
+                                    borderRadius: 4,
+                                    transition: 'width 0.3s ease',
+                                  }}
+                                />
+                              </Box>
+                              <Typography
+                                variant="caption"
+                                fontWeight={600}
+                                sx={{ fontSize: '0.65rem' }}
+                                color={getUtilColorHex(pct)}
+                              >
+                                {pct}%
+                              </Typography>
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
+    </Paper>
+  );
+}
