@@ -10,6 +10,8 @@ import {
 } from '../validators/taskValidator';
 import { searchTasksValidator } from '../validators/searchValidator';
 import { searchTasksHandler } from '../controllers/searchController';
+import * as taskAssignmentController from '../controllers/taskAssignmentController';
+import { createTaskAssignmentValidator } from '../validators/taskAssignmentValidator';
 
 const router = Router();
 
@@ -35,5 +37,9 @@ router.put(
   updateWorkSlotReminderValidator,
   taskController.updateTaskWorkSlotReminder
 );
+
+// Task assignments
+router.get('/:taskId/assignments', taskAssignmentController.listByTask);
+router.post('/:taskId/assignments', createTaskAssignmentValidator, taskAssignmentController.createForTask);
 
 export default router;

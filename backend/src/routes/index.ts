@@ -11,6 +11,7 @@ import industriesRouter from './industries';
 import productTypesRouter from './productTypes';
 import taskTemplatesRouter from './taskTemplates';
 import pendenzenRouter from './pendenzen';
+import taskAssignmentsRouter from './taskAssignments';
 
 const router = Router();
 
@@ -49,5 +50,6 @@ router.use('/industries', industriesRouter);
 router.use('/product-types', productTypesRouter);
 router.use('/task-templates', taskTemplatesRouter);
 router.use('/pendenzen', pendenzenRouter);
+router.use('/assignments', taskAssignmentsRouter);
 
 export default router;
