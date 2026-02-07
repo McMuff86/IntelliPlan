@@ -35,6 +35,7 @@ import {
   type ResourceConflict,
 } from '../services/wochenplanService';
 import AssignmentDialog from '../components/wochenplan/AssignmentDialog';
+import QuickAssignPopover from '../components/wochenplan/QuickAssignPopover';
 import type { HalfDay } from '../services/assignmentService';
 
 // ─── Helpers ───────────────────────────────────────────
@@ -139,6 +140,25 @@ export default function Wochenplan() {
     });
   }, []);
 
+  // Quick-assign popover state
+  const [quickAssign, setQuickAssign] = useState<{
+    open: boolean;
+    anchorEl: HTMLElement | null;
+    taskId: string;
+    date: string;
+    halfDay: HalfDay;
+    department: string;
+    taskInfo: DialogState['taskInfo'];
+  }>({
+    open: false,
+    anchorEl: null,
+    taskId: '',
+    date: '',
+    halfDay: 'morning',
+    department: '',
+    taskInfo: { projectOrderNumber: '', customerName: '', description: '' },
+  });
+
   // Snackbar state
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
@@ -204,8 +224,24 @@ export default function Wochenplan() {
     halfDay: HalfDay,
     department: string,
     taskInfo: DialogState['taskInfo'],
-    existingAssignment: DayAssignmentDetail | null
+    existingAssignment: DayAssignmentDetail | null,
+    anchorEl?: HTMLElement | null
   ) => {
+    // If no existing assignment (FREI cell), open quick-assign popover
+    if (!existingAssignment && anchorEl) {
+      setQuickAssign({
+        open: true,
+        anchorEl,
+        taskId,
+        date,
+        halfDay,
+        department,
+        taskInfo,
+      });
+      return;
+    }
+
+    // Otherwise, open full dialog (for editing existing assignments or fallback)
     setDialogState({
       open: true,
       taskId,
@@ -231,6 +267,35 @@ export default function Wochenplan() {
     });
     // Reload data to reflect changes
     await fetchWeekPlan();
+  };
+
+  const handleQuickAssignClose = () => {
+    setQuickAssign((s) => ({ ...s, open: false, anchorEl: null }));
+  };
+
+  const handleQuickAssigned = async () => {
+    handleQuickAssignClose();
+    setSnackbar({
+      open: true,
+      message: 'Zuordnung gespeichert',
+      severity: 'success',
+    });
+    await fetchWeekPlan();
+  };
+
+  const handleQuickAssignOpenFull = () => {
+    const qa = quickAssign;
+    handleQuickAssignClose();
+    setDialogState({
+      open: true,
+      taskId: qa.taskId,
+      date: qa.date,
+      dayName: '',
+      halfDay: qa.halfDay,
+      department: qa.department,
+      taskInfo: qa.taskInfo,
+      existingAssignment: null,
+    });
   };
 
   const handleSnackbarClose = () => {
@@ -458,6 +523,20 @@ export default function Wochenplan() {
         onClose={handleDialogClose}
       />
 
+      {/* Quick-Assign Popover */}
+      <QuickAssignPopover
+        open={quickAssign.open}
+        anchorEl={quickAssign.anchorEl}
+        taskId={quickAssign.taskId}
+        date={quickAssign.date}
+        halfDay={quickAssign.halfDay}
+        department={quickAssign.department}
+        resources={uniqueResources}
+        onAssigned={handleQuickAssigned}
+        onClose={handleQuickAssignClose}
+        onOpenFullDialog={handleQuickAssignOpenFull}
+      />
+
       {/* Success/Error Snackbar */}
       <Snackbar
         open={snackbar.open}
@@ -493,7 +572,8 @@ interface SectionTableProps {
     halfDay: HalfDay,
     department: string,
     taskInfo: DialogState['taskInfo'],
-    existingAssignment: DayAssignmentDetail | null
+    existingAssignment: DayAssignmentDetail | null,
+    anchorEl?: HTMLElement | null
   ) => void;
 }
 
@@ -773,7 +853,7 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
     borderColor: 'error.main',
   };
 
-  const handleMorningClick = () => {
+  const handleMorningClick = (e: React.MouseEvent<HTMLElement>) => {
     onCellClick(
       taskId,
       day.date,
@@ -781,11 +861,12 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
       'morning',
       department,
       taskInfo,
-      morningDetail
+      morningDetail,
+      e.currentTarget
     );
   };
 
-  const handleAfternoonClick = () => {
+  const handleAfternoonClick = (e: React.MouseEvent<HTMLElement>) => {
     onCellClick(
       taskId,
       day.date,
@@ -793,11 +874,12 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
       'afternoon',
       department,
       taskInfo,
-      afternoonDetail
+      afternoonDetail,
+      e.currentTarget
     );
   };
 
-  const handleFullDayClick = () => {
+  const handleFullDayClick = (e: React.MouseEvent<HTMLElement>) => {
     // If both are the same person (full_day), open with the morning detail
     onCellClick(
       taskId,
@@ -806,7 +888,8 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
       morningDetail?.halfDay === 'full_day' ? 'full_day' : 'morning',
       department,
       taskInfo,
-      morningDetail
+      morningDetail,
+      e.currentTarget
     );
   };
 
