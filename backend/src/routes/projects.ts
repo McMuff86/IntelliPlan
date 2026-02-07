@@ -2,7 +2,7 @@ import { Router } from 'express';
 import * as projectController from '../controllers/projectController';
 import * as taskController from '../controllers/taskController';
 import * as pendenzController from '../controllers/pendenzController';
-import { loadUser, requireUserId } from '../middleware/roleMiddleware';
+import { loadUser, requirePermission } from '../middleware/roleMiddleware';
 import { autoScheduleValidator, createProjectValidator, shiftProjectValidator, updateProjectValidator } from '../validators/projectValidator';
 import { createTaskValidator } from '../validators/taskValidator';
 import { createPendenzValidator, listPendenzenQueryValidator } from '../validators/pendenzValidator';
@@ -11,29 +11,32 @@ import { searchProjectsHandler } from '../controllers/searchController';
 
 const router = Router();
 
-router.use(requireUserId);
-router.use(loadUser);
+// Read routes
+router.get('/search', requirePermission('projects:read'), searchProjectsValidator, searchProjectsHandler);
+router.get('/trash', requirePermission('projects:read'), projectController.listTrash);
+router.get('/', requirePermission('projects:read'), projectController.list);
+router.get('/:id', requirePermission('projects:read'), projectController.getById);
+router.get('/:id/activity', requirePermission('projects:read'), projectController.listActivity);
 
-router.get('/search', searchProjectsValidator, searchProjectsHandler);
-router.get('/trash', projectController.listTrash);
-router.get('/', projectController.list);
-router.post('/', createProjectValidator, projectController.create);
-router.get('/:id', projectController.getById);
-router.put('/:id', updateProjectValidator, projectController.update);
-router.delete('/:id', projectController.remove);
-router.post('/:id/restore', projectController.restore);
-router.delete('/:id/permanent', projectController.permanentRemove);
-router.post('/:id/shift', shiftProjectValidator, projectController.shiftSchedule);
-router.get('/:id/activity', projectController.listActivity);
-router.post('/:id/apply-template', projectController.applyTemplate);
-router.post('/:id/reset-template', projectController.resetProjectToTemplate);
-router.post('/:id/auto-schedule', autoScheduleValidator, projectController.autoSchedule);
+// Write routes
+router.post('/', requirePermission('projects:write'), createProjectValidator, projectController.create);
+router.put('/:id', requirePermission('projects:write'), updateProjectValidator, projectController.update);
+router.post('/:id/restore', requirePermission('projects:write'), projectController.restore);
+router.post('/:id/shift', requirePermission('projects:write'), shiftProjectValidator, projectController.shiftSchedule);
+router.post('/:id/apply-template', requirePermission('projects:write'), projectController.applyTemplate);
+router.post('/:id/reset-template', requirePermission('projects:write'), projectController.resetProjectToTemplate);
+router.post('/:id/auto-schedule', requirePermission('projects:write'), autoScheduleValidator, projectController.autoSchedule);
 
-router.get('/:projectId/tasks', taskController.listByProject);
-router.post('/:projectId/tasks', createTaskValidator, taskController.createInProject);
+// Delete routes
+router.delete('/:id', requirePermission('projects:delete'), projectController.remove);
+router.delete('/:id/permanent', requirePermission('projects:delete'), projectController.permanentRemove);
+
+// Tasks (project-scoped)
+router.get('/:projectId/tasks', requirePermission('tasks:read'), taskController.listByProject);
+router.post('/:projectId/tasks', requirePermission('tasks:write'), createTaskValidator, taskController.createInProject);
 
 // Pendenzen (project-scoped)
-router.get('/:projectId/pendenzen', listPendenzenQueryValidator, pendenzController.listByProject);
-router.post('/:projectId/pendenzen', createPendenzValidator, pendenzController.createInProject);
+router.get('/:projectId/pendenzen', requirePermission('pendenzen:read'), listPendenzenQueryValidator, pendenzController.listByProject);
+router.post('/:projectId/pendenzen', requirePermission('pendenzen:write'), createPendenzValidator, pendenzController.createInProject);
 
 export default router;
