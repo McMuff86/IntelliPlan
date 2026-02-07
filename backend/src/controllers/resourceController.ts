@@ -1,13 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
+
 import {
   createResource,
   deleteResource,
+  getAvailableResourcesForDate,
   getResourceById,
   listResources,
   updateResource,
 } from '../services/resourceService';
+import type { ListResourcesFilters } from '../services/resourceService';
 import { toResourceResponse } from '../models/resource';
+import type { Department, EmployeeType, ResourceType } from '../models/resource';
 
 const getUserId = (req: Request): string | null => {
   if (!req.user) {
@@ -24,7 +28,45 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       return;
     }
 
-    const resources = await listResources(userId);
+    const filters: ListResourcesFilters = {};
+    if (req.query.department) {
+      filters.department = req.query.department as Department;
+    }
+    if (req.query.employee_type) {
+      filters.employee_type = req.query.employee_type as EmployeeType;
+    }
+    if (req.query.active !== undefined) {
+      filters.is_active = req.query.active === 'true';
+    }
+    if (req.query.resource_type) {
+      filters.resource_type = req.query.resource_type as ResourceType;
+    }
+
+    const resources = await listResources(userId, filters);
+    res.status(200).json({ success: true, data: resources.map(toResourceResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function available(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const date = req.query.date as string;
+    const halfDay = (req.query.half_day as string) || 'full_day';
+
+    const resources = await getAvailableResourcesForDate(userId, date, halfDay as any);
     res.status(200).json({ success: true, data: resources.map(toResourceResponse) });
   } catch (error) {
     next(error);

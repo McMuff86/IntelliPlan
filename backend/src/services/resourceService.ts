@@ -1,5 +1,12 @@
 import { pool } from '../config/database';
-import type { CreateResourceDTO, Resource, UpdateResourceDTO } from '../models/resource';
+import type { CreateResourceDTO, Department, EmployeeType, Resource, ResourceType, UpdateResourceDTO } from '../models/resource';
+
+export interface ListResourcesFilters {
+  department?: Department;
+  employee_type?: EmployeeType;
+  is_active?: boolean;
+  resource_type?: ResourceType;
+}
 
 export async function createResource(data: CreateResourceDTO): Promise<Resource> {
   const result = await pool.query<Resource>(
@@ -29,10 +36,67 @@ export async function createResource(data: CreateResourceDTO): Promise<Resource>
   return result.rows[0];
 }
 
-export async function listResources(ownerId: string): Promise<Resource[]> {
+export async function listResources(ownerId: string, filters?: ListResourcesFilters): Promise<Resource[]> {
+  const conditions: string[] = ['owner_id = $1'];
+  const values: (string | boolean)[] = [ownerId];
+  let paramIndex = 2;
+
+  if (filters?.department !== undefined) {
+    conditions.push(`department = $${paramIndex++}`);
+    values.push(filters.department);
+  }
+  if (filters?.employee_type !== undefined) {
+    conditions.push(`employee_type = $${paramIndex++}`);
+    values.push(filters.employee_type);
+  }
+  if (filters?.is_active !== undefined) {
+    conditions.push(`is_active = $${paramIndex++}`);
+    values.push(filters.is_active);
+  }
+  if (filters?.resource_type !== undefined) {
+    conditions.push(`resource_type = $${paramIndex++}`);
+    values.push(filters.resource_type);
+  }
+
   const result = await pool.query<Resource>(
-    `SELECT * FROM resources WHERE owner_id = $1 ORDER BY created_at DESC`,
-    [ownerId]
+    `SELECT * FROM resources WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+    values
+  );
+
+  return result.rows;
+}
+
+export type HalfDay = 'morning' | 'afternoon' | 'full_day';
+
+export async function getAvailableResourcesForDate(
+  ownerId: string,
+  date: string,
+  halfDay: HalfDay,
+): Promise<Resource[]> {
+  // A resource is "unavailable" for a slot if it has an assignment for that date
+  // with the same half_day or full_day (full_day blocks both morning and afternoon).
+  const halfDayConditions = halfDay === 'full_day'
+    ? `ta.half_day IN ('morning', 'afternoon', 'full_day')`
+    : `ta.half_day IN ($4, 'full_day')`;
+
+  const params: (string | boolean)[] = [ownerId, date, date];
+  if (halfDay !== 'full_day') {
+    params.push(halfDay);
+  }
+
+  const result = await pool.query<Resource>(
+    `SELECT r.* FROM resources r
+     WHERE r.owner_id = $1
+       AND r.is_active = true
+       AND r.resource_type = 'person'
+       AND r.id NOT IN (
+         SELECT ta.resource_id FROM task_assignments ta
+         WHERE ta.assignment_date = $2
+           AND ta.deleted_at IS NULL
+           AND ${halfDayConditions}
+       )
+     ORDER BY r.short_code ASC NULLS LAST, r.name ASC`,
+    params
   );
 
   return result.rows;
