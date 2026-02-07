@@ -4,6 +4,10 @@
 <!-- Add reusable patterns here as they are discovered -->
 <!-- Example: Use `sql<number>` template for aggregations -->
 <!-- Example: Always use `IF NOT EXISTS` for migrations -->
+- Seed scripts must use `ON CONFLICT (column) DO UPDATE SET ...` (not bare `ON CONFLICT DO NOTHING`) to be idempotent — requires matching UNIQUE constraints
+- industries, product_types, task_templates all have UNIQUE constraints (migration 028)
+- `applyTemplateToProject()` accepts optional `durationOverrides` (Record<taskId, number>) and `multiplier` for scaling task durations
+- Template dialog cascade: industryService → productTypeService(industryId) → taskTemplateService(productTypeId)
 
 ---
 
@@ -1022,4 +1026,31 @@ Topologischer Sort (Kahn's Algorithmus) existierte inline in ProjectDetail.tsx. 
 - `pool.connect()` + BEGIN/COMMIT für Transaktionen bei Cascade-Operations
 - Topological Sort als generisches Utility extrahieren, nicht inline duplizieren
 - Papierkorb-Pattern: 5 Tage Aufbewahrung, dann Auto-Cleanup via setInterval
+---
+
+## 2026-02-07 - Template nachträglich auf bestehendes Projekt anwenden
+- Feature: "Vorlage zuweisen" / "Vorlage wechseln" Button in ProjectDetail
+- Kaskade: Branche → Produkttyp → Vorlage mit Vorschau
+- Modi: "Ersetzen" (alte Tasks löschen) oder "Anhängen" (zusätzlich)
+- Backend: `POST /projects/:id/apply-template` erweitert mit `mode`, `durationOverrides`, `multiplier`
+- Backend: `task_template_id` wird auf dem Projekt gesetzt nach apply-template
+- Migration 028: UNIQUE-Constraints auf industries(name), product_types(industry_id,name), task_templates(product_type_id,name)
+- Seed-Fix: `ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name` statt `ON CONFLICT DO NOTHING`
+- Inline-Editing: Jede Aufgabe in der Vorschau hat editierbares Dauer-Feld
+- Multiplikator: z.B. ×3 für 3 Türen skaliert alle Dauern
+- Info-Meldung wenn Produkttyp keine Vorlagen hat
+
+**Files changed:**
+- `backend/migrations/028_add_unique_constraints_industries.sql` (neu)
+- `backend/src/scripts/seedIndustries.ts` (ON CONFLICT fix)
+- `backend/src/controllers/projectController.ts` (applyTemplate: mode, overrides, multiplier, task_template_id update)
+- `backend/src/services/projectService.ts` (updateProjectTaskTemplateId)
+- `backend/src/services/templateApplicationService.ts` (durationOverrides, multiplier support)
+- `frontend/src/services/projectService.ts` (applyTemplate method)
+- `frontend/src/pages/ProjectDetail.tsx` (Template-Dialog mit Kaskade, Duration-Editing, Multiplier)
+
+**Learnings for future iterations:**
+- Seed-Scripts müssen UNIQUE-Constraints matchen für idempotente ON CONFLICT Klauseln
+- `ON CONFLICT DO NOTHING` ohne Spalte ist wirkungslos wenn kein UNIQUE-Index existiert
+- Template-Vorschau mit editierbaren Feldern: State als Record<id, number> für Overrides
 ---

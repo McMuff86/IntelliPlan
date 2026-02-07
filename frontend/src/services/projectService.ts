@@ -56,6 +56,22 @@ export const projectService = {
     return response.data.data;
   },
 
+  async applyTemplate(
+    id: string,
+    templateId: string,
+    mode: 'replace' | 'append',
+    durationOverrides?: Record<string, number>,
+    multiplier?: number
+  ): Promise<{ taskCount: number }> {
+    const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/apply-template`, {
+      templateId,
+      mode,
+      durationOverrides,
+      multiplier: multiplier && multiplier !== 1 ? multiplier : undefined,
+    });
+    return response.data.data;
+  },
+
   async resetToTemplate(id: string): Promise<{ taskCount: number }> {
     const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/reset-template`);
     return response.data.data;

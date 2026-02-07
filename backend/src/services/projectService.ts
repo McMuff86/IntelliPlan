@@ -207,6 +207,17 @@ export async function permanentDeleteProject(id: string, ownerId: string): Promi
   return result.rowCount !== null && result.rowCount > 0;
 }
 
+export async function updateProjectTaskTemplateId(
+  projectId: string,
+  ownerId: string,
+  taskTemplateId: string
+): Promise<void> {
+  await pool.query(
+    `UPDATE projects SET task_template_id = $1, updated_at = NOW() WHERE id = $2 AND owner_id = $3 AND deleted_at IS NULL`,
+    [taskTemplateId, projectId, ownerId]
+  );
+}
+
 export async function cleanupExpiredTrash(): Promise<number> {
   const result = await pool.query(
     `DELETE FROM projects WHERE deleted_at < NOW() - INTERVAL '5 days'`

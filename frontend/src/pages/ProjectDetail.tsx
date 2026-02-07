@@ -28,14 +28,18 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import RestoreIcon from '@mui/icons-material/Restore';
 import EventIcon from '@mui/icons-material/Event';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formatISO, format, parseISO } from 'date-fns';
-import type { Project, ProjectActivity, Resource, ResourceType, Task, TaskStatus, SchedulingMode } from '../types';
+import type { Project, ProjectActivity, Resource, ResourceType, Task, TaskStatus, SchedulingMode, Industry, ProductType, TaskTemplate } from '../types';
 import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
 import { resourceService } from '../services/resourceService';
+import { industryService } from '../services/industryService';
+import { productTypeService } from '../services/productTypeService';
+import { taskTemplateService } from '../services/taskTemplateService';
 import Breadcrumbs from '../components/Breadcrumbs';
 import AutoScheduleDialog from '../components/AutoScheduleDialog/AutoScheduleDialog';
 import axios from 'axios';
@@ -113,6 +117,18 @@ export default function ProjectDetail() {
   const [layoutTemplates, setLayoutTemplates] = useState<Record<string, LayoutSectionKey[]>>({});
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [newTemplateName, setNewTemplateName] = useState('');
+
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
+  const [tplIndustries, setTplIndustries] = useState<Industry[]>([]);
+  const [tplProductTypes, setTplProductTypes] = useState<ProductType[]>([]);
+  const [tplTaskTemplates, setTplTaskTemplates] = useState<TaskTemplate[]>([]);
+  const [tplSelectedIndustryId, setTplSelectedIndustryId] = useState('');
+  const [tplSelectedProductTypeId, setTplSelectedProductTypeId] = useState('');
+  const [tplSelectedTemplateId, setTplSelectedTemplateId] = useState('');
+  const [tplApplyMode, setTplApplyMode] = useState<'replace' | 'append'>('replace');
+  const [tplDurationOverrides, setTplDurationOverrides] = useState<Record<string, number>>({});
+  const [tplMultiplier, setTplMultiplier] = useState<number>(1);
 
   const [resourceName, setResourceName] = useState('');
   const [resourceType, setResourceType] = useState<ResourceType>('person');
@@ -217,6 +233,45 @@ export default function ProjectDetail() {
     if (!project?.id) return;
     localStorage.setItem(`projectLayout:${project.id}`, JSON.stringify(layoutOrder));
   }, [layoutOrder, project?.id]);
+
+  // Template dialog: load industries when dialog opens
+  useEffect(() => {
+    if (templateDialogOpen && tplIndustries.length === 0) {
+      industryService.getAll().then(setTplIndustries).catch(console.error);
+    }
+  }, [templateDialogOpen]);
+
+  // Template dialog: load product types when industry changes
+  useEffect(() => {
+    if (tplSelectedIndustryId) {
+      setTplSelectedProductTypeId('');
+      setTplSelectedTemplateId('');
+      setTplTaskTemplates([]);
+      productTypeService
+        .getAll(tplSelectedIndustryId)
+        .then(setTplProductTypes)
+        .catch(console.error);
+    } else {
+      setTplProductTypes([]);
+      setTplSelectedProductTypeId('');
+      setTplSelectedTemplateId('');
+      setTplTaskTemplates([]);
+    }
+  }, [tplSelectedIndustryId]);
+
+  // Template dialog: load templates when product type changes
+  useEffect(() => {
+    if (tplSelectedProductTypeId) {
+      setTplSelectedTemplateId('');
+      taskTemplateService
+        .getAll(tplSelectedProductTypeId)
+        .then(setTplTaskTemplates)
+        .catch(console.error);
+    } else {
+      setTplTaskTemplates([]);
+      setTplSelectedTemplateId('');
+    }
+  }, [tplSelectedProductTypeId]);
 
   const formatDuration = (minutes?: number | null) => {
     if (!minutes) return '';
@@ -518,6 +573,42 @@ export default function ProjectDetail() {
       setDeleteDialogOpen(false);
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleOpenTemplateDialog = () => {
+    setTplSelectedIndustryId('');
+    setTplSelectedProductTypeId('');
+    setTplSelectedTemplateId('');
+    setTplApplyMode('replace');
+    setTplDurationOverrides({});
+    setTplMultiplier(1);
+    setTemplateDialogOpen(true);
+  };
+
+  const handleApplyTemplate = async () => {
+    if (!project || !tplSelectedTemplateId) return;
+    try {
+      setApplyingTemplate(true);
+      setError(null);
+      const overrides = Object.keys(tplDurationOverrides).length > 0 ? tplDurationOverrides : undefined;
+      await projectService.applyTemplate(project.id, tplSelectedTemplateId, tplApplyMode, overrides, tplMultiplier !== 1 ? tplMultiplier : undefined);
+      const updatedProject = await projectService.getById(project.id);
+      setProject(updatedProject);
+      await refreshTasks(project.id);
+      void loadActivity(project.id);
+      setTemplateDialogOpen(false);
+    } catch (err) {
+      console.error(err);
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to apply template');
+      } else {
+        setError('Failed to apply template');
+      }
+    } finally {
+      setApplyingTemplate(false);
     }
   };
 
@@ -1151,6 +1242,13 @@ export default function ProjectDetail() {
             All Projects
           </Button>
           <Button
+            variant="outlined"
+            startIcon={<PlaylistAddIcon />}
+            onClick={handleOpenTemplateDialog}
+          >
+            {project.taskTemplateId ? 'Vorlage wechseln' : 'Vorlage zuweisen'}
+          </Button>
+          <Button
             variant="contained"
             startIcon={<TimelineIcon />}
             onClick={() => navigate(`/projects/${project.id}/timeline`)}
@@ -1279,6 +1377,183 @@ export default function ProjectDetail() {
           </Button>
           <Button onClick={handleDeleteProject} color="error" variant="contained" disabled={deleting}>
             {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={templateDialogOpen}
+        onClose={() => setTemplateDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {project.taskTemplateId ? 'Vorlage wechseln' : 'Vorlage zuweisen'}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            select
+            label="Branche"
+            fullWidth
+            margin="normal"
+            value={tplSelectedIndustryId}
+            onChange={(event) => setTplSelectedIndustryId(event.target.value)}
+          >
+            <MenuItem value="">Branche wählen</MenuItem>
+            {tplIndustries.map((ind) => (
+              <MenuItem key={ind.id} value={ind.id}>
+                {ind.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          {tplSelectedIndustryId && tplProductTypes.length > 0 && (
+            <TextField
+              select
+              label="Produkttyp"
+              fullWidth
+              margin="normal"
+              value={tplSelectedProductTypeId}
+              onChange={(event) => setTplSelectedProductTypeId(event.target.value)}
+            >
+              <MenuItem value="">Produkttyp wählen</MenuItem>
+              {tplProductTypes.map((pt) => (
+                <MenuItem key={pt.id} value={pt.id}>
+                  {pt.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+
+          {tplSelectedProductTypeId && tplTaskTemplates.length === 0 && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              Für diesen Produkttyp sind keine Vorlagen vorhanden.
+            </Alert>
+          )}
+
+          {tplSelectedProductTypeId && tplTaskTemplates.length > 0 && (
+            <>
+              <TextField
+                select
+                label="Aufgaben-Vorlage"
+                fullWidth
+                margin="normal"
+                value={tplSelectedTemplateId}
+                onChange={(event) => {
+                  setTplSelectedTemplateId(event.target.value);
+                  setTplDurationOverrides({});
+                  setTplMultiplier(1);
+                }}
+              >
+                <MenuItem value="">Vorlage wählen</MenuItem>
+                {tplTaskTemplates.map((tmpl) => (
+                  <MenuItem key={tmpl.id} value={tmpl.id}>
+                    {tmpl.name} ({tmpl.tasks.length} Schritte)
+                    {tmpl.isSystem ? ' — System' : ''}
+                  </MenuItem>
+                ))}
+              </TextField>
+
+              {tplSelectedTemplateId && (() => {
+                const tmpl = tplTaskTemplates.find((t) => t.id === tplSelectedTemplateId);
+                if (!tmpl) return null;
+                return (
+                  <>
+                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 1, mb: 1 }}>
+                      <TextField
+                        label="Multiplikator"
+                        type="number"
+                        size="small"
+                        value={tplMultiplier}
+                        onChange={(event) => {
+                          const v = parseFloat(event.target.value);
+                          setTplMultiplier(v > 0 ? v : 1);
+                        }}
+                        inputProps={{ min: 0.1, step: 0.5 }}
+                        sx={{ width: 130 }}
+                        helperText="z.B. 3 für 3 Türen"
+                      />
+                    </Stack>
+                    <Paper variant="outlined" sx={{ p: 1.5, mt: 1, mb: 1, maxHeight: 280, overflow: 'auto' }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                        Vorschau: {tmpl.tasks.length} Aufgaben
+                        {tplMultiplier !== 1 ? ` (×${tplMultiplier})` : ''}
+                      </Typography>
+                      {tmpl.tasks.map((task, idx) => {
+                        const overridden = tplDurationOverrides[task.id];
+                        const baseDuration = overridden !== undefined ? overridden : (task.estimatedDuration ?? 0);
+                        const effectiveDuration = baseDuration * tplMultiplier;
+                        const unit = task.durationUnit === 'days' ? 'd' : 'h';
+                        return (
+                          <Stack
+                            key={task.id}
+                            direction="row"
+                            alignItems="center"
+                            spacing={1}
+                            sx={{ py: 0.25 }}
+                          >
+                            <Typography variant="body2" sx={{ fontSize: '0.8rem', flex: 1, minWidth: 0 }}>
+                              {idx + 1}. {task.name}
+                            </Typography>
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={overridden !== undefined ? overridden : (task.estimatedDuration ?? '')}
+                              onChange={(event) => {
+                                const v = parseFloat(event.target.value);
+                                if (!event.target.value) {
+                                  const next = { ...tplDurationOverrides };
+                                  delete next[task.id];
+                                  setTplDurationOverrides(next);
+                                } else {
+                                  setTplDurationOverrides({ ...tplDurationOverrides, [task.id]: v });
+                                }
+                              }}
+                              inputProps={{ min: 0, step: 0.5, style: { textAlign: 'right' } }}
+                              sx={{ width: 70 }}
+                            />
+                            <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', minWidth: 50 }}>
+                              {unit}{tplMultiplier !== 1 ? ` → ${effectiveDuration}${unit}` : ''}
+                            </Typography>
+                          </Stack>
+                        );
+                      })}
+                    </Paper>
+                  </>
+                );
+              })()}
+            </>
+          )}
+
+          {tplSelectedTemplateId && tasks.length > 0 && (
+            <TextField
+              select
+              label="Modus"
+              fullWidth
+              margin="normal"
+              value={tplApplyMode}
+              onChange={(event) => setTplApplyMode(event.target.value as 'replace' | 'append')}
+              helperText={
+                tplApplyMode === 'replace'
+                  ? 'Alle bestehenden Tasks werden gelöscht und durch die Vorlage ersetzt.'
+                  : 'Die Vorlage-Tasks werden zusätzlich zu den bestehenden Tasks hinzugefügt.'
+              }
+            >
+              <MenuItem value="replace">Ersetzen</MenuItem>
+              <MenuItem value="append">Anhängen</MenuItem>
+            </TextField>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setTemplateDialogOpen(false)} disabled={applyingTemplate}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleApplyTemplate}
+            disabled={!tplSelectedTemplateId || applyingTemplate}
+          >
+            {applyingTemplate ? 'Wird angewendet...' : 'Vorlage anwenden'}
           </Button>
         </DialogActions>
       </Dialog>

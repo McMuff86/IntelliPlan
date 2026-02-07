@@ -6,7 +6,9 @@ import type { Task } from '../models/task';
 export async function resetProjectTasks(
   projectId: string,
   templateId: string,
-  ownerId: string
+  ownerId: string,
+  durationOverrides?: Record<string, number>,
+  multiplier?: number
 ): Promise<Task[]> {
   const client = await pool.connect();
   try {
@@ -42,13 +44,15 @@ export async function resetProjectTasks(
   }
 
   // Re-apply the template
-  return applyTemplateToProject(projectId, templateId, ownerId);
+  return applyTemplateToProject(projectId, templateId, ownerId, durationOverrides, multiplier);
 }
 
 export async function applyTemplateToProject(
   projectId: string,
   templateId: string,
-  ownerId: string
+  ownerId: string,
+  durationOverrides?: Record<string, number>,
+  multiplier?: number
 ): Promise<Task[]> {
   const template = await getTaskTemplateById(templateId);
   if (!template) {
@@ -60,6 +64,8 @@ export async function applyTemplateToProject(
     return [];
   }
 
+  const mult = multiplier && multiplier > 0 ? multiplier : 1;
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -70,11 +76,21 @@ export async function applyTemplateToProject(
 
     // Create all tasks first
     for (const tt of templateTasks) {
-      const durationMinutes = tt.estimatedDuration
-        ? tt.durationUnit === 'days'
-          ? Math.round(tt.estimatedDuration * 8 * 60) // 8h workday
-          : Math.round(tt.estimatedDuration * 60)
-        : null;
+      // Use override if provided, otherwise use template default (scaled by multiplier)
+      let durationMinutes: number | null;
+      if (durationOverrides && durationOverrides[tt.id] !== undefined) {
+        // Override is in the same unit as the template (days or hours), apply multiplier
+        const overrideValue = durationOverrides[tt.id];
+        durationMinutes = tt.durationUnit === 'days'
+          ? Math.round(overrideValue * mult * 8 * 60)
+          : Math.round(overrideValue * mult * 60);
+      } else if (tt.estimatedDuration) {
+        durationMinutes = tt.durationUnit === 'days'
+          ? Math.round(tt.estimatedDuration * mult * 8 * 60)
+          : Math.round(tt.estimatedDuration * mult * 60);
+      } else {
+        durationMinutes = null;
+      }
 
       const result = await client.query<Task>(
         `INSERT INTO tasks (project_id, owner_id, title, description, status, scheduling_mode, duration_minutes)
