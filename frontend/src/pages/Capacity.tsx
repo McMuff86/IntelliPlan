@@ -32,6 +32,7 @@ import BuildIcon from '@mui/icons-material/Build';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import HomeRepairServiceIcon from '@mui/icons-material/HomeRepairService';
 import BusinessIcon from '@mui/icons-material/Business';
+import { useNavigate as useRouterNavigate } from 'react-router-dom';
 import {
   capacityService,
   type CapacityOverview,
@@ -121,6 +122,7 @@ export default function Capacity() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
+  const routerNavigate = useRouterNavigate();
 
   const kw = useMemo(() => getISOWeekNumber(from), [from]);
 
@@ -276,6 +278,13 @@ export default function Capacity() {
                       color="error"
                       size="small"
                       variant="outlined"
+                      clickable
+                      onClick={() => {
+                        // Navigate to Mitarbeiter-View with search pre-filled
+                        routerNavigate(
+                          `/mitarbeiter-plan?search=${encodeURIComponent(r.shortCode || r.resourceName)}`
+                        );
+                      }}
                     />
                   ))}
                 </Box>
@@ -291,6 +300,11 @@ export default function Capacity() {
                   dept={dept}
                   expanded={expandedDepts.has(dept.department)}
                   onToggle={() => toggleDept(dept.department)}
+                  onNavigate={() => {
+                    routerNavigate(
+                      `/mitarbeiter-plan?department=${encodeURIComponent(dept.department)}`
+                    );
+                  }}
                 />
               </Grid>
             ))}
@@ -314,10 +328,12 @@ function DepartmentCard({
   dept,
   expanded,
   onToggle,
+  onNavigate,
 }: {
   dept: DepartmentCapacity;
   expanded: boolean;
   onToggle: () => void;
+  onNavigate: () => void;
 }) {
   const utilColor = getUtilColor(dept.utilizationPercent);
 
@@ -335,6 +351,10 @@ function DepartmentCard({
         },
       }}
       onClick={onToggle}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onNavigate();
+      }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
