@@ -29,7 +29,7 @@ export default function GlobalSearchBar() {
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const performSearch = useCallback(async (q: string) => {
     if (!q.trim()) {

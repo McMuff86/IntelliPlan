@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -408,7 +408,7 @@ export default function Projects() {
     }
   };
 
-  const handleCalendarYearChange = (event: SelectChangeEvent<number>) => {
+  const handleCalendarYearChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextYear = Number(event.target.value);
     setCalendarYear(nextYear);
   };
@@ -456,7 +456,7 @@ export default function Projects() {
     }
   };
 
-  const handleHolidayYearChange = (event: SelectChangeEvent<number>) => {
+  const handleHolidayYearChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextYear = Number(event.target.value);
     setHolidayYear(nextYear);
     setHolidayError(null);
@@ -1263,7 +1263,7 @@ export default function Projects() {
               {calendarMonths.map((month) => {
                 const weeks = buildMonthWeeks(month);
                 const columnCount = showWeekNumbers ? 8 : 7;
-                const cells: JSX.Element[] = [];
+                const cells: React.JSX.Element[] = [];
 
                 if (showWeekNumbers) {
                   cells.push(

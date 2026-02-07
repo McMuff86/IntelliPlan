@@ -195,7 +195,7 @@ export default function WorkingTimeTemplates() {
     <Box>
       <Breadcrumbs
         items={[
-          { label: 'Settings', href: '/settings' },
+          { label: 'Settings', path: '/settings' },
           { label: 'Arbeitszeiten' },
         ]}
       />
@@ -228,7 +228,7 @@ export default function WorkingTimeTemplates() {
       ) : (
         <Grid container spacing={2}>
           {templates.map((template) => (
-            <Grid item xs={12} md={6} key={template.id}>
+            <Grid size={{ xs: 12, md: 6 }} key={template.id}>
               <Paper sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

@@ -26,17 +26,6 @@ import { productTypeService } from '../services/productTypeService';
 import { taskTemplateService } from '../services/taskTemplateService';
 import type { Industry, ProductType, TaskTemplate, TemplateTask } from '../types';
 
-const categoryLabels: Record<string, string> = {
-  planning: 'Planung',
-  procurement: 'Beschaffung',
-  production: 'Produktion',
-  treatment: 'Behandlung',
-  assembly: 'Montage',
-  delivery: 'Lieferung',
-  approval: 'Freigabe',
-  documentation: 'Dokumentation',
-};
-
 export default function TemplateManagement() {
   const [industries, setIndustries] = useState<Industry[]>([]);
   const [productTypes, setProductTypes] = useState<Map<string, ProductType[]>>(new Map());
@@ -158,7 +147,7 @@ export default function TemplateManagement() {
     <Box>
       <Breadcrumbs
         items={[
-          { label: 'Settings', href: '/settings' },
+          { label: 'Settings', path: '/settings' },
           { label: 'Branchen-Templates' },
         ]}
       />
