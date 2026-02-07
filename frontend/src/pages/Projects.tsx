@@ -6,16 +6,13 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { EventClickArg, EventDropArg } from "@fullcalendar/core";
 import {
   addDays,
-  addWeeks,
+  addMonths,
   eachDayOfInterval,
   differenceInCalendarDays,
   format,
-  getISOWeek,
   isWeekend,
-  isSameMonth,
   startOfMonth,
   startOfDay,
-  startOfWeek,
 } from "date-fns";
 import {
   Box,
@@ -49,6 +46,9 @@ import TimelineIcon from "@mui/icons-material/Timeline";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import IconButton from "@mui/material/IconButton";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { industryService } from "../services/industryService";
@@ -56,6 +56,9 @@ import { productTypeService } from "../services/productTypeService";
 import { taskTemplateService } from "../services/taskTemplateService";
 import type { Project, TaskWorkSlotCalendar, Industry, ProductType, TaskTemplate } from "../types";
 import EmptyState from "../components/EmptyState";
+import YearCalendarGrid from "../components/YearCalendarGrid";
+import YearGanttChart from "../components/YearGanttChart";
+import MultiMonthCalendar from "../components/MultiMonthCalendar";
 import { useAuth } from "../contexts/AuthContext";
 import axios from "axios";
 
@@ -151,8 +154,18 @@ export default function Projects() {
   const [showWeekends, setShowWeekends] = useState(true);
   const [showProjectOverlay, setShowProjectOverlay] = useState(true);
   const [showWeekNumbers, setShowWeekNumbers] = useState(false);
-  const [calendarMode, setCalendarMode] = useState<"month" | "year">("month");
+  const [calendarMode, setCalendarMode] = useState<"month" | "quarter" | "year" | "custom">("month");
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [currentQuarter, setCurrentQuarter] = useState(Math.ceil((new Date().getMonth() + 1) / 3));
+  const [quarterYear, setQuarterYear] = useState(new Date().getFullYear());
+  const [customRangeStart, setCustomRangeStart] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [customRangeEnd, setCustomRangeEnd] = useState(() => {
+    const future = addMonths(new Date(), 2);
+    return `${future.getFullYear()}-${String(future.getMonth() + 1).padStart(2, "0")}`;
+  });
   const [projectFilter, setProjectFilter] = useState<string[]>([]);
   const [draggingProjectId, setDraggingProjectId] = useState<string | null>(
     null,
@@ -399,7 +412,7 @@ export default function Projects() {
 
   const handleCalendarModeChange = (
     _event: React.MouseEvent<HTMLElement>,
-    nextMode: "month" | "year" | null,
+    nextMode: "month" | "quarter" | "year" | "custom" | null,
   ) => {
     if (!nextMode) return;
     setCalendarMode(nextMode);
@@ -408,25 +421,51 @@ export default function Projects() {
     }
   };
 
+  const quarterStartMonth = useMemo(
+    () => new Date(quarterYear, (currentQuarter - 1) * 3, 1),
+    [quarterYear, currentQuarter],
+  );
+
+  const handlePrevQuarter = () => {
+    if (currentQuarter === 1) {
+      setCurrentQuarter(4);
+      setQuarterYear((prev) => prev - 1);
+    } else {
+      setCurrentQuarter((prev) => prev - 1);
+    }
+  };
+
+  const handleNextQuarter = () => {
+    if (currentQuarter === 4) {
+      setCurrentQuarter(1);
+      setQuarterYear((prev) => prev + 1);
+    } else {
+      setCurrentQuarter((prev) => prev + 1);
+    }
+  };
+
+  const customStartDate = useMemo(() => {
+    const [y, m] = customRangeStart.split("-").map(Number);
+    return new Date(y, m - 1, 1);
+  }, [customRangeStart]);
+
+  const customMonthCount = useMemo(() => {
+    const [sy, sm] = customRangeStart.split("-").map(Number);
+    const [ey, em] = customRangeEnd.split("-").map(Number);
+    const count = (ey - sy) * 12 + (em - sm) + 1;
+    return Math.max(1, Math.min(count, 12));
+  }, [customRangeStart, customRangeEnd]);
+
   const handleCalendarYearChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const nextYear = Number(event.target.value);
     setCalendarYear(nextYear);
   };
 
-  const buildMonthWeeks = (month: Date) => {
-    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 1 });
-    return Array.from({ length: 6 }, (_unused, weekIndex) => {
-      const weekStart = addWeeks(start, weekIndex);
-      return Array.from({ length: 7 }, (_dayUnused, dayIndex) =>
-        addDays(weekStart, dayIndex),
-      );
-    });
+  const handleYearGridDayClick = (dateKey: string, year: number) => {
+    setHolidayYear(year);
+    setHolidayDate(dateKey);
+    openHolidayDialog();
   };
-
-  const weekDayLabels = useMemo(
-    () => ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-    [],
-  );
 
   const holidayYearOptions = useMemo(() => {
     const current = new Date().getFullYear();
@@ -671,13 +710,6 @@ export default function Projects() {
 
     return [...holidayEvents, ...projectEvents, ...taskEvents];
   }, [filteredSlots, holidays, scheduledProjectRanges, showProjectOverlay]);
-
-  const calendarMonths = useMemo(() => {
-    return Array.from(
-      { length: 12 },
-      (_unused, index) => new Date(calendarYear, index, 1),
-    );
-  }, [calendarYear]);
 
   const timelineRange = useMemo(() => {
     if (scheduledProjectRanges.length === 0) return null;
@@ -1150,10 +1182,29 @@ export default function Projects() {
                 <ToggleButton value="month" aria-label="month view">
                   Month
                 </ToggleButton>
+                <ToggleButton value="quarter" aria-label="quarter view">
+                  Quarter
+                </ToggleButton>
                 <ToggleButton value="year" aria-label="year view">
                   Year
                 </ToggleButton>
+                <ToggleButton value="custom" aria-label="custom range view">
+                  Custom
+                </ToggleButton>
               </ToggleButtonGroup>
+              {calendarMode === "quarter" && (
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <IconButton size="small" onClick={handlePrevQuarter}>
+                    <ChevronLeftIcon />
+                  </IconButton>
+                  <Typography variant="body2" sx={{ minWidth: 80, textAlign: "center" }}>
+                    Q{currentQuarter} {quarterYear}
+                  </Typography>
+                  <IconButton size="small" onClick={handleNextQuarter}>
+                    <ChevronRightIcon />
+                  </IconButton>
+                </Stack>
+              )}
               {calendarMode === "year" && (
                 <TextField
                   select
@@ -1170,6 +1221,28 @@ export default function Projects() {
                   ))}
                 </TextField>
               )}
+              {calendarMode === "custom" && (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <TextField
+                    label="From"
+                    type="month"
+                    value={customRangeStart}
+                    onChange={(e) => setCustomRangeStart(e.target.value)}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ minWidth: 150 }}
+                  />
+                  <TextField
+                    label="To"
+                    type="month"
+                    value={customRangeEnd}
+                    onChange={(e) => setCustomRangeEnd(e.target.value)}
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                    sx={{ minWidth: 150 }}
+                  />
+                </Stack>
+              )}
               <Button
                 variant="outlined"
                 onClick={() => setProjectFilter([])}
@@ -1180,7 +1253,7 @@ export default function Projects() {
               <Button variant="outlined" onClick={openHolidayDialog}>
                 Holidays
               </Button>
-              {calendarMode === "month" && (
+              {(calendarMode === "month" || calendarMode === "quarter" || calendarMode === "custom") && (
                 <FormControlLabel
                   control={
                     <Switch
@@ -1247,152 +1320,42 @@ export default function Projects() {
               weekNumbers={showWeekNumbers}
               weekNumberCalculation="ISO"
             />
+          ) : calendarMode === "quarter" ? (
+            <MultiMonthCalendar
+              startMonth={quarterStartMonth}
+              monthCount={3}
+              events={calendarEvents}
+              showWeekends={showWeekends}
+              showWeekNumbers={showWeekNumbers}
+              editable={showProjectOverlay}
+              onEventClick={handleCalendarEventClick}
+              onEventDrop={handleCalendarEventDrop}
+            />
+          ) : calendarMode === "custom" ? (
+            <MultiMonthCalendar
+              startMonth={customStartDate}
+              monthCount={customMonthCount}
+              events={calendarEvents}
+              showWeekends={showWeekends}
+              showWeekNumbers={showWeekNumbers}
+              editable={showProjectOverlay}
+              onEventClick={handleCalendarEventClick}
+              onEventDrop={handleCalendarEventDrop}
+            />
           ) : (
-            <Box
-              sx={{
-                display: "grid",
-                gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, 1fr)",
-                  md: "repeat(3, 1fr)",
-                  lg: "repeat(4, 1fr)",
-                },
-                gap: 2,
-              }}
-            >
-              {calendarMonths.map((month) => {
-                const weeks = buildMonthWeeks(month);
-                const columnCount = showWeekNumbers ? 8 : 7;
-                const cells: React.JSX.Element[] = [];
-
-                if (showWeekNumbers) {
-                  cells.push(
-                    <Box
-                      key={`${month.toISOString()}-wk-label`}
-                      sx={{
-                        textAlign: "center",
-                        fontSize: 11,
-                        color: "text.secondary",
-                        py: 0.5,
-                      }}
-                    >
-                      WK
-                    </Box>,
-                  );
-                }
-
-                weekDayLabels.forEach((label) => {
-                  cells.push(
-                    <Box
-                      key={`${month.toISOString()}-${label}`}
-                      sx={{
-                        textAlign: "center",
-                        fontSize: 11,
-                        color: "text.secondary",
-                        py: 0.5,
-                      }}
-                    >
-                      {label}
-                    </Box>,
-                  );
-                });
-
-                weeks.forEach((week, weekIndex) => {
-                  if (showWeekNumbers) {
-                    const weekNumber = getISOWeek(week[0]);
-                    cells.push(
-                      <Box
-                        key={`${month.toISOString()}-wk-${weekIndex}`}
-                        sx={{
-                          textAlign: "center",
-                          fontSize: 11,
-                          color: "text.secondary",
-                          py: 0.5,
-                        }}
-                      >
-                        {weekNumber}
-                      </Box>,
-                    );
-                  }
-
-                  week.forEach((day, dayIndex) => {
-                    const isInMonth = isSameMonth(day, month);
-                    const isSelectable =
-                      isInMonth && day.getFullYear() === calendarYear;
-                    const dateKey = format(day, "yyyy-MM-dd");
-                    const holiday = holidayByDate.get(dateKey);
-                    const isWeekendDay = isWeekend(day);
-                    const baseOpacity = isInMonth ? 1 : 0.35;
-                    const weekendOpacity =
-                      showWeekends || !isWeekendDay ? 1 : 0.35;
-                    const opacity = Math.min(baseOpacity, weekendOpacity);
-
-                    cells.push(
-                      <Box
-                        key={`${month.toISOString()}-${weekIndex}-${dayIndex}`}
-                        onClick={() => {
-                          if (!isSelectable) return;
-                          setHolidayYear(calendarYear);
-                          setHolidayDate(dateKey);
-                          openHolidayDialog();
-                        }}
-                        title={holiday ? holiday.name : undefined}
-                        sx={{
-                          minHeight: 28,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          borderRadius: 1,
-                          cursor: isSelectable ? "pointer" : "default",
-                          backgroundColor: holiday
-                            ? "rgba(248, 113, 113, 0.25)"
-                            : "transparent",
-                          border: holiday
-                            ? "1px solid rgba(239, 68, 68, 0.6)"
-                            : "1px solid transparent",
-                          opacity,
-                          fontSize: 12,
-                          color: isInMonth ? "text.primary" : "text.disabled",
-                          "&:hover": isSelectable
-                            ? {
-                                backgroundColor: holiday
-                                  ? "rgba(248, 113, 113, 0.35)"
-                                  : "rgba(15, 118, 110, 0.08)",
-                              }
-                            : undefined,
-                        }}
-                      >
-                        {day.getDate()}
-                      </Box>,
-                    );
-                  });
-                });
-
-                return (
-                  <Paper
-                    key={month.toISOString()}
-                    sx={{
-                      p: 1.5,
-                      background: "var(--ip-surface-elevated)",
-                      borderRadius: 2,
-                    }}
-                  >
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      {format(month, "MMMM")}
-                    </Typography>
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))`,
-                        gap: 0.5,
-                      }}
-                    >
-                      {cells}
-                    </Box>
-                  </Paper>
-                );
-              })}
-            </Box>
+            <>
+              <YearCalendarGrid
+                calendarYear={calendarYear}
+                showWeekNumbers={showWeekNumbers}
+                showWeekends={showWeekends}
+                holidayByDate={holidayByDate}
+                onDayClick={handleYearGridDayClick}
+              />
+              <YearGanttChart
+                year={calendarYear}
+                projectRanges={scheduledProjectRanges}
+              />
+            </>
           )}
         </Paper>
       ) : (
