@@ -118,6 +118,17 @@ export interface Project {
   workdayEnd: string;
   workTemplate: string;
   taskTemplateId: string | null;
+  orderNumber: string | null;
+  customerName: string | null;
+  installationLocation: string | null;
+  color: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  needsCallback: boolean;
+  sachbearbeiter: string | null;
+  workerCount: number | null;
+  helperCount: number | null;
+  remarks: string | null;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -186,6 +197,17 @@ export interface CreateProjectDTO {
   workdayEnd?: string;
   workTemplate?: string;
   taskTemplateId?: string;
+  orderNumber?: string | null;
+  customerName?: string | null;
+  installationLocation?: string | null;
+  color?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  needsCallback?: boolean;
+  sachbearbeiter?: string | null;
+  workerCount?: number | null;
+  helperCount?: number | null;
+  remarks?: string | null;
 }
 
 export interface CreateTaskDTO {

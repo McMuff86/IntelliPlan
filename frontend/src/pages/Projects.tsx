@@ -47,7 +47,12 @@ import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import IconButton from "@mui/material/IconButton";
+import Accordion from "@mui/material/Accordion";
+import AccordionSummary from "@mui/material/AccordionSummary";
+import AccordionDetails from "@mui/material/AccordionDetails";
+import Checkbox from "@mui/material/Checkbox";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { industryService } from "../services/industryService";
@@ -132,6 +137,18 @@ export default function Projects() {
   const [selectedIndustryId, setSelectedIndustryId] = useState("");
   const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  // Wochenplan-specific project fields
+  const [orderNumber, setOrderNumber] = useState("");
+  const [customerName, setCustomerName] = useState("");
+  const [installationLocation, setInstallationLocation] = useState("");
+  const [projectColor, setProjectColor] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [needsCallback, setNeedsCallback] = useState(false);
+  const [sachbearbeiter, setSachbearbeiter] = useState("");
+  const [workerCount, setWorkerCount] = useState<number | "">("");
+  const [helperCount, setHelperCount] = useState<number | "">("");
+  const [projectRemarks, setProjectRemarks] = useState("");
   const resolvedView = useMemo<"grid" | "calendar" | "gantt" | "trash">(() => {
     const view = searchParams.get("view");
     if (view === "calendar" || view === "gantt" || view === "trash") {
@@ -296,6 +313,17 @@ export default function Projects() {
     setSelectedTemplateId("");
     setProductTypes([]);
     setTaskTemplates([]);
+    setOrderNumber("");
+    setCustomerName("");
+    setInstallationLocation("");
+    setProjectColor("");
+    setContactName("");
+    setContactPhone("");
+    setNeedsCallback(false);
+    setSachbearbeiter("");
+    setWorkerCount("");
+    setHelperCount("");
+    setProjectRemarks("");
   };
 
   const handleWorkTemplateChange = (value: string) => {
@@ -883,6 +911,17 @@ export default function Projects() {
         workdayEnd,
         workTemplate,
         taskTemplateId: selectedTemplateId || undefined,
+        orderNumber: orderNumber.trim() || undefined,
+        customerName: customerName.trim() || undefined,
+        installationLocation: installationLocation.trim() || undefined,
+        color: projectColor.trim() || undefined,
+        contactName: contactName.trim() || undefined,
+        contactPhone: contactPhone.trim() || undefined,
+        needsCallback: needsCallback || undefined,
+        sachbearbeiter: sachbearbeiter.trim() || undefined,
+        workerCount: workerCount === "" ? undefined : workerCount,
+        helperCount: helperCount === "" ? undefined : helperCount,
+        remarks: projectRemarks.trim() || undefined,
       });
       setProjects((prev) => [created, ...prev]);
       setDialogOpen(false);
@@ -1905,6 +1944,122 @@ export default function Projects() {
               fullWidth
             />
           </Box>
+
+          {/* Wochenplan Details (collapsible) */}
+          <Accordion sx={{ mt: 2 }} disableGutters elevation={0} variant="outlined">
+            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+              <Typography variant="subtitle2">Wochenplan Details</Typography>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Stack spacing={2}>
+                <Box display="flex" gap={2}>
+                  <TextField
+                    label="Auftragsnummer"
+                    value={orderNumber}
+                    onChange={(event) => setOrderNumber(event.target.value)}
+                    fullWidth
+                    size="small"
+                    inputProps={{ maxLength: 50 }}
+                  />
+                  <TextField
+                    label="Sachbearbeiter"
+                    value={sachbearbeiter}
+                    onChange={(event) => setSachbearbeiter(event.target.value)}
+                    fullWidth
+                    size="small"
+                    inputProps={{ maxLength: 20 }}
+                  />
+                </Box>
+                <TextField
+                  label="Kundenname"
+                  value={customerName}
+                  onChange={(event) => setCustomerName(event.target.value)}
+                  fullWidth
+                  size="small"
+                  inputProps={{ maxLength: 200 }}
+                />
+                <TextField
+                  label="Montageort"
+                  value={installationLocation}
+                  onChange={(event) => setInstallationLocation(event.target.value)}
+                  fullWidth
+                  size="small"
+                  inputProps={{ maxLength: 200 }}
+                />
+                <TextField
+                  label="Farbe"
+                  value={projectColor}
+                  onChange={(event) => setProjectColor(event.target.value)}
+                  fullWidth
+                  size="small"
+                  inputProps={{ maxLength: 100 }}
+                />
+                <Box display="flex" gap={2}>
+                  <TextField
+                    label="Kontaktperson"
+                    value={contactName}
+                    onChange={(event) => setContactName(event.target.value)}
+                    fullWidth
+                    size="small"
+                    inputProps={{ maxLength: 200 }}
+                  />
+                  <TextField
+                    label="Telefon"
+                    value={contactPhone}
+                    onChange={(event) => setContactPhone(event.target.value)}
+                    fullWidth
+                    size="small"
+                    inputProps={{ maxLength: 50 }}
+                  />
+                </Box>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={needsCallback}
+                      onChange={(event) => setNeedsCallback(event.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Rückruf nötig"
+                />
+                <Box display="flex" gap={2}>
+                  <TextField
+                    label="Anzahl Arbeiter"
+                    type="number"
+                    value={workerCount}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      setWorkerCount(val === "" ? "" : Number(val));
+                    }}
+                    fullWidth
+                    size="small"
+                    inputProps={{ min: 0, step: 0.5 }}
+                  />
+                  <TextField
+                    label="Anzahl Helfer"
+                    type="number"
+                    value={helperCount}
+                    onChange={(event) => {
+                      const val = event.target.value;
+                      setHelperCount(val === "" ? "" : Number(val));
+                    }}
+                    fullWidth
+                    size="small"
+                    inputProps={{ min: 0, step: 0.5 }}
+                  />
+                </Box>
+                <TextField
+                  label="Bemerkungen"
+                  value={projectRemarks}
+                  onChange={(event) => setProjectRemarks(event.target.value)}
+                  fullWidth
+                  size="small"
+                  multiline
+                  rows={2}
+                />
+              </Stack>
+            </AccordionDetails>
+          </Accordion>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
