@@ -1,6 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
-import { getWeekPlan } from '../services/wochenplanService';
+import {
+  getWeekPlan,
+  getWeekConflicts,
+  quickAssign,
+  copyWeek,
+  getUnassignedTasks,
+  getPhaseMatrix,
+  getResourceSchedule,
+  getResourcesOverview,
+} from '../services/wochenplanService';
 
 export async function getWochenplan(
   req: Request,
@@ -50,6 +59,233 @@ export async function getWochenplan(
     res.status(200).json({
       success: true,
       data: weekPlan,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── 3.1 Conflict Detection ──────────────────────────
+
+export async function getConflicts(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const kw = parseInt(req.query.kw as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+
+    const conflicts = await getWeekConflicts(kw, year);
+
+    res.status(200).json({
+      success: true,
+      data: conflicts,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── 3.2 Quick-Assign Batch ─────────────────────────
+
+export async function assignBatch(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const { assignments } = req.body;
+
+    const result = await quickAssign(assignments);
+
+    if (result.conflicts.length > 0) {
+      res.status(409).json({
+        success: false,
+        error: 'Conflicts detected. No assignments were created.',
+        data: { conflicts: result.conflicts },
+      });
+      return;
+    }
+
+    res.status(201).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── 3.3 Copy-Week ──────────────────────────────────
+
+export async function copyWeekHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const { sourceKw, sourceYear, targetKw, targetYear, options } = req.body;
+
+    const result = await copyWeek(
+      sourceKw,
+      sourceYear,
+      targetKw,
+      targetYear,
+      { includeAssignments: options?.includeAssignments ?? true }
+    );
+
+    res.status(201).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('already has')) {
+      res.status(409).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+    next(error);
+  }
+}
+
+// ─── 3.4 Unassigned Tasks ───────────────────────────
+
+export async function getUnassigned(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const kw = parseInt(req.query.kw as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+
+    const result = await getUnassignedTasks(kw, year);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── 3.5 KW-Phase-Matrix ───────────────────────────
+
+export async function getPhaseMatrixHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const fromKw = parseInt(req.query.from_kw as string, 10);
+    const toKw = parseInt(req.query.to_kw as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+
+    const result = await getPhaseMatrix(fromKw, toKw, year);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── 4.1 Resource Weekly Schedule ───────────────────
+
+export async function getResourceScheduleHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const { resourceId } = req.params;
+    const kw = parseInt(req.query.kw as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+
+    const result = await getResourceSchedule(resourceId, kw, year);
+
+    if (!result) {
+      res.status(404).json({
+        success: false,
+        error: 'Resource not found',
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ─── 4.2 All-Resources Week Overview ────────────────
+
+export async function getResourcesOverviewHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const kw = parseInt(req.query.kw as string, 10);
+    const year = parseInt(req.query.year as string, 10);
+    const department = req.query.department as string | undefined;
+
+    const result = await getResourcesOverview(kw, year, department);
+
+    res.status(200).json({
+      success: true,
+      data: result,
     });
   } catch (error) {
     next(error);

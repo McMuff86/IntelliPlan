@@ -120,6 +120,172 @@ function getWeekDateRange(kw: number, year: number): { from: string; to: string;
   };
 }
 
+// ─── WP3 + WP4 Types ──────────────────────────────────
+
+export interface ConflictDetail {
+  assignmentId: string;
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+}
+
+export interface ConflictEntry {
+  resourceId: string;
+  resourceName: string;
+  shortCode: string;
+  date: string;
+  halfDay: string;
+  assignments: ConflictDetail[];
+}
+
+export interface ConflictsResponse {
+  kw: number;
+  year: number;
+  conflicts: ConflictEntry[];
+}
+
+export interface QuickAssignInput {
+  taskId: string;
+  resourceId: string;
+  date: string;
+  halfDay: string;
+  isFixed?: boolean;
+  statusCode?: string;
+  notes?: string;
+}
+
+export interface QuickAssignResponse {
+  created: number;
+  conflicts: ConflictEntry[];
+  assignments: {
+    id: string;
+    taskId: string;
+    resourceId: string;
+    date: string;
+    halfDay: string;
+    isFixed: boolean;
+    statusCode: string;
+  }[];
+}
+
+export interface CopyWeekOptions {
+  includeAssignments: boolean;
+}
+
+export interface CopyWeekResponse {
+  copiedPhaseSchedules: number;
+  copiedAssignments: number;
+  targetKw: number;
+  targetYear: number;
+}
+
+export interface UnassignedTask {
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  installationLocation: string;
+  phases: { phase: string; plannedKw: number | null }[];
+}
+
+export interface UnassignedByDepartment {
+  department: string;
+  label: string;
+  tasks: UnassignedTask[];
+}
+
+export interface UnassignedResponse {
+  kw: number;
+  year: number;
+  totalUnassigned: number;
+  departments: UnassignedByDepartment[];
+}
+
+export interface PhaseMatrixEntry {
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  weeks: { kw: number; phases: string[] }[];
+}
+
+export interface PhaseMatrixResponse {
+  fromKw: number;
+  toKw: number;
+  year: number;
+  kwRange: number[];
+  tasks: PhaseMatrixEntry[];
+}
+
+export interface ResourceSlot {
+  taskId: string | null;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  installationLocation: string;
+  isFixed: boolean;
+  notes: string | null;
+  statusCode: string;
+}
+
+export interface ResourceDaySchedule {
+  date: string;
+  dayName: string;
+  morning: ResourceSlot | null;
+  afternoon: ResourceSlot | null;
+  availableHours: number;
+  assignedHours: number;
+}
+
+export interface ResourceWeekSchedule {
+  resource: {
+    id: string;
+    name: string;
+    shortCode: string | null;
+    department: string | null;
+    employeeType: string | null;
+    weeklyHours: number;
+  };
+  kw: number;
+  year: number;
+  dateRange: { from: string; to: string };
+  days: ResourceDaySchedule[];
+  weekSummary: {
+    totalAssigned: number;
+    totalAvailable: number;
+    utilizationPercent: number;
+  };
+}
+
+export interface ResourceOverviewSlot {
+  taskId: string | null;
+  shortLabel: string;
+  statusCode: string;
+}
+
+export interface ResourceOverviewEntry {
+  resourceId: string;
+  resourceName: string;
+  shortCode: string | null;
+  department: string | null;
+  employeeType: string | null;
+  weeklyHours: number;
+  utilizationPercent: number;
+  days: {
+    date: string;
+    morning: ResourceOverviewSlot | null;
+    afternoon: ResourceOverviewSlot | null;
+  }[];
+}
+
+export interface ResourcesOverviewResponse {
+  kw: number;
+  year: number;
+  dateRange: { from: string; to: string };
+  resources: ResourceOverviewEntry[];
+}
+
 // ─── Main Service ──────────────────────────────────────
 
 export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanResponse> {
@@ -457,4 +623,790 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
     sections,
     capacitySummary,
   };
+}
+
+// ─── WP3: Intelligent KW-View API ─────────────────────
+
+/**
+ * 3.1 Conflict Detection
+ * Find resources assigned to multiple tasks in the same half-day slot.
+ */
+export async function getWeekConflicts(kw: number, year: number): Promise<ConflictsResponse> {
+  const { from, to } = getWeekDateRange(kw, year);
+
+  // Find all (resource_id, assignment_date, effective_half_day) combos with >1 assignment
+  // full_day counts as both morning and afternoon
+  const conflictsResult = await pool.query<{
+    resource_id: string;
+    resource_name: string;
+    short_code: string | null;
+    assignment_date: string;
+    effective_half: string;
+  }>(
+    `WITH expanded AS (
+       SELECT
+         ta.id AS assignment_id,
+         ta.resource_id,
+         ta.task_id,
+         ta.assignment_date,
+         ta.half_day,
+         unnest(
+           CASE ta.half_day
+             WHEN 'full_day' THEN ARRAY['morning', 'afternoon']
+             ELSE ARRAY[ta.half_day]
+           END
+         ) AS effective_half
+       FROM task_assignments ta
+       WHERE ta.assignment_date >= $1
+         AND ta.assignment_date <= $2
+         AND ta.deleted_at IS NULL
+     ),
+     conflicts AS (
+       SELECT resource_id, assignment_date, effective_half
+       FROM expanded
+       GROUP BY resource_id, assignment_date, effective_half
+       HAVING COUNT(*) > 1
+     )
+     SELECT DISTINCT c.resource_id, r.name AS resource_name, r.short_code,
+            c.assignment_date::text AS assignment_date, c.effective_half
+     FROM conflicts c
+     JOIN resources r ON r.id = c.resource_id
+     ORDER BY c.assignment_date, r.short_code, c.effective_half`,
+    [from, to]
+  );
+
+  if (conflictsResult.rows.length === 0) {
+    return { kw, year, conflicts: [] };
+  }
+
+  // For each conflict, load the assignment details
+  const conflictKeys = conflictsResult.rows.map((r) => ({
+    resourceId: r.resource_id,
+    resourceName: r.resource_name,
+    shortCode: r.short_code || '',
+    date: r.assignment_date,
+    halfDay: r.effective_half,
+  }));
+
+  // Load all assignments in the week to build detail
+  const assignmentsResult = await pool.query<{
+    id: string;
+    task_id: string;
+    resource_id: string;
+    assignment_date: string;
+    half_day: string;
+    order_number: string | null;
+    customer_name: string | null;
+    task_title: string;
+  }>(
+    `SELECT
+       ta.id,
+       ta.task_id,
+       ta.resource_id,
+       ta.assignment_date::text AS assignment_date,
+       ta.half_day,
+       p.order_number,
+       p.customer_name,
+       t.title AS task_title
+     FROM task_assignments ta
+     JOIN tasks t ON t.id = ta.task_id
+     JOIN projects p ON p.id = t.project_id
+     WHERE ta.assignment_date >= $1
+       AND ta.assignment_date <= $2
+       AND ta.deleted_at IS NULL
+     ORDER BY ta.assignment_date ASC`,
+    [from, to]
+  );
+
+  // Build conflict entries
+  const conflicts: ConflictEntry[] = conflictKeys.map((ck) => {
+    const matchingAssignments = assignmentsResult.rows.filter((a) => {
+      if (a.resource_id !== ck.resourceId || a.assignment_date !== ck.date) return false;
+      // Check if assignment covers this half-day
+      return a.half_day === ck.halfDay || a.half_day === 'full_day';
+    });
+
+    return {
+      resourceId: ck.resourceId,
+      resourceName: ck.resourceName,
+      shortCode: ck.shortCode,
+      date: ck.date,
+      halfDay: ck.halfDay,
+      assignments: matchingAssignments.map((a) => ({
+        assignmentId: a.id,
+        taskId: a.task_id,
+        projectOrderNumber: a.order_number || '',
+        customerName: a.customer_name || '',
+        description: a.task_title || '',
+      })),
+    };
+  });
+
+  return { kw, year, conflicts };
+}
+
+/**
+ * 3.2 Quick-Assign Batch
+ * Create multiple assignments with conflict pre-check.
+ */
+export async function quickAssign(assignments: QuickAssignInput[]): Promise<QuickAssignResponse> {
+  // Pre-check: detect conflicts by looking for existing assignments on the same slots
+  const conflictChecks: { resourceId: string; date: string; halfDay: string }[] = [];
+  for (const a of assignments) {
+    if (a.halfDay === 'full_day') {
+      conflictChecks.push({ resourceId: a.resourceId, date: a.date, halfDay: 'morning' });
+      conflictChecks.push({ resourceId: a.resourceId, date: a.date, halfDay: 'afternoon' });
+    } else {
+      conflictChecks.push({ resourceId: a.resourceId, date: a.date, halfDay: a.halfDay });
+    }
+  }
+
+  // Check for conflicts with existing assignments
+  const conflicts: ConflictEntry[] = [];
+  if (conflictChecks.length > 0) {
+    const dates = [...new Set(conflictChecks.map((c) => c.date))];
+    const resourceIds = [...new Set(conflictChecks.map((c) => c.resourceId))];
+
+    const existingResult = await pool.query<{
+      id: string;
+      task_id: string;
+      resource_id: string;
+      assignment_date: string;
+      half_day: string;
+      order_number: string | null;
+      customer_name: string | null;
+      task_title: string;
+      resource_name: string;
+      short_code: string | null;
+    }>(
+      `SELECT
+         ta.id, ta.task_id, ta.resource_id,
+         ta.assignment_date::text AS assignment_date, ta.half_day,
+         p.order_number, p.customer_name, t.title AS task_title,
+         r.name AS resource_name, r.short_code
+       FROM task_assignments ta
+       JOIN tasks t ON t.id = ta.task_id
+       JOIN projects p ON p.id = t.project_id
+       JOIN resources r ON r.id = ta.resource_id
+       WHERE ta.resource_id = ANY($1)
+         AND ta.assignment_date = ANY($2)
+         AND ta.deleted_at IS NULL`,
+      [resourceIds, dates]
+    );
+
+    for (const check of conflictChecks) {
+      const existing = existingResult.rows.filter((e) => {
+        if (e.resource_id !== check.resourceId || e.assignment_date !== check.date) return false;
+        return e.half_day === check.halfDay || e.half_day === 'full_day';
+      });
+      if (existing.length > 0) {
+        conflicts.push({
+          resourceId: check.resourceId,
+          resourceName: existing[0].resource_name,
+          shortCode: existing[0].short_code || '',
+          date: check.date,
+          halfDay: check.halfDay,
+          assignments: existing.map((e) => ({
+            assignmentId: e.id,
+            taskId: e.task_id,
+            projectOrderNumber: e.order_number || '',
+            customerName: e.customer_name || '',
+            description: e.task_title || '',
+          })),
+        });
+      }
+    }
+  }
+
+  if (conflicts.length > 0) {
+    return { created: 0, conflicts, assignments: [] };
+  }
+
+  // No conflicts → create assignments in a transaction
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const createdAssignments: QuickAssignResponse['assignments'] = [];
+
+    for (const a of assignments) {
+      const result = await client.query<{
+        id: string;
+        task_id: string;
+        resource_id: string;
+        assignment_date: string;
+        half_day: string;
+        is_fixed: boolean;
+        status_code: string;
+      }>(
+        `INSERT INTO task_assignments (task_id, resource_id, assignment_date, half_day, is_fixed, status_code, notes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, task_id, resource_id, assignment_date::text AS assignment_date, half_day, is_fixed, status_code`,
+        [
+          a.taskId,
+          a.resourceId,
+          a.date,
+          a.halfDay,
+          a.isFixed ?? false,
+          a.statusCode ?? 'assigned',
+          a.notes ?? null,
+        ]
+      );
+
+      const row = result.rows[0];
+      createdAssignments.push({
+        id: row.id,
+        taskId: row.task_id,
+        resourceId: row.resource_id,
+        date: row.assignment_date,
+        halfDay: row.half_day,
+        isFixed: row.is_fixed,
+        statusCode: row.status_code,
+      });
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      created: createdAssignments.length,
+      conflicts: [],
+      assignments: createdAssignments,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * 3.3 Copy-Week
+ * Copy task_phase_schedules + task_assignments from source KW to target KW.
+ */
+export async function copyWeek(
+  sourceKw: number,
+  sourceYear: number,
+  targetKw: number,
+  targetYear: number,
+  options: CopyWeekOptions
+): Promise<CopyWeekResponse> {
+  const source = getWeekDateRange(sourceKw, sourceYear);
+  const target = getWeekDateRange(targetKw, targetYear);
+
+  // Check if target already has data
+  const existingCheck = await pool.query<{ count: string }>(
+    `SELECT COUNT(*) AS count FROM task_phase_schedules
+     WHERE planned_kw = $1 AND planned_year = $2`,
+    [targetKw, targetYear]
+  );
+
+  if (parseInt(existingCheck.rows[0].count, 10) > 0) {
+    throw new Error(`Target KW ${targetKw}/${targetYear} already has phase schedules. Cannot copy.`);
+  }
+
+  if (options.includeAssignments) {
+    const existingAssignments = await pool.query<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM task_assignments
+       WHERE assignment_date >= $1 AND assignment_date <= $2 AND deleted_at IS NULL`,
+      [target.from, target.to]
+    );
+
+    if (parseInt(existingAssignments.rows[0].count, 10) > 0) {
+      throw new Error(`Target KW ${targetKw}/${targetYear} already has assignments. Cannot copy.`);
+    }
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Copy phase schedules: update planned_kw/planned_year for the new week
+    const phaseResult = await client.query<{ count: string }>(
+      `INSERT INTO task_phase_schedules (task_id, phase, planned_kw, planned_year, status)
+       SELECT task_id, phase, $3, $4, 'planned'
+       FROM task_phase_schedules
+       WHERE planned_kw = $1 AND planned_year = $2
+       ON CONFLICT (task_id, phase) DO NOTHING`,
+      [sourceKw, sourceYear, targetKw, targetYear]
+    );
+
+    const copiedPhaseSchedules = phaseResult.rowCount ?? 0;
+    let copiedAssignments = 0;
+
+    if (options.includeAssignments) {
+      // Calculate day offset between source and target weeks
+      const sourceMonday = new Date(source.from + 'T00:00:00Z');
+      const targetMonday = new Date(target.from + 'T00:00:00Z');
+      const dayOffsetMs = targetMonday.getTime() - sourceMonday.getTime();
+      const dayOffset = dayOffsetMs / (1000 * 60 * 60 * 24);
+
+      const assignResult = await client.query<{ count: string }>(
+        `INSERT INTO task_assignments (task_id, resource_id, assignment_date, half_day, is_fixed, status_code, notes)
+         SELECT task_id, resource_id,
+                (assignment_date + INTERVAL '${dayOffset} days')::date,
+                half_day, is_fixed, status_code, notes
+         FROM task_assignments
+         WHERE assignment_date >= $1
+           AND assignment_date <= $2
+           AND deleted_at IS NULL`,
+        [source.from, source.to]
+      );
+
+      copiedAssignments = assignResult.rowCount ?? 0;
+    }
+
+    await client.query('COMMIT');
+
+    return {
+      copiedPhaseSchedules,
+      copiedAssignments,
+      targetKw,
+      targetYear,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * 3.4 Unassigned Tasks
+ * Find tasks with phase_schedules for this KW but zero assignments.
+ */
+export async function getUnassignedTasks(kw: number, year: number): Promise<UnassignedResponse> {
+  const { from, to } = getWeekDateRange(kw, year);
+
+  const result = await pool.query<{
+    task_id: string;
+    order_number: string | null;
+    customer_name: string | null;
+    task_title: string;
+    installation_location: string | null;
+    phase: string;
+    planned_kw: number | null;
+  }>(
+    `SELECT
+       t.id AS task_id,
+       p.order_number,
+       p.customer_name,
+       t.title AS task_title,
+       p.installation_location,
+       tps.phase::text AS phase,
+       tps.planned_kw
+     FROM tasks t
+     JOIN projects p ON p.id = t.project_id
+     JOIN task_phase_schedules tps ON tps.task_id = t.id
+     WHERE t.deleted_at IS NULL
+       AND p.deleted_at IS NULL
+       AND tps.planned_year = $1
+       AND tps.planned_kw = $2
+       AND NOT EXISTS (
+         SELECT 1 FROM task_assignments ta
+         WHERE ta.task_id = t.id
+           AND ta.assignment_date >= $3
+           AND ta.assignment_date <= $4
+           AND ta.deleted_at IS NULL
+       )
+     ORDER BY tps.phase, p.order_number ASC NULLS LAST`,
+    [year, kw, from, to]
+  );
+
+  // Group by department (phase → department mapping)
+  const taskMap = new Map<string, UnassignedTask>();
+  const taskDept = new Map<string, string>();
+
+  for (const row of result.rows) {
+    if (!taskMap.has(row.task_id)) {
+      taskMap.set(row.task_id, {
+        taskId: row.task_id,
+        projectOrderNumber: row.order_number || '',
+        customerName: row.customer_name || '',
+        description: row.task_title || '',
+        installationLocation: row.installation_location || '',
+        phases: [],
+      });
+    }
+    taskMap.get(row.task_id)!.phases.push({
+      phase: row.phase,
+      plannedKw: row.planned_kw,
+    });
+    // Use the phase that matches this KW as the department
+    if (row.planned_kw === kw) {
+      taskDept.set(row.task_id, row.phase);
+    }
+  }
+
+  // Group into departments
+  const deptMap = new Map<string, UnassignedTask[]>();
+  for (const [taskId, task] of taskMap) {
+    const dept = taskDept.get(taskId) || 'produktion';
+    if (!deptMap.has(dept)) {
+      deptMap.set(dept, []);
+    }
+    deptMap.get(dept)!.push(task);
+  }
+
+  const departments: UnassignedByDepartment[] = DEPARTMENTS
+    .filter(({ key }) => deptMap.has(key))
+    .map(({ key, label }) => ({
+      department: key,
+      label,
+      tasks: deptMap.get(key) || [],
+    }));
+
+  const totalUnassigned = taskMap.size;
+
+  return { kw, year, totalUnassigned, departments };
+}
+
+/**
+ * 3.5 KW-Phase-Matrix
+ * Multi-week view: which tasks are in which phase across KWs.
+ */
+export async function getPhaseMatrix(
+  fromKw: number,
+  toKw: number,
+  year: number
+): Promise<PhaseMatrixResponse> {
+  const kwRange: number[] = [];
+  for (let kw = fromKw; kw <= toKw; kw++) {
+    kwRange.push(kw);
+  }
+
+  const result = await pool.query<{
+    task_id: string;
+    order_number: string | null;
+    customer_name: string | null;
+    task_title: string;
+    phase: string;
+    planned_kw: number;
+  }>(
+    `SELECT
+       t.id AS task_id,
+       p.order_number,
+       p.customer_name,
+       t.title AS task_title,
+       tps.phase::text AS phase,
+       tps.planned_kw
+     FROM tasks t
+     JOIN projects p ON p.id = t.project_id
+     JOIN task_phase_schedules tps ON tps.task_id = t.id
+     WHERE t.deleted_at IS NULL
+       AND p.deleted_at IS NULL
+       AND tps.planned_year = $1
+       AND tps.planned_kw >= $2
+       AND tps.planned_kw <= $3
+     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`,
+    [year, fromKw, toKw]
+  );
+
+  // Group by task
+  const taskMap = new Map<string, {
+    taskId: string;
+    projectOrderNumber: string;
+    customerName: string;
+    description: string;
+    phasesByKw: Map<number, string[]>;
+  }>();
+
+  for (const row of result.rows) {
+    if (!taskMap.has(row.task_id)) {
+      taskMap.set(row.task_id, {
+        taskId: row.task_id,
+        projectOrderNumber: row.order_number || '',
+        customerName: row.customer_name || '',
+        description: row.task_title || '',
+        phasesByKw: new Map(),
+      });
+    }
+    const entry = taskMap.get(row.task_id)!;
+    if (!entry.phasesByKw.has(row.planned_kw)) {
+      entry.phasesByKw.set(row.planned_kw, []);
+    }
+    entry.phasesByKw.get(row.planned_kw)!.push(row.phase);
+  }
+
+  // Build matrix entries
+  const tasks: PhaseMatrixEntry[] = Array.from(taskMap.values()).map((t) => ({
+    taskId: t.taskId,
+    projectOrderNumber: t.projectOrderNumber,
+    customerName: t.customerName,
+    description: t.description,
+    weeks: kwRange.map((kw) => ({
+      kw,
+      phases: t.phasesByKw.get(kw) || [],
+    })),
+  }));
+
+  return { fromKw, toKw, year, kwRange, tasks };
+}
+
+// ─── WP4: Mitarbeiter-View API ────────────────────────
+
+/**
+ * 4.1 Resource Weekly Schedule
+ * Returns resource info + days array with morning/afternoon slots.
+ */
+export async function getResourceSchedule(
+  resourceId: string,
+  kw: number,
+  year: number
+): Promise<ResourceWeekSchedule | null> {
+  const { from, to, dates } = getWeekDateRange(kw, year);
+
+  // Load resource
+  const resourceResult = await pool.query<{
+    id: string;
+    name: string;
+    short_code: string | null;
+    department: string | null;
+    employee_type: string | null;
+    weekly_hours: number | null;
+  }>(
+    `SELECT id, name, short_code, department, employee_type, weekly_hours
+     FROM resources
+     WHERE id = $1 AND is_active = true AND resource_type = 'person'`,
+    [resourceId]
+  );
+
+  if (resourceResult.rows.length === 0) return null;
+
+  const resource = resourceResult.rows[0];
+  const weeklyHours = Number(resource.weekly_hours) || 42.5;
+  const dailyHours = weeklyHours / 5;
+
+  // Load assignments for this resource in the week
+  const assignmentsResult = await pool.query<{
+    id: string;
+    task_id: string;
+    assignment_date: string;
+    half_day: string;
+    is_fixed: boolean;
+    notes: string | null;
+    status_code: string | null;
+    order_number: string | null;
+    customer_name: string | null;
+    task_title: string;
+    installation_location: string | null;
+  }>(
+    `SELECT
+       ta.id,
+       ta.task_id,
+       ta.assignment_date::text AS assignment_date,
+       ta.half_day,
+       ta.is_fixed,
+       ta.notes,
+       ta.status_code,
+       p.order_number,
+       p.customer_name,
+       t.title AS task_title,
+       p.installation_location
+     FROM task_assignments ta
+     JOIN tasks t ON t.id = ta.task_id
+     JOIN projects p ON p.id = t.project_id
+     WHERE ta.resource_id = $1
+       AND ta.assignment_date >= $2
+       AND ta.assignment_date <= $3
+       AND ta.deleted_at IS NULL
+     ORDER BY ta.assignment_date ASC, ta.half_day ASC`,
+    [resourceId, from, to]
+  );
+
+  // Build days
+  const days: ResourceDaySchedule[] = dates.map((date, idx) => {
+    const dayAssignments = assignmentsResult.rows.filter((a) => a.assignment_date === date);
+
+    const buildSlot = (halfDay: 'morning' | 'afternoon'): ResourceSlot | null => {
+      const assignment = dayAssignments.find(
+        (a) => a.half_day === halfDay || a.half_day === 'full_day'
+      );
+      if (!assignment) return null;
+      return {
+        taskId: assignment.task_id,
+        projectOrderNumber: assignment.order_number || '',
+        customerName: assignment.customer_name || '',
+        description: assignment.task_title || '',
+        installationLocation: assignment.installation_location || '',
+        isFixed: assignment.is_fixed,
+        notes: assignment.notes,
+        statusCode: assignment.status_code || 'assigned',
+      };
+    };
+
+    const morning = buildSlot('morning');
+    const afternoon = buildSlot('afternoon');
+
+    let assignedHalfDays = 0;
+    if (morning) assignedHalfDays++;
+    if (afternoon) assignedHalfDays++;
+
+    return {
+      date,
+      dayName: DAY_NAMES[idx],
+      morning,
+      afternoon,
+      availableHours: Math.round(dailyHours * 100) / 100,
+      assignedHours: Math.round(assignedHalfDays * (dailyHours / 2) * 100) / 100,
+    };
+  });
+
+  const totalAssigned = days.reduce((s, d) => s + d.assignedHours, 0);
+  const totalAvailable = days.reduce((s, d) => s + d.availableHours, 0);
+
+  return {
+    resource: {
+      id: resource.id,
+      name: resource.name,
+      shortCode: resource.short_code,
+      department: resource.department,
+      employeeType: resource.employee_type,
+      weeklyHours,
+    },
+    kw,
+    year,
+    dateRange: { from, to },
+    days,
+    weekSummary: {
+      totalAssigned: Math.round(totalAssigned * 100) / 100,
+      totalAvailable: Math.round(totalAvailable * 100) / 100,
+      utilizationPercent:
+        totalAvailable > 0
+          ? Math.round((totalAssigned / totalAvailable) * 1000) / 10
+          : 0,
+    },
+  };
+}
+
+/**
+ * 4.2 All-Resources Week Overview
+ * Compact matrix: all resources × 5 days × 2 half-days.
+ */
+export async function getResourcesOverview(
+  kw: number,
+  year: number,
+  department?: string
+): Promise<ResourcesOverviewResponse> {
+  const { from, to, dates } = getWeekDateRange(kw, year);
+
+  // Load resources
+  const conditions = [`r.is_active = true`, `r.resource_type = 'person'`];
+  const params: unknown[] = [];
+
+  if (department) {
+    params.push(department);
+    conditions.push(`r.department = $${params.length}`);
+  }
+
+  const resourcesResult = await pool.query<{
+    id: string;
+    name: string;
+    short_code: string | null;
+    department: string | null;
+    employee_type: string | null;
+    weekly_hours: number | null;
+  }>(
+    `SELECT id, name, short_code, department, employee_type, weekly_hours
+     FROM resources r
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY r.department ASC NULLS LAST, r.short_code ASC NULLS LAST, r.name ASC`,
+    params
+  );
+
+  if (resourcesResult.rows.length === 0) {
+    return { kw, year, dateRange: { from, to }, resources: [] };
+  }
+
+  // Load all assignments for these resources
+  const resourceIds = resourcesResult.rows.map((r) => r.id);
+
+  const assignmentsResult = await pool.query<{
+    resource_id: string;
+    task_id: string;
+    assignment_date: string;
+    half_day: string;
+    status_code: string | null;
+    order_number: string | null;
+    task_title: string;
+  }>(
+    `SELECT
+       ta.resource_id,
+       ta.task_id,
+       ta.assignment_date::text AS assignment_date,
+       ta.half_day,
+       ta.status_code,
+       p.order_number,
+       t.title AS task_title
+     FROM task_assignments ta
+     JOIN tasks t ON t.id = ta.task_id
+     JOIN projects p ON p.id = t.project_id
+     WHERE ta.resource_id = ANY($1)
+       AND ta.assignment_date >= $2
+       AND ta.assignment_date <= $3
+       AND ta.deleted_at IS NULL
+     ORDER BY ta.assignment_date ASC, ta.half_day ASC`,
+    [resourceIds, from, to]
+  );
+
+  // Group assignments by resource
+  const assignmentsByResource = new Map<string, typeof assignmentsResult.rows>();
+  for (const a of assignmentsResult.rows) {
+    if (!assignmentsByResource.has(a.resource_id)) {
+      assignmentsByResource.set(a.resource_id, []);
+    }
+    assignmentsByResource.get(a.resource_id)!.push(a);
+  }
+
+  // Build overview entries
+  const resources: ResourceOverviewEntry[] = resourcesResult.rows.map((r) => {
+    const weeklyHours = Number(r.weekly_hours) || 42.5;
+    const dailyHours = weeklyHours / 5;
+    const resAssignments = assignmentsByResource.get(r.id) || [];
+
+    let totalAssignedHalfDays = 0;
+
+    const days = dates.map((date) => {
+      const dayAssignments = resAssignments.filter((a) => a.assignment_date === date);
+
+      const buildSlot = (halfDay: 'morning' | 'afternoon'): ResourceOverviewSlot | null => {
+        const a = dayAssignments.find(
+          (da) => da.half_day === halfDay || da.half_day === 'full_day'
+        );
+        if (!a) return null;
+        totalAssignedHalfDays++;
+        return {
+          taskId: a.task_id,
+          shortLabel: a.order_number || a.task_title || '',
+          statusCode: a.status_code || 'assigned',
+        };
+      };
+
+      return {
+        date,
+        morning: buildSlot('morning'),
+        afternoon: buildSlot('afternoon'),
+      };
+    });
+
+    const totalAssignedHours = totalAssignedHalfDays * (dailyHours / 2);
+    const utilizationPercent =
+      weeklyHours > 0
+        ? Math.round((totalAssignedHours / weeklyHours) * 1000) / 10
+        : 0;
+
+    return {
+      resourceId: r.id,
+      resourceName: r.name,
+      shortCode: r.short_code,
+      department: r.department,
+      employeeType: r.employee_type,
+      weeklyHours,
+      utilizationPercent,
+      days,
+    };
+  });
+
+  return { kw, year, dateRange: { from, to }, resources };
 }
