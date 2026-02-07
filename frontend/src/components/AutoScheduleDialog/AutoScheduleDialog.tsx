@@ -18,6 +18,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formatISO } from 'date-fns';
+import { de } from 'date-fns/locale/de';
 import type { Task } from '../../types';
 
 interface AutoScheduleDialogProps {
@@ -106,7 +107,7 @@ export default function AutoScheduleDialog({ open, onClose, tasks, onSchedule }:
             Schedule tasks backward from a deadline. Tasks are planned in workflow order, with the last task ending at the deadline.
           </Typography>
 
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
             <DatePicker
               label="Project Deadline"
               value={endDate}

@@ -24,6 +24,8 @@ import {
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import LinkIcon from '@mui/icons-material/Link';
+import ZoomInIcon from '@mui/icons-material/ZoomIn';
+import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import {
   addDays,
   eachDayOfInterval,
@@ -48,7 +50,8 @@ type TimelineRow = {
   workSlots: TaskWorkSlot[];
 };
 
-const columnWidth = 56;
+const ZOOM_LEVELS = [28, 40, 56, 72, 96];
+const DEFAULT_ZOOM_INDEX = 2; // 56px
 const headerHeight = 48;
 const rowHeight = 60;
 
@@ -127,6 +130,11 @@ export default function ProjectTimeline() {
     return localStorage.getItem('timeline-cascade-mode') !== 'false';
   });
   const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
+  const [zoomIndex, setZoomIndex] = useState<number>(() => {
+    const stored = localStorage.getItem('timeline-zoom-index');
+    return stored ? Math.min(Math.max(Number(stored), 0), ZOOM_LEVELS.length - 1) : DEFAULT_ZOOM_INDEX;
+  });
+  const columnWidth = ZOOM_LEVELS[zoomIndex];
   const [pendingShift, setPendingShift] = useState<{
     taskId: string; deltaDays: number; taskTitle: string;
   } | null>(null);
@@ -400,19 +408,60 @@ export default function ProjectTimeline() {
       <Paper sx={{ p: 2.5 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
           <Typography variant="h6">Schedule overview</Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={cascadeMode}
-                onChange={(e) => {
-                  setCascadeMode(e.target.checked);
-                  localStorage.setItem('timeline-cascade-mode', String(e.target.checked));
-                }}
-              />
-            }
-            label="Immer mit Abhängigkeiten verschieben"
-          />
+          <Stack direction="row" spacing={2} alignItems="center">
+            <Stack direction="row" spacing={0.5} alignItems="center">
+              <Tooltip title="Zoom out">
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      const next = Math.max(0, zoomIndex - 1);
+                      setZoomIndex(next);
+                      localStorage.setItem('timeline-zoom-index', String(next));
+                    }}
+                    disabled={zoomIndex === 0}
+                    sx={{ minWidth: 32, px: 0.5 }}
+                  >
+                    <ZoomOutIcon fontSize="small" />
+                  </Button>
+                </span>
+              </Tooltip>
+              <Typography variant="caption" color="text.secondary" sx={{ minWidth: 32, textAlign: 'center' }}>
+                {Math.round((columnWidth / ZOOM_LEVELS[DEFAULT_ZOOM_INDEX]) * 100)}%
+              </Typography>
+              <Tooltip title="Zoom in">
+                <span>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => {
+                      const next = Math.min(ZOOM_LEVELS.length - 1, zoomIndex + 1);
+                      setZoomIndex(next);
+                      localStorage.setItem('timeline-zoom-index', String(next));
+                    }}
+                    disabled={zoomIndex === ZOOM_LEVELS.length - 1}
+                    sx={{ minWidth: 32, px: 0.5 }}
+                  >
+                    <ZoomInIcon fontSize="small" />
+                  </Button>
+                </span>
+              </Tooltip>
+            </Stack>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={cascadeMode}
+                  onChange={(e) => {
+                    setCascadeMode(e.target.checked);
+                    localStorage.setItem('timeline-cascade-mode', String(e.target.checked));
+                  }}
+                />
+              }
+              label="Immer mit Abhängigkeiten verschieben"
+            />
+          </Stack>
         </Stack>
         <Divider sx={{ mb: 2 }} />
 

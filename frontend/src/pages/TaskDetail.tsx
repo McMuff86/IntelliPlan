@@ -26,6 +26,7 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { addDays, format, startOfDay } from "date-fns";
+import { de } from "date-fns/locale/de";
 import axios from "axios";
 import type {
   DependencyType,
@@ -709,7 +710,7 @@ export default function TaskDetail() {
             ))}
           </Stack>
         )}
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
           <Stack
             direction={{ xs: "column", md: "row" }}
             spacing={2}

@@ -797,7 +797,8 @@ export const shiftTaskWithDependents = async (
       const scheduleMap = await getTaskScheduleSnapshots(Array.from(taskIds), ownerId);
       const queue: string[] = [taskId];
 
-      // Walk dependency graph to compute minimal forward shifts that satisfy type-specific constraints.
+      // Walk dependency graph: shift all dependents by at least the parent's shift,
+      // and additionally push forward if dependency constraints would be violated.
       while (queue.length > 0) {
         const currentId = queue.shift() as string;
         const currentShift = shiftMap.get(currentId) ?? 0;
@@ -809,23 +810,23 @@ export const shiftTaskWithDependents = async (
           const existingShift = shiftMap.get(childId) ?? 0;
           const childSchedule = scheduleMap.get(childId);
 
+          // Start with at least the parent's shift amount
+          let nextShift = Math.abs(currentShift) >= Math.abs(existingShift) ? currentShift : existingShift;
+
+          // For forward shifts, additionally check if constraint is violated and push more if needed
           const parentAnchor = getParentAnchor(currentSchedule, edge.dependency_type);
           const childAnchor = getChildAnchor(childSchedule, edge.dependency_type);
-
-          let nextShift = existingShift;
-          if (parentAnchor && childAnchor) {
+          if (parentAnchor && childAnchor && currentShift >= 0) {
             const parentShifted = shiftDate(parentAnchor, currentShift);
-            const childShifted = shiftDate(childAnchor, existingShift);
+            const childShifted = shiftDate(childAnchor, nextShift);
             const diffMs = parentShifted.getTime() - childShifted.getTime();
             if (diffMs > 0) {
               const diffDays = Math.ceil(diffMs / MS_PER_DAY);
-              nextShift = existingShift + diffDays;
+              nextShift = nextShift + diffDays;
             }
-          } else if (currentShift > 0) {
-            nextShift = Math.max(existingShift, currentShift);
           }
 
-          if (nextShift > existingShift) {
+          if (nextShift !== existingShift) {
             shiftMap.set(childId, nextShift);
             queue.push(childId);
           }

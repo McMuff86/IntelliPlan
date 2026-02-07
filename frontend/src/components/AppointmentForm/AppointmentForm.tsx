@@ -18,6 +18,7 @@ import { appointmentService } from '../../services/appointmentService';
 import OverlapWarningDialog from '../OverlapWarningDialog';
 import { formatISO } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
+import { de } from 'date-fns/locale/de';
 import axios from 'axios';
 import { getStoredTimezone, COMMON_TIMEZONES } from '../../hooks/useTimezone';
 
@@ -127,7 +128,7 @@ export default function AppointmentForm({
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns}>
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
       <Paper elevation={2} sx={{ p: 3, maxWidth: 600, mx: 'auto' }}>
         <Typography variant="h5" gutterBottom>
           {isEditing ? 'Edit Appointment' : 'Create Appointment'}

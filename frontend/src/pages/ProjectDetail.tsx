@@ -33,6 +33,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formatISO, format, parseISO } from 'date-fns';
+import { de } from 'date-fns/locale/de';
 import type { Project, ProjectActivity, Resource, ResourceType, Task, TaskStatus, SchedulingMode, Industry, ProductType, TaskTemplate } from '../types';
 import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
@@ -743,7 +744,7 @@ export default function ProjectDetail() {
           <MenuItem value="date_range">Date range</MenuItem>
         </TextField>
         {taskFilter === 'date_range' && (
-          <LocalizationProvider dateAdapter={AdapterDateFns}>
+          <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
             <DatePicker
               label="From"
               value={filterDateFrom}
@@ -838,7 +839,7 @@ export default function ProjectDetail() {
             fullWidth
           />
         </Stack>
-        <LocalizationProvider dateAdapter={AdapterDateFns}>
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={de}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
             <TextField
               select
