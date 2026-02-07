@@ -46,6 +46,9 @@ import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import TimelineIcon from "@mui/icons-material/Timeline";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
+import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import { projectService } from "../services/projectService";
 import { taskService } from "../services/taskService";
 import { industryService } from "../services/industryService";
@@ -127,16 +130,21 @@ export default function Projects() {
   const [selectedIndustryId, setSelectedIndustryId] = useState("");
   const [selectedProductTypeId, setSelectedProductTypeId] = useState("");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
-  const resolvedView = useMemo<"grid" | "calendar" | "gantt">(() => {
+  const resolvedView = useMemo<"grid" | "calendar" | "gantt" | "trash">(() => {
     const view = searchParams.get("view");
-    if (view === "calendar" || view === "gantt") {
+    if (view === "calendar" || view === "gantt" || view === "trash") {
       return view;
     }
     return "grid";
   }, [searchParams]);
-  const [viewMode, setViewMode] = useState<"grid" | "calendar" | "gantt">(
+  const [viewMode, setViewMode] = useState<"grid" | "calendar" | "gantt" | "trash">(
     resolvedView,
   );
+  const [trashedProjects, setTrashedProjects] = useState<Project[]>([]);
+  const [trashLoading, setTrashLoading] = useState(false);
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [permanentDeleteDialogId, setPermanentDeleteDialogId] = useState<string | null>(null);
+  const [permanentDeleting, setPermanentDeleting] = useState(false);
   const [taskSlots, setTaskSlots] = useState<TaskWorkSlotCalendar[]>([]);
   const [calendarLoading, setCalendarLoading] = useState(false);
   const [calendarError, setCalendarError] = useState<string | null>(null);
@@ -308,6 +316,55 @@ export default function Projects() {
     }
   }, [viewMode, loadTaskSlots]);
 
+  const loadTrashedProjects = useCallback(async () => {
+    try {
+      setTrashLoading(true);
+      const data = await projectService.getTrashed();
+      setTrashedProjects(data);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to load trashed projects");
+    } finally {
+      setTrashLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewMode === "trash") {
+      loadTrashedProjects();
+    }
+  }, [viewMode, loadTrashedProjects]);
+
+  const handleRestoreProject = async (id: string) => {
+    try {
+      setRestoringId(id);
+      setError(null);
+      await projectService.restore(id);
+      setTrashedProjects((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error(err);
+      setError("Failed to restore project");
+    } finally {
+      setRestoringId(null);
+    }
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!permanentDeleteDialogId) return;
+    try {
+      setPermanentDeleting(true);
+      setError(null);
+      await projectService.permanentDelete(permanentDeleteDialogId);
+      setTrashedProjects((prev) => prev.filter((p) => p.id !== permanentDeleteDialogId));
+      setPermanentDeleteDialogId(null);
+    } catch (err) {
+      console.error(err);
+      setError("Failed to permanently delete project");
+    } finally {
+      setPermanentDeleting(false);
+    }
+  };
+
   const projectNameById = useMemo(() => {
     return new Map(projects.map((project) => [project.id, project.name]));
   }, [projects]);
@@ -321,7 +378,7 @@ export default function Projects() {
 
   const handleViewModeChange = (
     _event: React.MouseEvent<HTMLElement>,
-    nextView: "grid" | "calendar" | "gantt" | null,
+    nextView: "grid" | "calendar" | "gantt" | "trash" | null,
   ) => {
     if (nextView) {
       setViewMode(nextView);
@@ -852,6 +909,10 @@ export default function Projects() {
               <TimelineIcon sx={{ mr: 0.5 }} />
               Gantt
             </ToggleButton>
+            <ToggleButton value="trash" aria-label="trash view">
+              <DeleteOutlineIcon sx={{ mr: 0.5 }} />
+              Papierkorb
+            </ToggleButton>
           </ToggleButtonGroup>
           <Button
             variant="contained"
@@ -869,7 +930,99 @@ export default function Projects() {
         </Alert>
       )}
 
-      {viewMode === "grid" ? (
+      {viewMode === "trash" ? (
+        <Paper sx={{ p: 2 }}>
+          <Stack spacing={1} sx={{ mb: 2 }}>
+            <Typography variant="h6">Papierkorb</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Deleted projects are kept for 5 days before being permanently removed.
+            </Typography>
+          </Stack>
+          {trashLoading ? (
+            <Stack spacing={2}>
+              {[...Array(2)].map((_, index) => (
+                <Skeleton key={index} variant="rounded" height={80} />
+              ))}
+            </Stack>
+          ) : trashedProjects.length === 0 ? (
+            <EmptyState
+              title="Papierkorb ist leer"
+              description="No deleted projects. Deleted projects will appear here for 5 days."
+              actionLabel="Back to Projects"
+              onAction={() => {
+                const nextParams = new URLSearchParams(searchParams);
+                nextParams.set("view", "grid");
+                setSearchParams(nextParams, { replace: true });
+                setViewMode("grid");
+              }}
+            />
+          ) : (
+            <Stack spacing={1.5}>
+              {trashedProjects.map((project) => {
+                const deletedDate = project.deletedAt ? new Date(project.deletedAt) : new Date();
+                const expiresDate = new Date(deletedDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+                const daysRemaining = Math.max(0, Math.ceil((expiresDate.getTime() - Date.now()) / (24 * 60 * 60 * 1000)));
+                return (
+                  <Paper
+                    key={project.id}
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      display: "flex",
+                      alignItems: { xs: "stretch", sm: "center" },
+                      flexDirection: { xs: "column", sm: "row" },
+                      justifyContent: "space-between",
+                      gap: 2,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="subtitle1" fontWeight={600}>
+                        {project.name}
+                      </Typography>
+                      {project.description && (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                          {project.description}
+                        </Typography>
+                      )}
+                      <Stack direction="row" spacing={1} flexWrap="wrap">
+                        <Chip
+                          size="small"
+                          label={`Deleted: ${format(deletedDate, "MMM d, yyyy")}`}
+                          variant="outlined"
+                        />
+                        <Chip
+                          size="small"
+                          label={`${daysRemaining} day${daysRemaining !== 1 ? "s" : ""} remaining`}
+                          color={daysRemaining <= 1 ? "error" : "default"}
+                          variant="outlined"
+                        />
+                      </Stack>
+                    </Box>
+                    <Stack direction="row" spacing={1}>
+                      <Button
+                        variant="outlined"
+                        startIcon={<RestoreFromTrashIcon />}
+                        onClick={() => handleRestoreProject(project.id)}
+                        disabled={restoringId === project.id}
+                      >
+                        {restoringId === project.id ? "Restoring..." : "Restore"}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        startIcon={<DeleteForeverIcon />}
+                        onClick={() => setPermanentDeleteDialogId(project.id)}
+                      >
+                        Delete Forever
+                      </Button>
+                    </Stack>
+                  </Paper>
+                );
+              })}
+            </Stack>
+          )}
+        </Paper>
+      ) : viewMode === "grid" ? (
         loading ? (
           <Grid container spacing={2}>
             {[...Array(3)].map((_, index) => (
@@ -1799,6 +1952,31 @@ export default function Projects() {
             disabled={creating}
           >
             {creating ? "Creating..." : "Create Project"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={permanentDeleteDialogId !== null}
+        onClose={() => setPermanentDeleteDialogId(null)}
+      >
+        <DialogTitle>Permanently Delete Project</DialogTitle>
+        <DialogContent>
+          <Typography>
+            This will permanently delete the project and all its data. This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPermanentDeleteDialogId(null)} disabled={permanentDeleting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handlePermanentDelete}
+            color="error"
+            variant="contained"
+            disabled={permanentDeleting}
+          >
+            {permanentDeleting ? "Deleting..." : "Delete Forever"}
           </Button>
         </DialogActions>
       </Dialog>

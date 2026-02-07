@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import * as projectController from '../controllers/projectController';
 import * as taskController from '../controllers/taskController';
+import * as pendenzController from '../controllers/pendenzController';
 import { loadUser, requireUserId } from '../middleware/roleMiddleware';
 import { autoScheduleValidator, createProjectValidator, shiftProjectValidator, updateProjectValidator } from '../validators/projectValidator';
 import { createTaskValidator } from '../validators/taskValidator';
+import { createPendenzValidator, listPendenzenQueryValidator } from '../validators/pendenzValidator';
 import { searchProjectsValidator } from '../validators/searchValidator';
 import { searchProjectsHandler } from '../controllers/searchController';
 
@@ -13,11 +15,14 @@ router.use(requireUserId);
 router.use(loadUser);
 
 router.get('/search', searchProjectsValidator, searchProjectsHandler);
+router.get('/trash', projectController.listTrash);
 router.get('/', projectController.list);
 router.post('/', createProjectValidator, projectController.create);
 router.get('/:id', projectController.getById);
 router.put('/:id', updateProjectValidator, projectController.update);
 router.delete('/:id', projectController.remove);
+router.post('/:id/restore', projectController.restore);
+router.delete('/:id/permanent', projectController.permanentRemove);
 router.post('/:id/shift', shiftProjectValidator, projectController.shiftSchedule);
 router.get('/:id/activity', projectController.listActivity);
 router.post('/:id/apply-template', projectController.applyTemplate);
@@ -26,5 +31,9 @@ router.post('/:id/auto-schedule', autoScheduleValidator, projectController.autoS
 
 router.get('/:projectId/tasks', taskController.listByProject);
 router.post('/:projectId/tasks', createTaskValidator, taskController.createInProject);
+
+// Pendenzen (project-scoped)
+router.get('/:projectId/pendenzen', listPendenzenQueryValidator, pendenzController.listByProject);
+router.post('/:projectId/pendenzen', createPendenzValidator, pendenzController.createInProject);
 
 export default router;

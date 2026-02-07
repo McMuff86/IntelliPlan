@@ -56,8 +56,38 @@ export const projectService = {
     return response.data.data;
   },
 
+  async applyTemplate(
+    id: string,
+    templateId: string,
+    mode: 'replace' | 'append',
+    durationOverrides?: Record<string, number>,
+    multiplier?: number
+  ): Promise<{ taskCount: number }> {
+    const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/apply-template`, {
+      templateId,
+      mode,
+      durationOverrides,
+      multiplier: multiplier && multiplier !== 1 ? multiplier : undefined,
+    });
+    return response.data.data;
+  },
+
   async resetToTemplate(id: string): Promise<{ taskCount: number }> {
     const response = await api.post<ApiResponse<{ taskCount: number }>>(`/projects/${id}/reset-template`);
     return response.data.data;
+  },
+
+  async getTrashed(): Promise<Project[]> {
+    const response = await api.get<ApiResponse<Project[]>>('/projects/trash');
+    return response.data.data;
+  },
+
+  async restore(id: string): Promise<Project> {
+    const response = await api.post<ApiResponse<Project>>(`/projects/${id}/restore`);
+    return response.data.data;
+  },
+
+  async permanentDelete(id: string): Promise<void> {
+    await api.delete(`/projects/${id}/permanent`);
   },
 };

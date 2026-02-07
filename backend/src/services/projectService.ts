@@ -134,10 +134,93 @@ export async function updateProject(
 }
 
 export async function deleteProject(id: string, ownerId: string): Promise<boolean> {
-  const result = await pool.query(
-    `UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `UPDATE projects SET deleted_at = NOW() WHERE id = $1 AND owner_id = $2 AND deleted_at IS NULL`,
+      [id, ownerId]
+    );
+    if (result.rowCount === null || result.rowCount === 0) {
+      await client.query('ROLLBACK');
+      return false;
+    }
+    await client.query(
+      `UPDATE tasks SET deleted_at = NOW() WHERE project_id = $1 AND deleted_at IS NULL`,
+      [id]
+    );
+    await client.query('COMMIT');
+    return true;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function listTrashedProjects(ownerId: string): Promise<Project[]> {
+  const result = await pool.query<Project>(
+    `SELECT * FROM projects WHERE owner_id = $1 AND deleted_at IS NOT NULL ORDER BY deleted_at DESC`,
+    [ownerId]
+  );
+  return result.rows;
+}
+
+export async function restoreProject(id: string, ownerId: string): Promise<Project | null> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query<Project>(
+      `UPDATE projects SET deleted_at = NULL WHERE id = $1 AND owner_id = $2 AND deleted_at IS NOT NULL RETURNING *`,
+      [id, ownerId]
+    );
+    if (result.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return null;
+    }
+    await client.query(
+      `UPDATE tasks SET deleted_at = NULL WHERE project_id = $1 AND deleted_at IS NOT NULL`,
+      [id]
+    );
+    await client.query('COMMIT');
+    return result.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function permanentDeleteProject(id: string, ownerId: string): Promise<boolean> {
+  const check = await pool.query(
+    `SELECT id FROM projects WHERE id = $1 AND owner_id = $2 AND deleted_at IS NOT NULL`,
     [id, ownerId]
   );
+  if (check.rows.length === 0) return false;
 
+  const result = await pool.query(
+    `DELETE FROM projects WHERE id = $1`,
+    [id]
+  );
   return result.rowCount !== null && result.rowCount > 0;
+}
+
+export async function updateProjectTaskTemplateId(
+  projectId: string,
+  ownerId: string,
+  taskTemplateId: string
+): Promise<void> {
+  await pool.query(
+    `UPDATE projects SET task_template_id = $1, updated_at = NOW() WHERE id = $2 AND owner_id = $3 AND deleted_at IS NULL`,
+    [taskTemplateId, projectId, ownerId]
+  );
+}
+
+export async function cleanupExpiredTrash(): Promise<number> {
+  const result = await pool.query(
+    `DELETE FROM projects WHERE deleted_at < NOW() - INTERVAL '5 days'`
+  );
+  return result.rowCount ?? 0;
 }

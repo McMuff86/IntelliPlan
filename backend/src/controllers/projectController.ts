@@ -5,7 +5,11 @@ import {
   deleteProject,
   getProjectById,
   listProjects,
+  listTrashedProjects,
+  permanentDeleteProject,
+  restoreProject,
   updateProject,
+  updateProjectTaskTemplateId,
 } from '../services/projectService';
 import { shiftProjectSchedule, autoScheduleProjectTasks } from '../services/taskService';
 import { applyTemplateToProject, resetProjectTasks } from '../services/templateApplicationService';
@@ -336,21 +340,32 @@ export async function applyTemplate(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    const { templateId } = req.body;
+    const { templateId, mode, durationOverrides, multiplier } = req.body;
     if (!templateId) {
       res.status(400).json({ success: false, error: 'templateId is required' });
       return;
     }
 
-    const tasks = await applyTemplateToProject(projectId, templateId, userId);
+    const overrides = durationOverrides && typeof durationOverrides === 'object' ? durationOverrides as Record<string, number> : undefined;
+    const mult = typeof multiplier === 'number' && multiplier > 0 ? multiplier : undefined;
+
+    const resolvedMode = mode === 'append' ? 'append' : 'replace';
+    let tasks;
+    if (resolvedMode === 'replace') {
+      tasks = await resetProjectTasks(projectId, templateId, userId, overrides, mult);
+    } else {
+      tasks = await applyTemplateToProject(projectId, templateId, userId, overrides, mult);
+    }
+
+    await updateProjectTaskTemplateId(projectId, userId, templateId);
 
     await createProjectActivity({
       project_id: projectId,
       actor_user_id: userId,
       entity_type: 'project',
       action: 'template_applied',
-      summary: `Template applied to project: ${project.name}`,
-      metadata: { projectId, templateId, taskCount: tasks.length },
+      summary: `Template applied to project: ${project.name} (mode: ${resolvedMode})`,
+      metadata: { projectId, templateId, mode: resolvedMode, taskCount: tasks.length },
     });
 
     res.status(200).json({ success: true, data: { taskCount: tasks.length } });
@@ -460,6 +475,61 @@ export async function listActivity(req: Request, res: Response, next: NextFuncti
 
     const activity = await listProjectActivity(projectId, userId);
     res.status(200).json({ success: true, data: activity.map(toProjectActivityResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function listTrash(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projects = await listTrashedProjects(userId);
+    res.status(200).json({ success: true, data: projects.map(toProjectResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function restore(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const project = await restoreProject(req.params.id as string, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found in trash' });
+      return;
+    }
+
+    res.status(200).json({ success: true, data: toProjectResponse(project) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function permanentRemove(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const deleted = await permanentDeleteProject(req.params.id as string, userId);
+    if (!deleted) {
+      res.status(404).json({ success: false, error: 'Project not found in trash' });
+      return;
+    }
+
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

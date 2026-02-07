@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Box,
@@ -11,7 +11,15 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
+  Snackbar,
   useTheme,
+  FormControlLabel,
+  Switch,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import TimelineIcon from '@mui/icons-material/Timeline';
@@ -30,6 +38,7 @@ import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
 import Breadcrumbs from '../components/Breadcrumbs';
 import EmptyState from '../components/EmptyState';
+import { topologicalSort } from '../utils/topologicalSort';
 
 type TimelineRow = {
   task: Task;
@@ -104,8 +113,27 @@ export default function ProjectTimeline() {
   const [taskSlots, setTaskSlots] = useState<Record<string, TaskWorkSlot[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragDeltaDays, setDragDeltaDays] = useState(0);
+  const [shiftingTaskId, setShiftingTaskId] = useState<string | null>(null);
+  const [shiftSnackbar, setShiftSnackbar] = useState<{
+    open: boolean;
+    taskId: string;
+    taskTitle: string;
+    deltaDays: number;
+    cascade: boolean;
+  } | null>(null);
+  const [cascadeMode, setCascadeMode] = useState<boolean>(() => {
+    return localStorage.getItem('timeline-cascade-mode') !== 'false';
+  });
+  const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
+  const [pendingShift, setPendingShift] = useState<{
+    taskId: string; deltaDays: number; taskTitle: string;
+  } | null>(null);
+  const dragStartXRef = useRef(0);
+  const dragDeltaRef = useRef(0);
 
-  const loadTimeline = async () => {
+  const loadTimeline = useCallback(async () => {
     if (!id) return;
     try {
       setLoading(true);
@@ -138,7 +166,7 @@ export default function ProjectTimeline() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadTimeline();
@@ -147,7 +175,9 @@ export default function ProjectTimeline() {
   const taskMap = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
   const rows = useMemo<TimelineRow[]>(() => {
-    return tasks.map((task) => {
+    const sortedTasks = topologicalSort(tasks, (id) => (taskDependencies[id] ?? []).map((d) => d.dependsOnTaskId));
+
+    return sortedTasks.map((task) => {
       const workSlots = taskSlots[task.id] ?? [];
       const dependencies = taskDependencies[task.id] ?? [];
       const { start, end } = getTaskRange(task, workSlots);
@@ -178,6 +208,88 @@ export default function ProjectTimeline() {
     const days = eachDayOfInterval({ start, end });
     return { start, end, days };
   }, [scheduledRows]);
+
+  const hasDependents = useCallback((taskId: string): boolean => {
+    return Object.values(taskDependencies).some(
+      (deps) => deps.some((d) => d.dependsOnTaskId === taskId)
+    );
+  }, [taskDependencies]);
+
+  const shiftTaskSchedule = useCallback(
+    async (taskId: string, deltaDays: number, taskTitle: string, cascade: boolean) => {
+      if (!deltaDays) return;
+      try {
+        setShiftingTaskId(taskId);
+        await taskService.shiftSchedule(taskId, { deltaDays, cascade });
+        await loadTimeline();
+        setShiftSnackbar({ open: true, taskId, taskTitle, deltaDays, cascade });
+      } catch (err) {
+        console.error(err);
+        setError('Failed to shift task schedule');
+      } finally {
+        setShiftingTaskId(null);
+      }
+    },
+    [loadTimeline],
+  );
+
+  const startTaskDrag = (event: React.MouseEvent, taskId: string) => {
+    event.preventDefault();
+    if (shiftingTaskId) return;
+    dragStartXRef.current = event.clientX;
+    dragDeltaRef.current = 0;
+    setDragDeltaDays(0);
+    setDraggingTaskId(taskId);
+  };
+
+  useEffect(() => {
+    if (!draggingTaskId) return;
+
+    const handleMove = (event: MouseEvent) => {
+      const deltaX = event.clientX - dragStartXRef.current;
+      const nextDelta = Math.round(deltaX / columnWidth);
+      dragDeltaRef.current = nextDelta;
+      setDragDeltaDays(nextDelta);
+    };
+
+    const handleUp = async () => {
+      const deltaDays = dragDeltaRef.current;
+      const taskId = draggingTaskId;
+      setDraggingTaskId(null);
+      setDragDeltaDays(0);
+
+      if (!taskId || deltaDays === 0) return;
+
+      const task = taskMap.get(taskId);
+      const title = task?.title || 'Task';
+
+      if (cascadeMode || !hasDependents(taskId)) {
+        await shiftTaskSchedule(taskId, deltaDays, title, cascadeMode);
+      } else {
+        setPendingShift({ taskId, deltaDays, taskTitle: title });
+        setCascadeDialogOpen(true);
+      }
+    };
+
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseup', handleUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMove);
+      window.removeEventListener('mouseup', handleUp);
+    };
+  }, [draggingTaskId, shiftTaskSchedule, taskMap, cascadeMode, hasDependents]);
+
+  const handleShiftSnackbarClose = () => {
+    if (!shiftSnackbar) return;
+    setShiftSnackbar({ ...shiftSnackbar, open: false });
+  };
+
+  const handleShiftUndo = async () => {
+    if (!shiftSnackbar) return;
+    const { taskId, taskTitle, deltaDays, cascade } = shiftSnackbar;
+    setShiftSnackbar(null);
+    await shiftTaskSchedule(taskId, -deltaDays, taskTitle, cascade);
+  };
 
   const getBarStyle = (task: Task, blocked: boolean) => {
     if (task.status === 'done') {
@@ -251,7 +363,7 @@ export default function ProjectTimeline() {
             {blockedCount > 0 && <Chip size="small" label={`${blockedCount} blocked`} color="warning" />}
           </Stack>
         </Box>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} alignItems="center">
           <Button variant="outlined" onClick={() => navigate(`/projects/${project.id}`)}>
             Project Detail
           </Button>
@@ -286,9 +398,22 @@ export default function ProjectTimeline() {
       </Paper>
 
       <Paper sx={{ p: 2.5 }}>
-        <Typography variant="h6" gutterBottom>
-          Schedule overview
-        </Typography>
+        <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+          <Typography variant="h6">Schedule overview</Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={cascadeMode}
+                onChange={(e) => {
+                  setCascadeMode(e.target.checked);
+                  localStorage.setItem('timeline-cascade-mode', String(e.target.checked));
+                }}
+              />
+            }
+            label="Immer mit Abhängigkeiten verschieben"
+          />
+        </Stack>
         <Divider sx={{ mb: 2 }} />
 
         {scheduledRows.length === 0 || !timelineRange ? (
@@ -410,6 +535,12 @@ export default function ProjectTimeline() {
                       row.end as Date,
                       'MMM d, yyyy'
                     )}`;
+                    const isDragging = draggingTaskId === row.task.id;
+                    const offsetDays = isDragging ? dragDeltaDays : 0;
+                    const shiftLabel =
+                      isDragging && dragDeltaDays !== 0
+                        ? `${dragDeltaDays > 0 ? '+' : ''}${dragDeltaDays}d`
+                        : '';
 
                     return (
                       <Box
@@ -427,16 +558,39 @@ export default function ProjectTimeline() {
                       >
                         <Tooltip title={rangeLabel}>
                           <Box
+                            role="button"
+                            aria-label={`Shift ${row.task.title}`}
+                            onMouseDown={(e) => startTaskDrag(e, row.task.id)}
                             sx={{
                               gridColumn: `${gridStart} / ${gridEnd}`,
                               alignSelf: 'center',
                               height: 18,
                               borderRadius: 999,
                               boxShadow: '0 8px 18px rgba(15, 23, 42, 0.15)',
+                              cursor: shiftingTaskId ? 'not-allowed' : 'grab',
+                              transform: `translateX(${offsetDays * columnWidth}px)`,
+                              transition: isDragging ? 'none' : 'transform 120ms ease-out',
                               ...barStyle,
                             }}
                           />
                         </Tooltip>
+                        {shiftLabel && (
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              top: 8,
+                              right: 12,
+                              px: 1,
+                              py: 0.25,
+                              borderRadius: 999,
+                              backgroundColor: 'rgba(15, 23, 42, 0.8)',
+                              color: '#fff',
+                              fontSize: 11,
+                            }}
+                          >
+                            {shiftLabel}
+                          </Box>
+                        )}
                         {row.workSlots.map((slot) => {
                           const slotStart = startOfDay(new Date(slot.startTime));
                           const slotEndBase = startOfDay(new Date(slot.endTime));
@@ -505,6 +659,54 @@ export default function ProjectTimeline() {
           </Stack>
         </Paper>
       )}
+
+      <Dialog
+        open={cascadeDialogOpen}
+        onClose={() => { setCascadeDialogOpen(false); setPendingShift(null); }}
+      >
+        <DialogTitle>Abhängige Tasks verschieben?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Dieser Task hat nachfolgende abhängige Tasks. Sollen diese mitbewegt werden?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={async () => {
+            setCascadeDialogOpen(false);
+            if (pendingShift) await shiftTaskSchedule(pendingShift.taskId, pendingShift.deltaDays, pendingShift.taskTitle, false);
+            setPendingShift(null);
+          }}>Nur diesen Task</Button>
+          <Button variant="contained" onClick={async () => {
+            setCascadeDialogOpen(false);
+            if (pendingShift) await shiftTaskSchedule(pendingShift.taskId, pendingShift.deltaDays, pendingShift.taskTitle, true);
+            setPendingShift(null);
+          }}>Mit Abhängigkeiten</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={Boolean(shiftSnackbar?.open)}
+        autoHideDuration={5000}
+        onClose={handleShiftSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleShiftSnackbarClose}
+          severity="success"
+          action={
+            <Button color="inherit" size="small" onClick={handleShiftUndo}>
+              Undo
+            </Button>
+          }
+          sx={{ width: '100%' }}
+        >
+          {shiftSnackbar
+            ? `${shiftSnackbar.taskTitle} shifted by ${
+                shiftSnackbar.deltaDays > 0 ? '+' : ''
+              }${shiftSnackbar.deltaDays} days`
+            : 'Task shifted'}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

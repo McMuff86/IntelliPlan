@@ -48,7 +48,7 @@ async function seedIndustries(): Promise<void> {
     const carpentryResult = await client.query<{ id: string }>(
       `INSERT INTO industries (name, description, icon, settings)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING
+       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
       [
         'Schreinerei / Zimmerei',
@@ -83,6 +83,7 @@ async function seedIndustries(): Promise<void> {
         const ptResult = await client.query<{ id: string }>(
           `INSERT INTO product_types (industry_id, name, description, icon)
            VALUES ($1, $2, $3, $4)
+           ON CONFLICT (industry_id, name) DO UPDATE SET name = EXCLUDED.name
            RETURNING id`,
           [carpentryId, prod.name, prod.description, prod.icon]
         );
@@ -92,7 +93,8 @@ async function seedIndustries(): Promise<void> {
         if (prod.name === 'Rahmentüren') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Rahmentür',
@@ -113,7 +115,8 @@ async function seedIndustries(): Promise<void> {
         } else if (prod.name === 'Stahlzargen-Türen') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Stahlzargen',
@@ -131,7 +134,8 @@ async function seedIndustries(): Promise<void> {
         } else if (prod.name === 'Schränke / Einbauschränke') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Schrank',
@@ -152,7 +156,8 @@ async function seedIndustries(): Promise<void> {
         } else if (prod.name === 'Küchen') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Küche',
@@ -187,7 +192,7 @@ async function seedIndustries(): Promise<void> {
     const archResult = await client.query<{ id: string }>(
       `INSERT INTO industries (name, description, icon, settings)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING
+       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
       [
         'Architekturbüro',
@@ -214,6 +219,7 @@ async function seedIndustries(): Promise<void> {
         const ptResult = await client.query<{ id: string }>(
           `INSERT INTO product_types (industry_id, name, description, icon)
            VALUES ($1, $2, $3, $4)
+           ON CONFLICT (industry_id, name) DO UPDATE SET name = EXCLUDED.name
            RETURNING id`,
           [archId, prod.name, prod.description, prod.icon]
         );
@@ -222,7 +228,8 @@ async function seedIndustries(): Promise<void> {
         if (prod.name === 'Neubau (SIA-Phasen)') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Neubau SIA 112',
@@ -246,7 +253,8 @@ async function seedIndustries(): Promise<void> {
         } else if (prod.name === 'Umbau / Sanierung') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Umbau',
@@ -268,7 +276,8 @@ async function seedIndustries(): Promise<void> {
         } else if (prod.name === 'Innenarchitektur') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Innenarchitektur',
@@ -296,7 +305,7 @@ async function seedIndustries(): Promise<void> {
     const metalResult = await client.query<{ id: string }>(
       `INSERT INTO industries (name, description, icon, settings)
        VALUES ($1, $2, $3, $4)
-       ON CONFLICT DO NOTHING
+       ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
        RETURNING id`,
       [
         'Metallbau / Schlosserei',
@@ -322,6 +331,7 @@ async function seedIndustries(): Promise<void> {
         const ptResult = await client.query<{ id: string }>(
           `INSERT INTO product_types (industry_id, name, description, icon)
            VALUES ($1, $2, $3, $4)
+           ON CONFLICT (industry_id, name) DO UPDATE SET name = EXCLUDED.name
            RETURNING id`,
           [metalId, prod.name, prod.description, prod.icon]
         );
@@ -330,7 +340,8 @@ async function seedIndustries(): Promise<void> {
         if (prod.name === 'Geländer / Handlauf') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Geländer',
@@ -351,7 +362,8 @@ async function seedIndustries(): Promise<void> {
         } else if (prod.name === 'Stahlbau / Tragwerk') {
           await client.query(
             `INSERT INTO task_templates (product_type_id, name, description, tasks, is_default, is_system)
-             VALUES ($1, $2, $3, $4, true, true)`,
+             VALUES ($1, $2, $3, $4, true, true)
+             ON CONFLICT (product_type_id, name) DO UPDATE SET tasks = EXCLUDED.tasks`,
             [
               ptId,
               'Standard Stahlbau',

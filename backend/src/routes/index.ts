@@ -10,6 +10,7 @@ import workingTimeTemplatesRouter from './workingTimeTemplates';
 import industriesRouter from './industries';
 import productTypesRouter from './productTypes';
 import taskTemplatesRouter from './taskTemplates';
+import pendenzenRouter from './pendenzen';
 
 const router = Router();
 
@@ -47,5 +48,6 @@ router.use('/working-time-templates', workingTimeTemplatesRouter);
 router.use('/industries', industriesRouter);
 router.use('/product-types', productTypesRouter);
 router.use('/task-templates', taskTemplatesRouter);
+router.use('/pendenzen', pendenzenRouter);
 
 export default router;
