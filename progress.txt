@@ -1161,3 +1161,40 @@ Topologischer Sort (Kahn's Algorithmus) existierte inline in ProjectDetail.tsx. 
 - `frontend/src/components/mitarbeiter/ResourceDetailPanel.tsx` — edit button, workRole display, skills split
 - `frontend/src/components/mitarbeiter/MitarbeiterGrid.tsx` — role chip in ResourceRow
 ---
+
+## 2026-02-07 – Bugfixes: Wochenplan Spaltenverschiebung, Arbeit-Spalte, Re-Import Fehler
+
+### Bugs gefunden & behoben
+
+1. **Wochenplan Spaltenverschiebung** (Arb./Hilf. Werte verschoben):
+   - Backend `PHASE_ORDER` enthält 7 Phasen (inkl. `transport`), aber Frontend `PHASE_LABELS` hatte nur 6
+   - Jede Datenzeile renderte 7 Phase-Zellen, aber der Header nur 6 Spalten → alles ab Arb. um 1 verschoben
+   - **Fix**: `transport: 'TRANS'` zu `PHASE_LABELS` und `transport: '#00838f'` zu `PHASE_COLORS` hinzugefügt
+
+2. **"Arbeit"-Spalte zeigte Sektionsname statt Arbeitsbeschreibung**:
+   - `description` wurde aus `t.title` gemappt (= Sektionsname wie "Zuschnitt"), nicht aus Projekt-Beschreibung
+   - **Fix**: `p.description AS project_description` zum SQL hinzugefügt, Mapping: `project_description || task_description || task_title`
+
+3. **Excel Re-Import Fehler** ("could not determine data type of parameter $1"):
+   - UPDATE projects Query hatte `proj.orderNumber` als $1 im Parameter-Array, aber $1 war nirgends im SQL referenziert
+   - PostgreSQL kann den Typ eines unreferenzierten Parameters nicht bestimmen
+   - Bug trat nur bei Re-Imports auf (UPDATE-Pfad), nicht beim Erstimport (INSERT-Pfad)
+   - **Fix**: Unreferenzierten Parameter entfernt, $1-$11 neu nummeriert
+
+4. **Auth Rate Limiter zu strikt für Entwicklung**:
+   - 5 Requests/15min auch in Development → schnell blockiert
+   - **Fix**: `process.env.NODE_ENV === 'production' ? 5 : 20`
+
+### Learnings
+- **Immer Phase-Anzahl Backend↔Frontend synchron halten** – `PHASE_ORDER` (Backend) muss mit `PHASE_LABELS` (Frontend) übereinstimmen
+- **Unreferenzierte SQL-Parameter verursachen Fehler in PostgreSQL** – alle $N Params müssen im Query-Text vorkommen
+- **`description` Mapping prüfen** – Task-Title ≠ Projekt-Beschreibung; bei importierten Daten kommt die Arbeitsbeschreibung aus `projects.description`
+
+### Files Changed
+- `frontend/src/pages/Wochenplan.tsx` — transport Phase in PHASE_LABELS + PHASE_COLORS
+- `backend/src/services/wochenplanService.ts` — project_description im SQL + Mapping-Fallback
+- `backend/src/services/importService.ts` — unreferenzierter $1 Parameter in UPDATE projects entfernt
+- `backend/src/middleware/rateLimiter.ts` — dev rate limit 5→20
+- `backend/src/routes/import.ts` — requireUserId middleware
+- `backend/src/services/__tests__/wochenplanService.test.ts` — project_description in Mocks
+---
