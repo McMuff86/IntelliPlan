@@ -27,6 +27,7 @@ export interface WeekPlanTask {
   installationLocation: string;
   phases: { phase: string; plannedKw: number | null }[];
   workerCount: number;
+  helperCount: number;
   color: string;
   contactName: string;
   needsCallback: boolean;
@@ -64,6 +65,7 @@ export interface WeekPlanResource {
   department: string | null;
   employeeType: string | null;
   weeklyHours: number;
+  workRole: string;
 }
 
 export interface CapacitySummary {
@@ -246,6 +248,8 @@ export interface ResourceWeekSchedule {
     department: string | null;
     employeeType: string | null;
     weeklyHours: number;
+    workRole: string;
+    skills: string[];
   };
   kw: number;
   year: number;
@@ -271,6 +275,7 @@ export interface ResourceOverviewEntry {
   department: string | null;
   employeeType: string | null;
   weeklyHours: number;
+  workRole: string;
   utilizationPercent: number;
   days: {
     date: string;
@@ -302,6 +307,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
     customer_name: string | null;
     installation_location: string | null;
     worker_count: number | null;
+    helper_count: number | null;
     color: string | null;
     contact_name: string | null;
     needs_callback: boolean;
@@ -317,6 +323,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
        p.customer_name,
        p.installation_location,
        p.worker_count,
+       p.helper_count,
        p.color,
        p.contact_name,
        p.needs_callback,
@@ -441,8 +448,9 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
     department: string | null;
     employee_type: string | null;
     weekly_hours: number | null;
+    work_role: string | null;
   }>(
-    `SELECT id, name, short_code, department, employee_type, weekly_hours
+    `SELECT id, name, short_code, department, employee_type, weekly_hours, work_role
      FROM resources
      WHERE is_active = true
        AND resource_type = 'person'
@@ -462,6 +470,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       department: r.department,
       employeeType: r.employee_type,
       weeklyHours: Number(r.weekly_hours) || 42.5,
+      workRole: r.work_role || 'arbeiter',
     });
   }
 
@@ -559,6 +568,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       installationLocation: row.installation_location || '',
       phases: allPhases,
       workerCount: Number(row.worker_count) || 0,
+      helperCount: Number(row.helper_count) || 0,
       color: row.color || '',
       contactName: row.contact_name || '',
       needsCallback: row.needs_callback ?? false,
@@ -1165,8 +1175,10 @@ export async function getResourceSchedule(
     department: string | null;
     employee_type: string | null;
     weekly_hours: number | null;
+    work_role: string | null;
+    skills: string[] | null;
   }>(
-    `SELECT id, name, short_code, department, employee_type, weekly_hours
+    `SELECT id, name, short_code, department, employee_type, weekly_hours, work_role, skills
      FROM resources
      WHERE id = $1 AND is_active = true AND resource_type = 'person'`,
     [resourceId]
@@ -1264,6 +1276,8 @@ export async function getResourceSchedule(
       department: resource.department,
       employeeType: resource.employee_type,
       weeklyHours,
+      workRole: resource.work_role || 'arbeiter',
+      skills: resource.skills || [],
     },
     kw,
     year,
@@ -1307,8 +1321,9 @@ export async function getResourcesOverview(
     department: string | null;
     employee_type: string | null;
     weekly_hours: number | null;
+    work_role: string | null;
   }>(
-    `SELECT id, name, short_code, department, employee_type, weekly_hours
+    `SELECT id, name, short_code, department, employee_type, weekly_hours, work_role
      FROM resources r
      WHERE ${conditions.join(' AND ')}
      ORDER BY r.department ASC NULLS LAST, r.short_code ASC NULLS LAST, r.name ASC`,
@@ -1403,6 +1418,7 @@ export async function getResourcesOverview(
       department: r.department,
       employeeType: r.employee_type,
       weeklyHours,
+      workRole: r.work_role || 'arbeiter',
       utilizationPercent,
       days,
     };

@@ -248,6 +248,9 @@ export interface ProjectActivity {
 }
 
 export type ResourceType = "person" | "machine" | "vehicle";
+export type Department = 'zuschnitt' | 'cnc' | 'produktion' | 'behandlung' | 'beschlaege' | 'transport' | 'montage' | 'buero';
+export type EmployeeType = 'internal' | 'temporary' | 'external_firm' | 'pensioner' | 'apprentice';
+export type WorkRole = 'arbeiter' | 'hilfskraft' | 'lehrling' | 'allrounder' | 'buero';
 
 export interface Resource {
   id: string;
@@ -257,6 +260,13 @@ export interface Resource {
   description: string | null;
   isActive: boolean;
   availabilityEnabled: boolean;
+  department: Department | null;
+  employeeType: EmployeeType | null;
+  shortCode: string | null;
+  defaultLocation: string | null;
+  weeklyHours: number | null;
+  workRole: WorkRole;
+  skills: string[] | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -267,6 +277,13 @@ export interface CreateResourceDTO {
   description?: string | null;
   isActive?: boolean;
   availabilityEnabled?: boolean;
+  department?: Department | null;
+  employeeType?: EmployeeType | null;
+  shortCode?: string | null;
+  defaultLocation?: string | null;
+  weeklyHours?: number | null;
+  workRole?: WorkRole;
+  skills?: string[] | null;
 }
 
 // Search types

@@ -1,9 +1,11 @@
 export type ResourceType = 'person' | 'machine' | 'vehicle';
 export type Department = 'zuschnitt' | 'cnc' | 'produktion' | 'behandlung' | 'beschlaege' | 'transport' | 'montage' | 'buero';
 export type EmployeeType = 'internal' | 'temporary' | 'external_firm' | 'pensioner' | 'apprentice';
+export type WorkRole = 'arbeiter' | 'hilfskraft' | 'lehrling' | 'allrounder' | 'buero';
 
 export const VALID_DEPARTMENTS: Department[] = ['zuschnitt', 'cnc', 'produktion', 'behandlung', 'beschlaege', 'transport', 'montage', 'buero'];
 export const VALID_EMPLOYEE_TYPES: EmployeeType[] = ['internal', 'temporary', 'external_firm', 'pensioner', 'apprentice'];
+export const VALID_WORK_ROLES: WorkRole[] = ['arbeiter', 'hilfskraft', 'lehrling', 'allrounder', 'buero'];
 
 export interface Resource {
   id: string;
@@ -18,6 +20,7 @@ export interface Resource {
   short_code: string | null;
   default_location: string | null;
   weekly_hours: number | null;
+  work_role: WorkRole;
   skills: string[] | null;
   created_at: string;
   updated_at: string;
@@ -36,6 +39,7 @@ export interface ResourceResponse {
   shortCode: string | null;
   defaultLocation: string | null;
   weeklyHours: number | null;
+  workRole: WorkRole;
   skills: string[] | null;
   createdAt: string;
   updatedAt: string;
@@ -53,6 +57,7 @@ export interface CreateResourceDTO {
   short_code?: string | null;
   default_location?: string | null;
   weekly_hours?: number | null;
+  work_role?: WorkRole;
   skills?: string[] | null;
 }
 
@@ -67,6 +72,7 @@ export interface UpdateResourceDTO {
   short_code?: string | null;
   default_location?: string | null;
   weekly_hours?: number | null;
+  work_role?: WorkRole;
   skills?: string[] | null;
 }
 
@@ -83,6 +89,7 @@ export const toResourceResponse = (resource: Resource): ResourceResponse => ({
   shortCode: resource.short_code,
   defaultLocation: resource.default_location,
   weeklyHours: resource.weekly_hours ? Number(resource.weekly_hours) : null,
+  workRole: resource.work_role || 'arbeiter',
   skills: resource.skills,
   createdAt: resource.created_at,
   updatedAt: resource.updated_at,

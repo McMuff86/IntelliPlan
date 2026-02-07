@@ -2,7 +2,7 @@ import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { pool } from '../config/database';
 import type { PhaseCode } from '../models/task';
-import type { Department, EmployeeType } from '../models/resource';
+import type { Department, EmployeeType, WorkRole } from '../models/resource';
 import type { HalfDay } from '../models/taskAssignment';
 
 // ─── Types ─────────────────────────────────────────────
@@ -94,6 +94,7 @@ export interface ImportResource {
   name: string;
   department: Department | null;
   employeeType: EmployeeType | null;
+  workRole: WorkRole;
 }
 
 export interface ImportPlan {
@@ -580,16 +581,17 @@ function sectionToPhaseCode(sectionName: string): PhaseCode {
 /**
  * Infer department/type from resource code.
  */
-function inferResourceInfo(code: string): { department: Department | null; employeeType: EmployeeType | null } {
+function inferResourceInfo(code: string): { department: Department | null; employeeType: EmployeeType | null; workRole: WorkRole } {
   const lower = code.toLowerCase();
-  if (lower.startsWith('lehrling')) return { department: 'produktion', employeeType: 'apprentice' };
-  if (lower.startsWith('fremdmonteur')) return { department: 'montage', employeeType: 'temporary' };
-  if (lower.startsWith('fremdfirma')) return { department: 'montage', employeeType: 'external_firm' };
-  if (lower.startsWith('pensionaer') || lower.startsWith('pensionär')) return { department: 'buero', employeeType: 'pensioner' };
-  if (lower.startsWith('buero') || lower.startsWith('büro')) return { department: 'buero', employeeType: 'internal' };
-  if (lower.startsWith('maler')) return { department: 'behandlung', employeeType: 'temporary' };
-  if (lower.startsWith('ma_')) return { department: null, employeeType: 'internal' };
-  return { department: null, employeeType: null };
+  if (lower.startsWith('lehrling')) return { department: 'produktion', employeeType: 'apprentice', workRole: 'lehrling' };
+  if (lower.startsWith('fremdmonteur')) return { department: 'montage', employeeType: 'temporary', workRole: 'arbeiter' };
+  if (lower.startsWith('fremdfirma')) return { department: 'montage', employeeType: 'external_firm', workRole: 'arbeiter' };
+  if (lower.startsWith('pensionaer') || lower.startsWith('pensionär')) return { department: 'buero', employeeType: 'pensioner', workRole: 'buero' };
+  if (lower.startsWith('buero') || lower.startsWith('büro')) return { department: 'buero', employeeType: 'internal', workRole: 'buero' };
+  if (lower.startsWith('maler')) return { department: 'behandlung', employeeType: 'temporary', workRole: 'arbeiter' };
+  if (lower.startsWith('hilf')) return { department: null, employeeType: 'temporary', workRole: 'hilfskraft' };
+  if (lower.startsWith('ma_')) return { department: null, employeeType: 'internal', workRole: 'arbeiter' };
+  return { department: null, employeeType: null, workRole: 'arbeiter' };
 }
 
 /**
@@ -674,6 +676,7 @@ export function mapToIntelliPlan(parsed: ParsedWeekPlan): ImportPlan {
               name: da.resourceCode, // Will be enriched later
               department: info.department,
               employeeType: info.employeeType,
+              workRole: info.workRole,
             });
           }
         }
@@ -826,10 +829,10 @@ export async function executeImport(plan: ImportPlan, userId: string): Promise<I
         result.resourcesUpdated++;
       } else {
         const inserted = await client.query<{ id: string }>(
-          `INSERT INTO resources (owner_id, name, resource_type, short_code, department, employee_type, is_active)
-           VALUES ($1, $2, 'person', $3, $4, $5, true)
+          `INSERT INTO resources (owner_id, name, resource_type, short_code, department, employee_type, work_role, is_active)
+           VALUES ($1, $2, 'person', $3, $4, $5, $6, true)
            RETURNING id`,
-          [userId, res.name, res.shortCode, res.department, res.employeeType]
+          [userId, res.name, res.shortCode, res.department, res.employeeType, res.workRole]
         );
         resourceIdByCode.set(res.shortCode, inserted.rows[0].id);
         result.resourcesCreated++;

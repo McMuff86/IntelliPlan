@@ -482,6 +482,7 @@ describe('importService', () => {
           name: 'MA_13',
           department: null,
           employeeType: 'internal',
+          workRole: 'arbeiter',
         },
       ],
       ...overrides,

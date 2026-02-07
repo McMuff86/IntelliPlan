@@ -15,6 +15,9 @@
 - On Windows, old node.exe processes linger on ports after TaskStop — use `netstat -ano | findstr` + `taskkill //F //PID` to free ports
 - `multer` + `@types/multer` must be installed for import route (was missing from package.json)
 - PostgreSQL: `SELECT DISTINCT` with `ORDER BY table.col` fails — use column aliases instead
+- `resources.work_role` = functional role on the shop floor (arbeiter/hilfskraft/lehrling/allrounder/buero) — separate from `employee_type` (employment contract type)
+- Skills convention: plain strings for Fachgebiete ("Lackierer", "Schreiner"), `qual:` prefix for machine qualifications ("qual:CNC", "qual:Staplerschein")
+- `inferResourceInfo()` in importService maps resource code prefixes (lehrling→lehrling, hilf→hilfskraft, buero→buero, etc.) to both employeeType and workRole
 
 ---
 
@@ -1112,4 +1115,49 @@ Topologischer Sort (Kahn's Algorithmus) existierte inline in ProjectDetail.tsx. 
 - Verify Kapazität page loads after migration 038
 - Verify Wochenplan conflicts after SQL fix
 - Review all Phase 2 features with imported data
+---
+
+## 2026-02-07 - Hilfskraft-Spalte + Rollen & Spezialisierungen
+- **Phase 1**: Added "Hilf." column to Wochenplan table (helper_count from projects table)
+  - Backend: `p.helper_count` added to SQL query, `helperCount` in WeekPlanTask type + mapping
+  - Frontend: Column header + data cell in Wochenplan.tsx next to "Arb."
+- **Phase 2**: New `work_role` field for resources (migration 041)
+  - Migration `041_add_resource_work_role.sql`: VARCHAR(30) with CHECK constraint (arbeiter/hilfskraft/lehrling/allrounder/buero)
+  - Default: existing buero-dept → 'buero', apprentice → 'lehrling', rest → 'arbeiter'
+  - `WorkRole` type + `VALID_WORK_ROLES` constant in resource model
+  - Full CRUD support: service, controller, validator, list-filter
+- **Phase 3**: Import service + frontend types
+  - `inferResourceInfo()` now returns workRole (new: `hilf*` prefix → hilfskraft)
+  - `ImportResource` interface + executeImport INSERT include work_role
+  - Frontend `types/index.ts`: Complete Resource interface with Department, EmployeeType, WorkRole, skills
+- **Phase 4**: ResourceEditDialog (new component)
+  - MUI dialog: Name, Kürzel, Abteilung, Anstellungsart, **Arbeitsrolle**, Wochenstunden
+  - **Fachgebiete** (Autocomplete, freeSolo): Lackierer, Schreiner, Monteur, etc.
+  - **Qualifikationen** (Autocomplete, freeSolo, qual: prefix): CNC, Hobelmaschine, Staplerschein
+  - Edit button in ResourceDetailPanel header, skills split into Fachgebiete + Qualifikationen display
+- **Phase 5**: Wochenplan integration
+  - work_role added to all resource queries (getWeekPlan, getResourceSchedule, getResourcesOverview)
+  - ResourceWeekSchedule includes workRole + skills
+  - MitarbeiterGrid: colored role chip (Hilf.=orange, Lehr.=purple, Allr.=green, Büro=grey) for non-Arbeiter
+- **Verification**: Migration 041 ran OK, 25/25 test suites pass (475 tests), 0 TS errors, API tested with JWT
+
+### Files Changed
+- `backend/migrations/041_add_resource_work_role.sql` — new migration
+- `backend/src/models/resource.ts` — WorkRole type, VALID_WORK_ROLES, interfaces + mapper
+- `backend/src/services/resourceService.ts` — work_role in CRUD + filters
+- `backend/src/controllers/resourceController.ts` — workRole body param + query filter
+- `backend/src/validators/resourceValidator.ts` — workRole validation
+- `backend/src/services/wochenplanService.ts` — helperCount + workRole in queries and types
+- `backend/src/services/importService.ts` — inferResourceInfo returns workRole, ImportResource extended
+- `backend/src/services/__tests__/exportService.test.ts` — helperCount in mock data
+- `backend/src/services/__tests__/importService.test.ts` — workRole in mock data
+- `backend/src/services/__tests__/resourceService.test.ts` — work_role in mock data
+- `frontend/src/types/index.ts` — Resource interface complete with all fields
+- `frontend/src/services/wochenplanService.ts` — helperCount + workRole in types
+- `frontend/src/services/mitarbeiterService.ts` — workRole in ResourceOverviewEntry + ResourceWeekSchedule
+- `frontend/src/services/resourceService.ts` — (unchanged, already had update method)
+- `frontend/src/pages/Wochenplan.tsx` — "Hilf." column header + cell
+- `frontend/src/components/mitarbeiter/ResourceEditDialog.tsx` — new file
+- `frontend/src/components/mitarbeiter/ResourceDetailPanel.tsx` — edit button, workRole display, skills split
+- `frontend/src/components/mitarbeiter/MitarbeiterGrid.tsx` — role chip in ResourceRow
 ---

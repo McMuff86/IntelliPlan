@@ -11,7 +11,7 @@ import {
 } from '../services/resourceService';
 import type { ListResourcesFilters } from '../services/resourceService';
 import { toResourceResponse } from '../models/resource';
-import type { Department, EmployeeType, ResourceType } from '../models/resource';
+import type { Department, EmployeeType, ResourceType, WorkRole } from '../models/resource';
 
 const getUserId = (req: Request): string | null => {
   if (!req.user) {
@@ -34,6 +34,9 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
     }
     if (req.query.employee_type) {
       filters.employee_type = req.query.employee_type as EmployeeType;
+    }
+    if (req.query.work_role) {
+      filters.work_role = req.query.work_role as WorkRole;
     }
     if (req.query.active !== undefined) {
       filters.is_active = req.query.active === 'true';
@@ -87,7 +90,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, resourceType, description, isActive, availabilityEnabled, department, employeeType, shortCode, defaultLocation, weeklyHours, skills } = req.body;
+    const { name, resourceType, description, isActive, availabilityEnabled, department, employeeType, shortCode, defaultLocation, weeklyHours, workRole, skills } = req.body;
     const resource = await createResource({
       owner_id: userId,
       name,
@@ -100,6 +103,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       short_code: shortCode ?? null,
       default_location: defaultLocation ?? null,
       weekly_hours: weeklyHours ?? null,
+      work_role: workRole ?? undefined,
       skills: skills ?? null,
     });
 
@@ -143,7 +147,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, resourceType, description, isActive, availabilityEnabled, department, employeeType, shortCode, defaultLocation, weeklyHours, skills } = req.body;
+    const { name, resourceType, description, isActive, availabilityEnabled, department, employeeType, shortCode, defaultLocation, weeklyHours, workRole, skills } = req.body;
     const updated = await updateResource(req.params.id as string, userId, {
       name,
       resource_type: resourceType,
@@ -155,6 +159,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       short_code: shortCode,
       default_location: defaultLocation,
       weekly_hours: weeklyHours,
+      work_role: workRole,
       skills,
     });
 

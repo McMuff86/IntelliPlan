@@ -1,5 +1,5 @@
 import { body, ValidationChain } from 'express-validator';
-import { VALID_DEPARTMENTS, VALID_EMPLOYEE_TYPES } from '../models/resource';
+import { VALID_DEPARTMENTS, VALID_EMPLOYEE_TYPES, VALID_WORK_ROLES } from '../models/resource';
 
 const resourceTypes = ['person', 'machine', 'vehicle'];
 
@@ -50,6 +50,10 @@ export const createResourceValidator: ValidationChain[] = [
     .optional({ values: 'null' })
     .isFloat({ min: 0, max: 168 })
     .withMessage('weeklyHours must be between 0 and 168'),
+  body('workRole')
+    .optional({ values: 'null' })
+    .isIn(VALID_WORK_ROLES)
+    .withMessage(`workRole must be one of: ${VALID_WORK_ROLES.join(', ')}`),
 ];
 
 export const updateResourceValidator: ValidationChain[] = [
@@ -99,4 +103,8 @@ export const updateResourceValidator: ValidationChain[] = [
     .optional({ values: 'null' })
     .isFloat({ min: 0, max: 168 })
     .withMessage('weeklyHours must be between 0 and 168'),
+  body('workRole')
+    .optional({ values: 'null' })
+    .isIn(VALID_WORK_ROLES)
+    .withMessage(`workRole must be one of: ${VALID_WORK_ROLES.join(', ')}`),
 ];

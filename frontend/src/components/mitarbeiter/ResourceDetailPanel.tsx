@@ -17,10 +17,13 @@ import {
   LinearProgress,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import EditIcon from '@mui/icons-material/Edit';
 import PersonIcon from '@mui/icons-material/Person';
 import BadgeIcon from '@mui/icons-material/Badge';
 import BusinessIcon from '@mui/icons-material/Business';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import WorkIcon from '@mui/icons-material/Work';
+import ResourceEditDialog from './ResourceEditDialog';
 import {
   mitarbeiterService,
   type ResourceWeekSchedule,
@@ -46,6 +49,14 @@ const EMPLOYEE_TYPE_LABELS: Record<string, string> = {
   external_firm: 'Externe Firma',
   pensioner: 'Pensionär',
   apprentice: 'Lehrling',
+};
+
+const WORK_ROLE_LABELS: Record<string, string> = {
+  arbeiter: 'Arbeiter',
+  hilfskraft: 'Hilfskraft',
+  lehrling: 'Lehrling',
+  allrounder: 'Allrounder',
+  buero: 'B\u00fcro',
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -74,6 +85,7 @@ interface ResourceDetailPanelProps {
   kw: number;
   year: number;
   onClose: () => void;
+  onResourceUpdated?: () => void;
 }
 
 // ─── Component ─────────────────────────────────────────
@@ -84,10 +96,12 @@ export default function ResourceDetailPanel({
   kw,
   year,
   onClose,
+  onResourceUpdated,
 }: ResourceDetailPanelProps) {
   const [schedule, setSchedule] = useState<ResourceWeekSchedule | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchSchedule = useCallback(async () => {
     if (!resourceId) return;
@@ -142,9 +156,14 @@ export default function ResourceDetailPanel({
             {schedule?.resource.shortCode || schedule?.resource.name || 'Mitarbeiter'}
           </Typography>
         </Box>
-        <IconButton onClick={onClose} sx={{ color: 'inherit' }}>
-          <CloseIcon />
-        </IconButton>
+        <Box>
+          <IconButton onClick={() => setEditOpen(true)} sx={{ color: 'inherit' }} title="Bearbeiten">
+            <EditIcon />
+          </IconButton>
+          <IconButton onClick={onClose} sx={{ color: 'inherit' }}>
+            <CloseIcon />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Content */}
@@ -197,21 +216,50 @@ export default function ResourceDetailPanel({
                 }
               />
               <InfoRow
+                icon={<WorkIcon fontSize="small" />}
+                label="Arbeitsrolle"
+                value={
+                  schedule.resource.workRole
+                    ? WORK_ROLE_LABELS[schedule.resource.workRole] || schedule.resource.workRole
+                    : 'Arbeiter'
+                }
+              />
+              <InfoRow
                 icon={<AccessTimeIcon fontSize="small" />}
                 label="Wochenstunden"
                 value={`${schedule.resource.weeklyHours}h`}
               />
               {schedule.resource.skills && schedule.resource.skills.length > 0 && (
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Skills
-                  </Typography>
-                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                    {schedule.resource.skills.map((skill) => (
-                      <Chip key={skill} label={skill} size="small" variant="outlined" />
-                    ))}
-                  </Box>
-                </Box>
+                <>
+                  {schedule.resource.skills.filter((s) => !s.startsWith('qual:')).length > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Fachgebiete
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                        {schedule.resource.skills
+                          .filter((s) => !s.startsWith('qual:'))
+                          .map((skill) => (
+                            <Chip key={skill} label={skill} size="small" color="primary" variant="outlined" />
+                          ))}
+                      </Box>
+                    </Box>
+                  )}
+                  {schedule.resource.skills.filter((s) => s.startsWith('qual:')).length > 0 && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        Qualifikationen
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
+                        {schedule.resource.skills
+                          .filter((s) => s.startsWith('qual:'))
+                          .map((skill) => (
+                            <Chip key={skill} label={skill.replace('qual:', '')} size="small" color="secondary" variant="outlined" />
+                          ))}
+                      </Box>
+                    </Box>
+                  )}
+                </>
               )}
             </Box>
 
@@ -280,6 +328,16 @@ export default function ResourceDetailPanel({
           </>
         )}
       </Box>
+
+      <ResourceEditDialog
+        open={editOpen}
+        resourceId={resourceId}
+        onClose={() => setEditOpen(false)}
+        onSaved={() => {
+          fetchSchedule();
+          onResourceUpdated?.();
+        }}
+      />
     </Drawer>
   );
 }

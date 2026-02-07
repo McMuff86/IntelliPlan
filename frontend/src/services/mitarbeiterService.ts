@@ -29,6 +29,7 @@ export interface ResourceOverviewEntry {
   department: string | null;
   employeeType: string | null;
   weeklyHours: number;
+  workRole?: string;
   days: ResourceDaySchedule[];
   weekSummary: {
     totalAssigned: number;
@@ -52,6 +53,7 @@ export interface ResourceWeekSchedule {
     department: string | null;
     employeeType: string | null;
     weeklyHours: number;
+    workRole?: string;
     skills: string[];
   };
   kw: number;

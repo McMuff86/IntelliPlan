@@ -29,6 +29,7 @@ function makeResource(overrides: Partial<Resource> = {}): Resource {
     short_code: 'MA_01',
     default_location: null,
     weekly_hours: 42.5,
+    work_role: 'arbeiter' as const,
     skills: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',

@@ -1,9 +1,10 @@
 import { pool } from '../config/database';
-import type { CreateResourceDTO, Department, EmployeeType, Resource, ResourceType, UpdateResourceDTO } from '../models/resource';
+import type { CreateResourceDTO, Department, EmployeeType, Resource, ResourceType, UpdateResourceDTO, WorkRole } from '../models/resource';
 
 export interface ListResourcesFilters {
   department?: Department;
   employee_type?: EmployeeType;
+  work_role?: WorkRole;
   is_active?: boolean;
   resource_type?: ResourceType;
 }
@@ -14,8 +15,8 @@ export async function createResource(data: CreateResourceDTO): Promise<Resource>
         owner_id, name, resource_type, description,
         is_active, availability_enabled,
         department, employee_type, short_code,
-        default_location, weekly_hours, skills
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        default_location, weekly_hours, work_role, skills
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      RETURNING *`,
     [
       data.owner_id,
@@ -29,6 +30,7 @@ export async function createResource(data: CreateResourceDTO): Promise<Resource>
       data.short_code ?? null,
       data.default_location ?? null,
       data.weekly_hours ?? null,
+      data.work_role ?? 'arbeiter',
       data.skills ?? null,
     ]
   );
@@ -48,6 +50,10 @@ export async function listResources(ownerId: string, filters?: ListResourcesFilt
   if (filters?.employee_type !== undefined) {
     conditions.push(`employee_type = $${paramIndex++}`);
     values.push(filters.employee_type);
+  }
+  if (filters?.work_role !== undefined) {
+    conditions.push(`work_role = $${paramIndex++}`);
+    values.push(filters.work_role);
   }
   if (filters?.is_active !== undefined) {
     conditions.push(`is_active = $${paramIndex++}`);
@@ -175,6 +181,10 @@ export async function updateResource(
   if (data.weekly_hours !== undefined) {
     fields.push(`weekly_hours = $${paramIndex++}`);
     values.push(data.weekly_hours);
+  }
+  if (data.work_role !== undefined) {
+    fields.push(`work_role = $${paramIndex++}`);
+    values.push(data.work_role);
   }
   if (data.skills !== undefined) {
     fields.push(`skills = $${paramIndex++}`);

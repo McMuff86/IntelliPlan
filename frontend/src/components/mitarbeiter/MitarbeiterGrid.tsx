@@ -44,6 +44,22 @@ const STATUS_BG_COLORS: Record<string, string> = {
 const FIX_COLOR = '#c62828'; // Red for FIX
 const FIX_BG = '#ffebee';
 
+const WORK_ROLE_LABELS: Record<string, string> = {
+  arbeiter: 'Arb.',
+  hilfskraft: 'Hilf.',
+  lehrling: 'Lehr.',
+  allrounder: 'Allr.',
+  buero: 'B\u00fcro',
+};
+
+const WORK_ROLE_COLORS: Record<string, string> = {
+  arbeiter: '#1565c0',
+  hilfskraft: '#ff8f00',
+  lehrling: '#6a1b9a',
+  allrounder: '#2e7d32',
+  buero: '#757575',
+};
+
 // ─── Props ─────────────────────────────────────────────
 
 interface MitarbeiterGridProps {
@@ -278,9 +294,25 @@ function ResourceRow({ resource, onResourceClick, onCellClick }: ResourceRowProp
         }}
         onClick={() => onResourceClick(resource.resourceId)}
       >
-        <Typography variant="body2" fontWeight={700} noWrap>
-          {resource.shortCode || resource.resourceName}
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Typography variant="body2" fontWeight={700} noWrap>
+            {resource.shortCode || resource.resourceName}
+          </Typography>
+          {resource.workRole && resource.workRole !== 'arbeiter' && (
+            <Chip
+              label={WORK_ROLE_LABELS[resource.workRole] || resource.workRole}
+              size="small"
+              sx={{
+                height: 18,
+                fontSize: '0.6rem',
+                fontWeight: 700,
+                color: WORK_ROLE_COLORS[resource.workRole] || '#757575',
+                borderColor: WORK_ROLE_COLORS[resource.workRole] || '#757575',
+              }}
+              variant="outlined"
+            />
+          )}
+        </Box>
         {resource.shortCode && (
           <Typography variant="caption" color="text.secondary" noWrap>
             {resource.resourceName}

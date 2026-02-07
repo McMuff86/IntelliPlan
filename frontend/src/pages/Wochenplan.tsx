@@ -724,6 +724,7 @@ function SectionTable({ section, currentKw, collapsed, onToggleCollapse, conflic
                     </TableCell>
                   ))}
                   <TableCell sx={{ fontWeight: 700, textAlign: 'center', minWidth: 40 }}>Arb.</TableCell>
+                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', minWidth: 40 }}>Hilf.</TableCell>
                   <TableCell sx={{ fontWeight: 700, minWidth: 60 }}>Farbe</TableCell>
                   <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Kontakt</TableCell>
                   {DAY_LABELS.map((d) => (
@@ -831,6 +832,11 @@ function TaskRow({ task, currentKw, department, conflictMap, selectedCells, onCe
       <TableCell sx={{ textAlign: 'center' }}>
         <Typography variant="body2" fontWeight={600}>
           {task.workerCount || '—'}
+        </Typography>
+      </TableCell>
+      <TableCell sx={{ textAlign: 'center' }}>
+        <Typography variant="body2" fontWeight={600}>
+          {task.helperCount || '—'}
         </Typography>
       </TableCell>
       <TableCell>

@@ -27,6 +27,7 @@ export interface WeekPlanTask {
   installationLocation: string;
   phases: { phase: string; plannedKw: number | null }[];
   workerCount: number;
+  helperCount: number;
   color: string;
   contactName: string;
   needsCallback: boolean;
@@ -64,6 +65,7 @@ export interface WeekPlanResource {
   department: string | null;
   employeeType: string | null;
   weeklyHours: number;
+  workRole: string;
 }
 
 export interface CapacitySummary {
