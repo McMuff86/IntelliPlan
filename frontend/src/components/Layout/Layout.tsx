@@ -30,6 +30,7 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SettingsIcon from '@mui/icons-material/Settings';
 import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import PeopleIcon from '@mui/icons-material/People';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useHotkeys } from '../../hooks/useHotkeys';
@@ -54,6 +55,7 @@ const navItems: NavItem[] = [
   { label: 'Projects', path: '/projects', icon: <AccountTreeIcon /> },
   { label: 'Wochenplan', path: '/wochenplan', icon: <ViewWeekIcon /> },
   { label: 'Kapazität', path: '/capacity', icon: <AssessmentIcon /> },
+  { label: 'Mitarbeiter', path: '/mitarbeiter-plan', icon: <PeopleIcon /> },
   { label: 'Import', path: '/import', icon: <UploadFileIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];

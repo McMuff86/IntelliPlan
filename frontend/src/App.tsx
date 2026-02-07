@@ -23,6 +23,7 @@ import Demo from './pages/Demo';
 import Wochenplan from './pages/Wochenplan';
 import Capacity from './pages/Capacity';
 import Import from './pages/Import';
+import MitarbeiterPlan from './pages/MitarbeiterPlan';
 
 function App() {
   const { theme } = useThemePreference();
@@ -59,6 +60,7 @@ function App() {
                 <Route path="/settings/templates" element={<TemplateManagement />} />
                 <Route path="/wochenplan" element={<Wochenplan />} />
                 <Route path="/capacity" element={<Capacity />} />
+                <Route path="/mitarbeiter-plan" element={<MitarbeiterPlan />} />
                 <Route path="/import" element={<Import />} />
                 <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />
               </Route>
