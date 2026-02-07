@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -231,6 +231,36 @@ export default function Wochenplan() {
     setSnackbar((s) => ({ ...s, open: false }));
   };
 
+  // ─── Keyboard Shortcuts ─────────────────────────────
+  const handlePrevRef = useRef(handlePrev);
+  const handleNextRef = useRef(handleNext);
+  handlePrevRef.current = handlePrev;
+  handleNextRef.current = handleNext;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore when typing in an input/textarea/select
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if ((e.target as HTMLElement).isContentEditable) return;
+
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handlePrevRef.current();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNextRef.current();
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        const today = getCurrentISOWeek();
+        setKw(today.kw);
+        setYear(today.year);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Collect all resources from the current weekPlan for the dialog
   const allResources: WeekPlanResource[] = weekPlan
     ? weekPlan.sections.flatMap((s) => s.resources)
@@ -302,6 +332,24 @@ export default function Wochenplan() {
           <IconButton onClick={handleNext} size="small" aria-label="Nächste Woche">
             <ChevronRightIcon />
           </IconButton>
+
+          <Tooltip title="← → Woche wechseln · T = Heute">
+            <Typography
+              variant="caption"
+              sx={{
+                ml: 1,
+                px: 1,
+                py: 0.25,
+                borderRadius: 1,
+                bgcolor: 'action.hover',
+                color: 'text.secondary',
+                fontSize: '0.7rem',
+                cursor: 'default',
+              }}
+            >
+              ⌨
+            </Typography>
+          </Tooltip>
         </Box>
       </Box>
 
