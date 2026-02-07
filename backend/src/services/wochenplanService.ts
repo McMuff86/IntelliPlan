@@ -34,6 +34,16 @@ export interface WeekPlanTask {
   remarks: string;
 }
 
+export interface DayAssignmentDetail {
+  assignmentId: string;
+  resourceId: string;
+  resourceName: string;
+  halfDay: string;
+  isFixed: boolean;
+  notes: string | null;
+  statusCode: string | null;
+}
+
 export interface DayAssignment {
   date: string;
   dayName: string;
@@ -41,6 +51,8 @@ export interface DayAssignment {
   afternoon: string | null;
   morningStatusCode: string | null;
   afternoonStatusCode: string | null;
+  morningDetail: DayAssignmentDetail | null;
+  afternoonDetail: DayAssignmentDetail | null;
   isFixed: boolean;
   notes: string | null;
 }
@@ -175,9 +187,13 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
            WHEN 'zuschnitt' THEN 0
            WHEN 'cnc' THEN 1
            WHEN 'produktion' THEN 2
-           WHEN 'behandlung' THEN 3
-           WHEN 'beschlaege' THEN 4
-           WHEN 'montage' THEN 5
+           WHEN 'vorbehandlung' THEN 3
+           WHEN 'behandlung' THEN 4
+           WHEN 'nachbehandlung' THEN 5
+           WHEN 'beschlaege' THEN 6
+           WHEN 'transport' THEN 7
+           WHEN 'montage' THEN 8
+           ELSE 9
          END`,
       [taskIds]
     );
@@ -196,14 +212,16 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
   // 3. Load task_assignments for the week
   let assignmentsMap = new Map<
     string,
-    { date: string; half_day: string; resource_short_code: string | null; resource_name: string; is_fixed: boolean; notes: string | null; status_code: string | null }[]
+    { id: string; date: string; half_day: string; resource_id: string; resource_short_code: string | null; resource_name: string; is_fixed: boolean; notes: string | null; status_code: string | null }[]
   >();
 
   if (taskIds.length > 0) {
     const assignmentsResult = await pool.query<{
+      id: string;
       task_id: string;
       assignment_date: string;
       half_day: string;
+      resource_id: string;
       resource_short_code: string | null;
       resource_name: string;
       is_fixed: boolean;
@@ -211,9 +229,11 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       status_code: string | null;
     }>(
       `SELECT
+         ta.id,
          ta.task_id,
          ta.assignment_date::text AS assignment_date,
          ta.half_day,
+         ta.resource_id,
          r.short_code AS resource_short_code,
          r.name AS resource_name,
          ta.is_fixed,
@@ -234,8 +254,10 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
         assignmentsMap.set(row.task_id, []);
       }
       assignmentsMap.get(row.task_id)!.push({
+        id: row.id,
         date: row.assignment_date,
         half_day: row.half_day,
+        resource_id: row.resource_id,
         resource_short_code: row.resource_short_code,
         resource_name: row.resource_name,
         is_fixed: row.is_fixed,
@@ -318,6 +340,19 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       const getDisplayName = (a: typeof morningAssignment) =>
         a ? (a.resource_short_code || a.resource_name) : null;
 
+      const buildDetail = (a: typeof morningAssignment): DayAssignmentDetail | null => {
+        if (!a) return null;
+        return {
+          assignmentId: a.id,
+          resourceId: a.resource_id,
+          resourceName: a.resource_name,
+          halfDay: a.half_day,
+          isFixed: a.is_fixed,
+          notes: a.notes,
+          statusCode: a.status_code,
+        };
+      };
+
       return {
         date,
         dayName: DAY_NAMES[idx],
@@ -325,6 +360,8 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
         afternoon: getDisplayName(afternoonAssignment),
         morningStatusCode: morningAssignment?.status_code ?? null,
         afternoonStatusCode: afternoonAssignment?.status_code ?? null,
+        morningDetail: buildDetail(morningAssignment),
+        afternoonDetail: buildDetail(afternoonAssignment),
         isFixed,
         notes,
       };

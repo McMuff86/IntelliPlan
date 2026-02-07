@@ -34,11 +34,25 @@ export interface WeekPlanTask {
   remarks: string;
 }
 
+export interface DayAssignmentDetail {
+  assignmentId: string;
+  resourceId: string;
+  resourceName: string;
+  halfDay: string;
+  isFixed: boolean;
+  notes: string | null;
+  statusCode: string | null;
+}
+
 export interface DayAssignment {
   date: string;
   dayName: string;
   morning: string | null;
   afternoon: string | null;
+  morningStatusCode: string | null;
+  afternoonStatusCode: string | null;
+  morningDetail: DayAssignmentDetail | null;
+  afternoonDetail: DayAssignmentDetail | null;
   isFixed: boolean;
   notes: string | null;
 }
@@ -46,6 +60,7 @@ export interface DayAssignment {
 export interface WeekPlanResource {
   id: string;
   name: string;
+  shortCode: string | null;
   department: string | null;
   employeeType: string | null;
   weeklyHours: number;
