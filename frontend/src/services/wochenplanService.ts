@@ -84,6 +84,27 @@ interface ApiResponse<T> {
   data: T;
 }
 
+// ─── Conflict Types ────────────────────────────────────
+
+export interface ConflictAssignment {
+  taskId: string;
+  projectOrderNumber: string;
+  description: string;
+}
+
+export interface ResourceConflict {
+  resourceId: string;
+  resourceName: string;
+  shortCode: string;
+  date: string;
+  halfDay: string;
+  assignments: ConflictAssignment[];
+}
+
+export interface ConflictResponse {
+  conflicts: ResourceConflict[];
+}
+
 // ─── Service ───────────────────────────────────────────
 
 export const wochenplanService = {
@@ -92,5 +113,17 @@ export const wochenplanService = {
       `/wochenplan?kw=${kw}&year=${year}`
     );
     return response.data.data;
+  },
+
+  async getConflicts(kw: number, year: number): Promise<ConflictResponse> {
+    try {
+      const response = await api.get<ApiResponse<ConflictResponse>>(
+        `/wochenplan/conflicts?kw=${kw}&year=${year}`
+      );
+      return response.data.data;
+    } catch {
+      // TODO: API endpoint may not exist yet – return empty conflicts
+      return { conflicts: [] };
+    }
   },
 };

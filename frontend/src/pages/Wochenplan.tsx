@@ -32,6 +32,7 @@ import {
   type WeekPlanTask,
   type WeekPlanResource,
   type DayAssignmentDetail,
+  type ResourceConflict,
 } from '../services/wochenplanService';
 import AssignmentDialog from '../components/wochenplan/AssignmentDialog';
 import type { HalfDay } from '../services/assignmentService';
@@ -111,6 +112,7 @@ export default function Wochenplan() {
   const [weekPlan, setWeekPlan] = useState<WeekPlanResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<ResourceConflict[]>([]);
 
   const initial = getCurrentISOWeek();
   const [kw, setKw] = useState(initial.kw);
@@ -148,8 +150,12 @@ export default function Wochenplan() {
     setLoading(true);
     setError(null);
     try {
-      const data = await wochenplanService.getWeekPlan(kw, year);
+      const [data, conflictData] = await Promise.all([
+        wochenplanService.getWeekPlan(kw, year),
+        wochenplanService.getConflicts(kw, year),
+      ]);
       setWeekPlan(data);
+      setConflicts(conflictData.conflicts);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Fehler beim Laden des Wochenplans';
@@ -265,6 +271,20 @@ export default function Wochenplan() {
   const allResources: WeekPlanResource[] = weekPlan
     ? weekPlan.sections.flatMap((s) => s.resources)
     : [];
+
+  // Build conflict lookup: key = "resourceId|date|halfDay" → conflict tooltip
+  const conflictMap = new Map<string, string>();
+  for (const c of conflicts) {
+    // For each conflict, mark the resource+date+halfDay
+    const tooltip = `${c.shortCode || c.resourceName} ist auch bei ${c.assignments.map((a) => a.projectOrderNumber || a.description).join(', ')} eingeteilt`;
+    const key = `${c.resourceId}|${c.date}|${c.halfDay}`;
+    conflictMap.set(key, tooltip);
+    // Also add for full_day if halfDay is morning or afternoon
+    if (c.halfDay === 'full_day') {
+      conflictMap.set(`${c.resourceId}|${c.date}|morning`, tooltip);
+      conflictMap.set(`${c.resourceId}|${c.date}|afternoon`, tooltip);
+    }
+  }
 
   // De-duplicate resources by ID
   const resourceMap = new Map<string, WeekPlanResource>();
@@ -383,6 +403,7 @@ export default function Wochenplan() {
               currentKw={kw}
               collapsed={!!collapsedSections[section.department]}
               onToggleCollapse={() => toggleSectionCollapse(section.department)}
+              conflictMap={conflictMap}
               onCellClick={handleCellClick}
             />
           ))}
@@ -464,6 +485,7 @@ interface SectionTableProps {
   currentKw: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  conflictMap: Map<string, string>;
   onCellClick: (
     taskId: string,
     date: string,
@@ -475,7 +497,7 @@ interface SectionTableProps {
   ) => void;
 }
 
-function SectionTable({ section, currentKw, collapsed, onToggleCollapse, onCellClick }: SectionTableProps) {
+function SectionTable({ section, currentKw, collapsed, onToggleCollapse, conflictMap, onCellClick }: SectionTableProps) {
   const hasTasks = section.tasks.length > 0;
 
   return (
@@ -570,6 +592,7 @@ function SectionTable({ section, currentKw, collapsed, onToggleCollapse, onCellC
                     task={task}
                     currentKw={currentKw}
                     department={section.department}
+                    conflictMap={conflictMap}
                     onCellClick={onCellClick}
                   />
                 ))}
@@ -588,10 +611,11 @@ interface TaskRowProps {
   task: WeekPlanTask;
   currentKw: number;
   department: string;
+  conflictMap: Map<string, string>;
   onCellClick: SectionTableProps['onCellClick'];
 }
 
-function TaskRow({ task, currentKw, department, onCellClick }: TaskRowProps) {
+function TaskRow({ task, currentKw, department, conflictMap, onCellClick }: TaskRowProps) {
   const taskInfo: DialogState['taskInfo'] = {
     projectOrderNumber: task.projectOrderNumber,
     customerName: task.customerName,
@@ -700,6 +724,7 @@ function TaskRow({ task, currentKw, department, onCellClick }: TaskRowProps) {
             taskId={task.taskId}
             department={department}
             taskInfo={taskInfo}
+            conflictMap={conflictMap}
             onCellClick={onCellClick}
           />
         </TableCell>
@@ -725,14 +750,28 @@ interface DayCellProps {
   taskId: string;
   department: string;
   taskInfo: DialogState['taskInfo'];
+  conflictMap: Map<string, string>;
   onCellClick: SectionTableProps['onCellClick'];
 }
 
-function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: DayCellProps) {
+function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onCellClick }: DayCellProps) {
   const morning = day.morning;
   const afternoon = day.afternoon;
   const morningDetail = day.morningDetail ?? null;
   const afternoonDetail = day.afternoonDetail ?? null;
+
+  // Check for conflicts on this cell's assignments
+  const morningConflict = morningDetail
+    ? conflictMap.get(`${morningDetail.resourceId}|${day.date}|morning`) ?? null
+    : null;
+  const afternoonConflict = afternoonDetail
+    ? conflictMap.get(`${afternoonDetail.resourceId}|${day.date}|afternoon`) ?? null
+    : null;
+
+  const conflictBorderSx = {
+    border: '2px solid',
+    borderColor: 'error.main',
+  };
 
   const handleMorningClick = () => {
     onCellClick(
@@ -773,12 +812,13 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: D
 
   // If same person for both halves, show once (clickable)
   if (morning && afternoon && morning === afternoon) {
+    const fullDayConflict = morningConflict || afternoonConflict;
     return (
-      <Tooltip title={day.notes || day.dayName}>
+      <Tooltip title={fullDayConflict || day.notes || day.dayName}>
         <Chip
           label={getInitials(morning)}
           size="small"
-          color={day.isFixed ? 'primary' : 'default'}
+          color={fullDayConflict ? 'error' : day.isFixed ? 'primary' : 'default'}
           variant={day.isFixed ? 'filled' : 'outlined'}
           onClick={handleFullDayClick}
           sx={{
@@ -786,8 +826,11 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: D
             height: 22,
             fontWeight: 600,
             cursor: 'pointer',
+            ...(fullDayConflict ? conflictBorderSx : {}),
             '&:hover': {
-              boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.4)',
+              boxShadow: fullDayConflict
+                ? '0 0 0 2px rgba(211, 47, 47, 0.5)'
+                : '0 0 0 2px rgba(25, 118, 210, 0.4)',
             },
           }}
         />
@@ -798,11 +841,11 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: D
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
       {/* Morning */}
-      <Tooltip title={morning ? `VM: ${morning}` : `${dayLabel} VM – Klick zum Zuweisen`}>
+      <Tooltip title={morningConflict || (morning ? `VM: ${morning}` : `${dayLabel} VM – Klick zum Zuweisen`)}>
         <Chip
           label={morning ? getInitials(morning) : 'FREI'}
           size="small"
-          color={morning ? (day.isFixed ? 'primary' : 'default') : 'default'}
+          color={morningConflict ? 'error' : morning ? (day.isFixed ? 'primary' : 'default') : 'default'}
           variant={morning ? (day.isFixed ? 'filled' : 'outlined') : 'outlined'}
           onClick={handleMorningClick}
           sx={{
@@ -811,11 +854,14 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: D
             fontWeight: morning ? 600 : 400,
             opacity: morning ? 1 : 0.5,
             cursor: 'pointer',
+            ...(morningConflict ? conflictBorderSx : {}),
             '&:hover': {
               opacity: 1,
-              boxShadow: morning
-                ? '0 0 0 2px rgba(25, 118, 210, 0.4)'
-                : '0 0 0 2px rgba(76, 175, 80, 0.5)',
+              boxShadow: morningConflict
+                ? '0 0 0 2px rgba(211, 47, 47, 0.5)'
+                : morning
+                  ? '0 0 0 2px rgba(25, 118, 210, 0.4)'
+                  : '0 0 0 2px rgba(76, 175, 80, 0.5)',
               bgcolor: morning ? undefined : 'action.hover',
             },
           }}
@@ -823,11 +869,11 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: D
       </Tooltip>
 
       {/* Afternoon */}
-      <Tooltip title={afternoon ? `NM: ${afternoon}` : `${dayLabel} NM – Klick zum Zuweisen`}>
+      <Tooltip title={afternoonConflict || (afternoon ? `NM: ${afternoon}` : `${dayLabel} NM – Klick zum Zuweisen`)}>
         <Chip
           label={afternoon ? getInitials(afternoon) : 'FREI'}
           size="small"
-          color={afternoon ? (day.isFixed ? 'primary' : 'default') : 'default'}
+          color={afternoonConflict ? 'error' : afternoon ? (day.isFixed ? 'primary' : 'default') : 'default'}
           variant={afternoon ? (day.isFixed ? 'filled' : 'outlined') : 'outlined'}
           onClick={handleAfternoonClick}
           sx={{
@@ -836,11 +882,14 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: D
             fontWeight: afternoon ? 600 : 400,
             opacity: afternoon ? 1 : 0.5,
             cursor: 'pointer',
+            ...(afternoonConflict ? conflictBorderSx : {}),
             '&:hover': {
               opacity: 1,
-              boxShadow: afternoon
-                ? '0 0 0 2px rgba(25, 118, 210, 0.4)'
-                : '0 0 0 2px rgba(76, 175, 80, 0.5)',
+              boxShadow: afternoonConflict
+                ? '0 0 0 2px rgba(211, 47, 47, 0.5)'
+                : afternoon
+                  ? '0 0 0 2px rgba(25, 118, 210, 0.4)'
+                  : '0 0 0 2px rgba(76, 175, 80, 0.5)',
               bgcolor: afternoon ? undefined : 'action.hover',
             },
           }}
