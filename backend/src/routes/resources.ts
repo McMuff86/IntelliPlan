@@ -2,14 +2,11 @@ import { Router } from 'express';
 import { query } from 'express-validator';
 import * as resourceController from '../controllers/resourceController';
 import * as taskAssignmentController from '../controllers/taskAssignmentController';
-import { loadUser, requireUserId } from '../middleware/roleMiddleware';
+import { requirePermission } from '../middleware/roleMiddleware';
 import { createResourceValidator, updateResourceValidator } from '../validators/resourceValidator';
 import { VALID_DEPARTMENTS, VALID_EMPLOYEE_TYPES } from '../models/resource';
 
 const router = Router();
-
-router.use(requireUserId);
-router.use(loadUser);
 
 const listResourcesQueryValidator = [
   query('department')
@@ -42,14 +39,19 @@ const availableResourcesQueryValidator = [
     .withMessage('half_day must be one of: morning, afternoon, full_day'),
 ];
 
-router.get('/available', availableResourcesQueryValidator, resourceController.available);
-router.get('/', listResourcesQueryValidator, resourceController.list);
-router.post('/', createResourceValidator, resourceController.create);
-router.get('/:id', resourceController.getById);
-router.put('/:id', updateResourceValidator, resourceController.update);
-router.delete('/:id', resourceController.remove);
+// Read routes
+router.get('/available', requirePermission('resources:read'), availableResourcesQueryValidator, resourceController.available);
+router.get('/', requirePermission('resources:read'), listResourcesQueryValidator, resourceController.list);
+router.get('/:id', requirePermission('resources:read'), resourceController.getById);
+
+// Write routes
+router.post('/', requirePermission('resources:write'), createResourceValidator, resourceController.create);
+router.put('/:id', requirePermission('resources:write'), updateResourceValidator, resourceController.update);
+
+// Delete routes
+router.delete('/:id', requirePermission('resources:delete'), resourceController.remove);
 
 // Resource assignments (capacity check)
-router.get('/:resourceId/assignments', taskAssignmentController.listByResource);
+router.get('/:resourceId/assignments', requirePermission('resources:read'), taskAssignmentController.listByResource);
 
 export default router;

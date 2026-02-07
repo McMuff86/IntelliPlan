@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import * as pendenzController from '../controllers/pendenzController';
-import { loadUser, requireUserId } from '../middleware/roleMiddleware';
+import { requirePermission } from '../middleware/roleMiddleware';
 import {
   createPendenzValidator,
   updatePendenzValidator,
@@ -9,14 +9,11 @@ import {
 
 const router = Router();
 
-router.use(requireUserId);
-router.use(loadUser);
-
 // Single pendenz operations (by id)
-router.get('/:id', pendenzController.getById);
-router.patch('/:id', updatePendenzValidator, pendenzController.update);
-router.delete('/:id', pendenzController.remove);
-router.get('/:id/historie', pendenzController.listHistorie);
+router.get('/:id', requirePermission('pendenzen:read'), pendenzController.getById);
+router.get('/:id/historie', requirePermission('pendenzen:read'), pendenzController.listHistorie);
+router.patch('/:id', requirePermission('pendenzen:write'), updatePendenzValidator, pendenzController.update);
+router.delete('/:id', requirePermission('pendenzen:delete'), pendenzController.remove);
 
 export default router;
 
