@@ -586,6 +586,24 @@ export default function ProjectDetail() {
     setTemplateDialogOpen(true);
   };
 
+  const handleApplyEmptyTemplate = async () => {
+    if (!project) return;
+    try {
+      setApplyingTemplate(true);
+      setError(null);
+      await taskService.createInProject(project.id, { title: 'Projektstart' });
+      await taskService.createInProject(project.id, { title: 'Projektende' });
+      await refreshTasks(project.id);
+      void loadActivity(project.id);
+      setTemplateDialogOpen(false);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to create default tasks');
+    } finally {
+      setApplyingTemplate(false);
+    }
+  };
+
   const handleApplyTemplate = async () => {
     if (!project || !tplSelectedTemplateId) return;
     try {
@@ -1427,7 +1445,7 @@ export default function ProjectDetail() {
 
           {tplSelectedProductTypeId && tplTaskTemplates.length === 0 && (
             <Alert severity="info" sx={{ mt: 2 }}>
-              Für diesen Produkttyp sind keine Vorlagen vorhanden.
+              Für diesen Produkttyp sind keine Vorlagen vorhanden. Du kannst mit einer leeren Vorlage starten.
             </Alert>
           )}
 
@@ -1548,6 +1566,15 @@ export default function ProjectDetail() {
           <Button onClick={() => setTemplateDialogOpen(false)} disabled={applyingTemplate}>
             Abbrechen
           </Button>
+          {tplSelectedProductTypeId && tplTaskTemplates.length === 0 && (
+            <Button
+              variant="contained"
+              onClick={handleApplyEmptyTemplate}
+              disabled={applyingTemplate}
+            >
+              {applyingTemplate ? 'Wird angewendet...' : 'Leere Vorlage anwenden'}
+            </Button>
+          )}
           <Button
             variant="contained"
             onClick={handleApplyTemplate}
