@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import { pool } from '../config/database';
 import type { PhaseCode } from '../models/task';
 import type { Department, EmployeeType } from '../models/resource';
@@ -432,11 +433,65 @@ function parseKwSheet(worksheet: ExcelJS.Worksheet, kw: number, year: number): P
 }
 
 /**
+ * Strip images/drawings from an xlsx buffer to avoid ExcelJS crashes
+ * on files with embedded images (known bug with media references).
+ */
+async function stripImagesFromXlsx(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+
+  // Remove media files (images), drawing files, and drawing rels
+  const toRemove: string[] = [];
+  zip.forEach((relativePath) => {
+    if (
+      relativePath.match(/xl\/media\//) ||
+      relativePath.match(/xl\/drawings\//) ||
+      relativePath.match(/xl\/drawings\/_rels\//)
+    ) {
+      toRemove.push(relativePath);
+    }
+  });
+
+  for (const path of toRemove) {
+    zip.remove(path);
+  }
+
+  // Also clean up worksheet rels that reference drawings
+  const relFiles = Object.keys(zip.files).filter((f) =>
+    f.match(/xl\/worksheets\/_rels\/sheet\d+\.xml\.rels/)
+  );
+  for (const relFile of relFiles) {
+    const content = await zip.file(relFile)!.async('string');
+    // Remove Relationship entries that reference drawings
+    const cleaned = content.replace(
+      /<Relationship[^>]*Target="[^"]*drawings[^"]*"[^>]*\/>/g,
+      ''
+    );
+    zip.file(relFile, cleaned);
+  }
+
+  return Buffer.from(await zip.generateAsync({ type: 'nodebuffer' }));
+}
+
+/**
  * Parse a complete Wochenplan Excel file.
  */
 export async function parseWochenplanExcel(buffer: Buffer): Promise<ParsedWeekPlan> {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+
+  // Try loading directly first; if it fails (e.g. due to image references),
+  // strip images and retry
+  try {
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('Cannot read properties of undefined')) {
+      // Known ExcelJS bug with embedded images – strip them and retry
+      const cleanBuffer = await stripImagesFromXlsx(buffer);
+      await workbook.xlsx.load(cleanBuffer as unknown as ExcelJS.Buffer);
+    } else {
+      throw err;
+    }
+  }
 
   const sheets: ParsedWeekSheet[] = [];
   const allResourceCodes = new Set<string>();
