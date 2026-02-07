@@ -500,6 +500,29 @@ function SectionTable({ section, currentKw, collapsed, onToggleCollapse, onCellC
             {collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
           </IconButton>
           <Typography variant="h6">{section.label}</Typography>
+          {(() => {
+            const unassignedCount = section.tasks.filter((task) =>
+              task.assignments.every(
+                (day) => day.morning === null && day.afternoon === null
+              )
+            ).length;
+            if (unassignedCount > 0) {
+              return (
+                <Chip
+                  label={`${unassignedCount} nicht zugewiesen`}
+                  size="small"
+                  sx={{
+                    bgcolor: 'warning.main',
+                    color: 'warning.contrastText',
+                    fontWeight: 600,
+                    fontSize: '0.7rem',
+                    height: 22,
+                  }}
+                />
+              );
+            }
+            return null;
+          })()}
         </Box>
         <Typography variant="body2">
           {section.tasks.length} Aufträge · {section.totalHours.planned}h / {section.totalHours.available}h verfügbar
