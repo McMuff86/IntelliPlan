@@ -13,6 +13,7 @@ import taskTemplatesRouter from './taskTemplates';
 import pendenzenRouter from './pendenzen';
 import taskAssignmentsRouter from './taskAssignments';
 import wochenplanRouter from './wochenplan';
+import capacityRouter from './capacity';
 
 const router = Router();
 
@@ -53,5 +54,6 @@ router.use('/task-templates', taskTemplatesRouter);
 router.use('/pendenzen', pendenzenRouter);
 router.use('/assignments', taskAssignmentsRouter);
 router.use('/wochenplan', wochenplanRouter);
+router.use('/capacity', capacityRouter);
 
 export default router;
