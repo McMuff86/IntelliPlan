@@ -24,6 +24,8 @@ import Wochenplan from './pages/Wochenplan';
 import Capacity from './pages/Capacity';
 import Import from './pages/Import';
 import MitarbeiterPlan from './pages/MitarbeiterPlan';
+import Pendenzen from './pages/Pendenzen';
+import PendenzDetail from './pages/PendenzDetail';
 
 function App() {
   const { theme } = useThemePreference();
@@ -54,6 +56,9 @@ function App() {
                 <Route path="/projects" element={<Projects />} />
                 <Route path="/projects/:id" element={<ProjectDetail />} />
                 <Route path="/projects/:id/timeline" element={<ProjectTimeline />} />
+                <Route path="/projects/:projectId/pendenzen" element={<Pendenzen />} />
+                <Route path="/projects/:projectId/pendenzen/:pendenzId" element={<PendenzDetail />} />
+                <Route path="/projects/:projectId/pendenzen/:pendenzId/edit" element={<PendenzDetail />} />
                 <Route path="/tasks/:id" element={<TaskDetail />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/working-times" element={<WorkingTimeTemplates />} />

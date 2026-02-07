@@ -401,3 +401,85 @@ export interface CreateTaskTemplateDTO {
   tasks: TemplateTask[];
   isDefault?: boolean;
 }
+
+// ─── Pendenzen Types ───
+
+export type PendenzBereich = 'avor' | 'montage' | 'planung' | 'material';
+export type PendenzPrioritaet = 'hoch' | 'mittel' | 'niedrig';
+export type PendenzStatus = 'offen' | 'in_arbeit' | 'erledigt';
+export type PendenzKategorie = 'projekt' | 'allgemein' | 'benutzer';
+
+export interface PendenzResponse {
+  id: string;
+  projectId: string;
+  nr: number;
+  beschreibung: string;
+  bereich: PendenzBereich;
+  verantwortlichId: string | null;
+  verantwortlichName: string | null;
+  erfasstVonId: string;
+  erfasstVonName: string;
+  prioritaet: PendenzPrioritaet;
+  status: PendenzStatus;
+  faelligBis: string | null;
+  erledigtAm: string | null;
+  bemerkungen: string | null;
+  auftragsnummer: string | null;
+  kategorie: PendenzKategorie;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreatePendenzDTO {
+  beschreibung: string;
+  bereich: PendenzBereich;
+  verantwortlichId?: string | null;
+  prioritaet?: PendenzPrioritaet;
+  faelligBis?: string | null;
+  bemerkungen?: string | null;
+  auftragsnummer?: string | null;
+  kategorie?: PendenzKategorie;
+}
+
+export interface UpdatePendenzDTO {
+  beschreibung?: string;
+  bereich?: PendenzBereich;
+  verantwortlichId?: string | null;
+  prioritaet?: PendenzPrioritaet;
+  status?: PendenzStatus;
+  faelligBis?: string | null;
+  erledigtAm?: string | null;
+  bemerkungen?: string | null;
+  auftragsnummer?: string | null;
+  kategorie?: PendenzKategorie;
+}
+
+export interface PendenzHistorieResponse {
+  id: string;
+  pendenzId: string;
+  userId: string | null;
+  aktion: string;
+  feld: string | null;
+  alterWert: string | null;
+  neuerWert: string | null;
+  createdAt: string;
+}
+
+export interface PendenzenListParams {
+  status?: PendenzStatus;
+  bereich?: PendenzBereich;
+  verantwortlich?: string;
+  ueberfaellig?: boolean;
+  sort?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface PendenzenListResponse {
+  data: PendenzResponse[];
+  pagination: {
+    total: number;
+    limit: number;
+    offset: number;
+  };
+}

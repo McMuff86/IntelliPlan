@@ -29,6 +29,7 @@ import RestoreIcon from '@mui/icons-material/Restore';
 import EventIcon from '@mui/icons-material/Event';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PlaylistAddIcon from '@mui/icons-material/PlaylistAdd';
+import AssignmentIcon from '@mui/icons-material/Assignment';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -1266,6 +1267,13 @@ export default function ProjectDetail() {
             onClick={handleOpenTemplateDialog}
           >
             {project.taskTemplateId ? 'Vorlage wechseln' : 'Vorlage zuweisen'}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<AssignmentIcon />}
+            onClick={() => navigate(`/projects/${project.id}/pendenzen`)}
+          >
+            Pendenzen
           </Button>
           <Button
             variant="contained"
