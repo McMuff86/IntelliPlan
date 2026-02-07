@@ -301,6 +301,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
     task_id: string;
     task_title: string;
     task_description: string | null;
+    project_description: string | null;
     project_id: string;
     order_number: string | null;
     sachbearbeiter: string | null;
@@ -317,6 +318,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
        t.id AS task_id,
        t.title AS task_title,
        t.description AS task_description,
+       p.description AS project_description,
        t.project_id,
        p.order_number,
        p.sachbearbeiter,
@@ -564,7 +566,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       projectOrderNumber: row.order_number || '',
       sachbearbeiter: row.sachbearbeiter || '',
       customerName: row.customer_name || '',
-      description: row.task_title || '',
+      description: row.project_description || row.task_description || row.task_title || '',
       installationLocation: row.installation_location || '',
       phases: allPhases,
       workerCount: Number(row.worker_count) || 0,

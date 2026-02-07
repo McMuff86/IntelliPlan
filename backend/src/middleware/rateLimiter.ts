@@ -20,7 +20,7 @@ export const globalLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 5,
+  limit: process.env.NODE_ENV === 'production' ? 5 : 20,
   standardHeaders: 'draft-7',
   legacyHeaders: false,
   message: {

@@ -852,20 +852,19 @@ export async function executeImport(plan: ImportPlan, userId: string): Promise<I
         // Update existing project
         await client.query(
           `UPDATE projects SET
-            customer_name = COALESCE(NULLIF($2, ''), customer_name),
-            installation_location = COALESCE(NULLIF($3, ''), installation_location),
-            color = COALESCE(NULLIF($4, ''), color),
-            contact_name = COALESCE(NULLIF($5, ''), contact_name),
-            contact_phone = COALESCE(NULLIF($6, ''), contact_phone),
-            needs_callback = $7,
-            sachbearbeiter = COALESCE(NULLIF($8, ''), sachbearbeiter),
-            worker_count = CASE WHEN $9::numeric > 0 THEN $9 ELSE worker_count END,
-            helper_count = CASE WHEN $10::numeric > 0 THEN $10 ELSE helper_count END,
-            remarks = COALESCE(NULLIF($11, ''), remarks),
+            customer_name = COALESCE(NULLIF($1, ''), customer_name),
+            installation_location = COALESCE(NULLIF($2, ''), installation_location),
+            color = COALESCE(NULLIF($3, ''), color),
+            contact_name = COALESCE(NULLIF($4, ''), contact_name),
+            contact_phone = COALESCE(NULLIF($5, ''), contact_phone),
+            needs_callback = $6,
+            sachbearbeiter = COALESCE(NULLIF($7, ''), sachbearbeiter),
+            worker_count = CASE WHEN $8::numeric > 0 THEN $8 ELSE worker_count END,
+            helper_count = CASE WHEN $9::numeric > 0 THEN $9 ELSE helper_count END,
+            remarks = COALESCE(NULLIF($10, ''), remarks),
             updated_at = NOW()
-          WHERE id = $12`,
+          WHERE id = $11`,
           [
-            proj.orderNumber,
             proj.customerName,
             proj.installationLocation,
             proj.color,

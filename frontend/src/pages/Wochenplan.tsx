@@ -57,6 +57,7 @@ const PHASE_LABELS: Record<string, string> = {
   produktion: 'PROD',
   behandlung: 'BEH',
   beschlaege: 'BESCHL',
+  transport: 'TRANS',
   montage: 'MONT',
 };
 
@@ -66,6 +67,7 @@ const PHASE_COLORS: Record<string, string> = {
   produktion: '#2e7d32',
   behandlung: '#6a1b9a',
   beschlaege: '#f57f17',
+  transport: '#00838f',
   montage: '#c62828',
 };
 

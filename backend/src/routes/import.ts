@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { parseWochenplanExcel, mapToIntelliPlan, validateImport, executeImport } from '../services/importService';
+import { requireUserId } from '../middleware/roleMiddleware';
 import logger from '../config/logger';
 
 const router = Router();
@@ -74,19 +75,14 @@ router.post('/wochenplan/validate', upload.single('file'), async (req: Request, 
  * POST /api/import/wochenplan/execute
  * Parse, validate, and import an Excel file.
  */
-router.post('/wochenplan/execute', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/wochenplan/execute', requireUserId, upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ success: false, error: 'Keine Datei hochgeladen' });
       return;
     }
 
-    // Get userId from auth or fallback
-    const userId = (req as any).userId || req.body?.userId;
-    if (!userId) {
-      res.status(401).json({ success: false, error: 'Nicht authentifiziert' });
-      return;
-    }
+    const userId = req.userId!;
 
     logger.info({ filename: req.file.originalname, size: req.file.size, userId }, 'Executing Wochenplan import');
 
