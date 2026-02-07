@@ -28,6 +28,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import EventIcon from '@mui/icons-material/Event';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 import SettingsIcon from '@mui/icons-material/Settings';
+import ViewWeekIcon from '@mui/icons-material/ViewWeek';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useHotkeys } from '../../hooks/useHotkeys';
 import KeyboardShortcutsHelp from '../KeyboardShortcutsHelp';
@@ -49,6 +50,7 @@ const navItems: NavItem[] = [
   { label: 'Home', path: '/', icon: <HomeIcon /> },
   { label: 'Appointments', path: '/appointments', icon: <EventIcon /> },
   { label: 'Projects', path: '/projects', icon: <AccountTreeIcon /> },
+  { label: 'Wochenplan', path: '/wochenplan', icon: <ViewWeekIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 

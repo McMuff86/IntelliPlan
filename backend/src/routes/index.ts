@@ -12,6 +12,7 @@ import productTypesRouter from './productTypes';
 import taskTemplatesRouter from './taskTemplates';
 import pendenzenRouter from './pendenzen';
 import taskAssignmentsRouter from './taskAssignments';
+import wochenplanRouter from './wochenplan';
 
 const router = Router();
 
@@ -51,5 +52,6 @@ router.use('/product-types', productTypesRouter);
 router.use('/task-templates', taskTemplatesRouter);
 router.use('/pendenzen', pendenzenRouter);
 router.use('/assignments', taskAssignmentsRouter);
+router.use('/wochenplan', wochenplanRouter);
 
 export default router;

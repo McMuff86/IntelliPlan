@@ -20,6 +20,7 @@ import WorkingTimeTemplates from './pages/WorkingTimeTemplates';
 import TemplateManagement from './pages/TemplateManagement';
 import Onboarding from './pages/Onboarding';
 import Demo from './pages/Demo';
+import Wochenplan from './pages/Wochenplan';
 
 function App() {
   const { theme } = useThemePreference();
@@ -54,6 +55,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/settings/working-times" element={<WorkingTimeTemplates />} />
                 <Route path="/settings/templates" element={<TemplateManagement />} />
+                <Route path="/wochenplan" element={<Wochenplan />} />
                 <Route path="/calendar" element={<Navigate to="/appointments/calendar" replace />} />
               </Route>
             </Routes>
