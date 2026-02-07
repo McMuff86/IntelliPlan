@@ -140,6 +140,15 @@ export default function Wochenplan() {
     });
   }, []);
 
+  // Multi-select state for batch assign
+  const [selectedCells, setSelectedCells] = useState<
+    Array<{ taskId: string; date: string; halfDay: HalfDay; department: string }>
+  >([]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedCells([]);
+  }, []);
+
   // Quick-assign popover state
   const [quickAssign, setQuickAssign] = useState<{
     open: boolean;
@@ -225,8 +234,52 @@ export default function Wochenplan() {
     department: string,
     taskInfo: DialogState['taskInfo'],
     existingAssignment: DayAssignmentDetail | null,
-    anchorEl?: HTMLElement | null
+    anchorEl?: HTMLElement | null,
+    shiftKey?: boolean
   ) => {
+    // Shift+click on FREI cells for multi-select (same task row)
+    if (shiftKey && !existingAssignment) {
+      setSelectedCells((prev) => {
+        const exists = prev.some(
+          (c) => c.taskId === taskId && c.date === date && c.halfDay === halfDay
+        );
+        if (exists) {
+          // Deselect
+          return prev.filter(
+            (c) => !(c.taskId === taskId && c.date === date && c.halfDay === halfDay)
+          );
+        }
+        // Only allow selecting cells from the same task row
+        const filtered = prev.filter((c) => c.taskId === taskId);
+        return [...filtered, { taskId, date, halfDay, department }];
+      });
+      return;
+    }
+
+    // If we have selected cells and click a FREI cell (non-shift), open quick-assign for batch
+    if (selectedCells.length > 0 && !existingAssignment && anchorEl) {
+      // Add current cell to selection if not already there
+      const allCells = [...selectedCells];
+      const alreadySelected = allCells.some(
+        (c) => c.taskId === taskId && c.date === date && c.halfDay === halfDay
+      );
+      if (!alreadySelected) {
+        allCells.push({ taskId, date, halfDay, department });
+        setSelectedCells(allCells);
+      }
+      // Open quick-assign — will assign to all selected cells
+      setQuickAssign({
+        open: true,
+        anchorEl,
+        taskId,
+        date,
+        halfDay,
+        department,
+        taskInfo,
+      });
+      return;
+    }
+
     // If no existing assignment (FREI cell), open quick-assign popover
     if (!existingAssignment && anchorEl) {
       setQuickAssign({
@@ -242,6 +295,7 @@ export default function Wochenplan() {
     }
 
     // Otherwise, open full dialog (for editing existing assignments or fallback)
+    clearSelection();
     setDialogState({
       open: true,
       taskId,
@@ -274,10 +328,12 @@ export default function Wochenplan() {
   };
 
   const handleQuickAssigned = async () => {
+    const count = selectedCells.length;
     handleQuickAssignClose();
+    clearSelection();
     setSnackbar({
       open: true,
-      message: 'Zuordnung gespeichert',
+      message: count > 0 ? `${count + 1} Zuordnungen gespeichert` : 'Zuordnung gespeichert',
       severity: 'success',
     });
     await fetchWeekPlan();
@@ -326,6 +382,8 @@ export default function Wochenplan() {
         const today = getCurrentISOWeek();
         setKw(today.kw);
         setYear(today.year);
+      } else if (e.key === 'Escape') {
+        setSelectedCells([]);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -469,6 +527,7 @@ export default function Wochenplan() {
               collapsed={!!collapsedSections[section.department]}
               onToggleCollapse={() => toggleSectionCollapse(section.department)}
               conflictMap={conflictMap}
+              selectedCells={selectedCells}
               onCellClick={handleCellClick}
             />
           ))}
@@ -532,6 +591,7 @@ export default function Wochenplan() {
         halfDay={quickAssign.halfDay}
         department={quickAssign.department}
         resources={uniqueResources}
+        batchCells={selectedCells}
         onAssigned={handleQuickAssigned}
         onClose={handleQuickAssignClose}
         onOpenFullDialog={handleQuickAssignOpenFull}
@@ -559,12 +619,20 @@ export default function Wochenplan() {
 
 // ─── Section Table ─────────────────────────────────────
 
+interface SelectedCellInfo {
+  taskId: string;
+  date: string;
+  halfDay: HalfDay;
+  department: string;
+}
+
 interface SectionTableProps {
   section: Section;
   currentKw: number;
   collapsed: boolean;
   onToggleCollapse: () => void;
   conflictMap: Map<string, string>;
+  selectedCells: SelectedCellInfo[];
   onCellClick: (
     taskId: string,
     date: string,
@@ -573,11 +641,12 @@ interface SectionTableProps {
     department: string,
     taskInfo: DialogState['taskInfo'],
     existingAssignment: DayAssignmentDetail | null,
-    anchorEl?: HTMLElement | null
+    anchorEl?: HTMLElement | null,
+    shiftKey?: boolean
   ) => void;
 }
 
-function SectionTable({ section, currentKw, collapsed, onToggleCollapse, conflictMap, onCellClick }: SectionTableProps) {
+function SectionTable({ section, currentKw, collapsed, onToggleCollapse, conflictMap, selectedCells, onCellClick }: SectionTableProps) {
   const hasTasks = section.tasks.length > 0;
 
   return (
@@ -673,6 +742,7 @@ function SectionTable({ section, currentKw, collapsed, onToggleCollapse, conflic
                     currentKw={currentKw}
                     department={section.department}
                     conflictMap={conflictMap}
+                    selectedCells={selectedCells}
                     onCellClick={onCellClick}
                   />
                 ))}
@@ -692,10 +762,11 @@ interface TaskRowProps {
   currentKw: number;
   department: string;
   conflictMap: Map<string, string>;
+  selectedCells: SelectedCellInfo[];
   onCellClick: SectionTableProps['onCellClick'];
 }
 
-function TaskRow({ task, currentKw, department, conflictMap, onCellClick }: TaskRowProps) {
+function TaskRow({ task, currentKw, department, conflictMap, selectedCells, onCellClick }: TaskRowProps) {
   const taskInfo: DialogState['taskInfo'] = {
     projectOrderNumber: task.projectOrderNumber,
     customerName: task.customerName,
@@ -805,6 +876,7 @@ function TaskRow({ task, currentKw, department, conflictMap, onCellClick }: Task
             department={department}
             taskInfo={taskInfo}
             conflictMap={conflictMap}
+            selectedCells={selectedCells}
             onCellClick={onCellClick}
           />
         </TableCell>
@@ -831,14 +903,29 @@ interface DayCellProps {
   department: string;
   taskInfo: DialogState['taskInfo'];
   conflictMap: Map<string, string>;
+  selectedCells: SelectedCellInfo[];
   onCellClick: SectionTableProps['onCellClick'];
 }
 
-function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onCellClick }: DayCellProps) {
+function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, selectedCells, onCellClick }: DayCellProps) {
   const morning = day.morning;
   const afternoon = day.afternoon;
   const morningDetail = day.morningDetail ?? null;
   const afternoonDetail = day.afternoonDetail ?? null;
+
+  // Check if cells are selected (for multi-select highlight)
+  const isMorningSelected = selectedCells.some(
+    (c) => c.taskId === taskId && c.date === day.date && c.halfDay === 'morning'
+  );
+  const isAfternoonSelected = selectedCells.some(
+    (c) => c.taskId === taskId && c.date === day.date && c.halfDay === 'afternoon'
+  );
+
+  const selectedBorderSx = {
+    border: '2px solid',
+    borderColor: 'info.main',
+    boxShadow: '0 0 0 1px rgba(25, 118, 210, 0.3)',
+  };
 
   // Check for conflicts on this cell's assignments
   const morningConflict = morningDetail
@@ -862,7 +949,8 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
       department,
       taskInfo,
       morningDetail,
-      e.currentTarget
+      e.currentTarget,
+      e.shiftKey
     );
   };
 
@@ -875,7 +963,8 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
       department,
       taskInfo,
       afternoonDetail,
-      e.currentTarget
+      e.currentTarget,
+      e.shiftKey
     );
   };
 
@@ -889,7 +978,8 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
       department,
       taskInfo,
       morningDetail,
-      e.currentTarget
+      e.currentTarget,
+      e.shiftKey
     );
   };
 
@@ -935,9 +1025,9 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
             fontSize: '0.6rem',
             height: 18,
             fontWeight: morning ? 600 : 400,
-            opacity: morning ? 1 : 0.5,
+            opacity: morning ? 1 : isMorningSelected ? 1 : 0.5,
             cursor: 'pointer',
-            ...(morningConflict ? conflictBorderSx : {}),
+            ...(morningConflict ? conflictBorderSx : isMorningSelected ? selectedBorderSx : {}),
             '&:hover': {
               opacity: 1,
               boxShadow: morningConflict
@@ -963,9 +1053,9 @@ function DayCell({ day, dayLabel, taskId, department, taskInfo, conflictMap, onC
             fontSize: '0.6rem',
             height: 18,
             fontWeight: afternoon ? 600 : 400,
-            opacity: afternoon ? 1 : 0.5,
+            opacity: afternoon ? 1 : isAfternoonSelected ? 1 : 0.5,
             cursor: 'pointer',
-            ...(afternoonConflict ? conflictBorderSx : {}),
+            ...(afternoonConflict ? conflictBorderSx : isAfternoonSelected ? selectedBorderSx : {}),
             '&:hover': {
               opacity: 1,
               boxShadow: afternoonConflict

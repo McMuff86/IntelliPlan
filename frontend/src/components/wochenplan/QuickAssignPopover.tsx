@@ -17,6 +17,13 @@ import type { WeekPlanResource } from '../../services/wochenplanService';
 import { assignmentService } from '../../services/assignmentService';
 import type { HalfDay } from '../../services/assignmentService';
 
+export interface SelectedCell {
+  taskId: string;
+  date: string;
+  halfDay: HalfDay;
+  department: string;
+}
+
 export interface QuickAssignPopoverProps {
   open: boolean;
   anchorEl: HTMLElement | null;
@@ -25,6 +32,8 @@ export interface QuickAssignPopoverProps {
   halfDay: HalfDay;
   department: string;
   resources: WeekPlanResource[];
+  /** Additional cells selected via shift+click for batch assignment */
+  batchCells: SelectedCell[];
   onAssigned: () => void;
   onClose: () => void;
   onOpenFullDialog: () => void;
@@ -38,6 +47,7 @@ export default function QuickAssignPopover({
   halfDay,
   department,
   resources,
+  batchCells,
   onAssigned,
   onClose,
   onOpenFullDialog,
@@ -75,11 +85,30 @@ export default function QuickAssignPopover({
       setAssigning(true);
       setError(null);
       try {
+        // Assign to the primary cell
         await assignmentService.createAssignment(taskId, {
           resourceId,
           assignmentDate: date,
           halfDay,
         });
+
+        // Assign to all batch-selected cells
+        for (const cell of batchCells) {
+          // Skip if same as primary cell
+          if (cell.taskId === taskId && cell.date === date && cell.halfDay === halfDay) {
+            continue;
+          }
+          try {
+            await assignmentService.createAssignment(cell.taskId, {
+              resourceId,
+              assignmentDate: cell.date,
+              halfDay: cell.halfDay,
+            });
+          } catch {
+            // Skip conflicts on individual batch cells
+          }
+        }
+
         onAssigned();
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'response' in err) {
@@ -95,7 +124,7 @@ export default function QuickAssignPopover({
         setAssigning(false);
       }
     },
-    [taskId, date, halfDay, onAssigned]
+    [taskId, date, halfDay, batchCells, onAssigned]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -141,6 +170,12 @@ export default function QuickAssignPopover({
           }}
         />
       </Box>
+
+      {batchCells.length > 0 && (
+        <Typography variant="caption" sx={{ px: 1.5, display: 'block', color: 'info.main', fontWeight: 600 }}>
+          {batchCells.length + 1} Zellen ausgewählt (Batch-Zuweisung)
+        </Typography>
+      )}
 
       {error && (
         <Typography variant="caption" color="error" sx={{ px: 1.5, display: 'block' }}>
