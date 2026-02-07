@@ -22,6 +22,8 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PhoneCallbackIcon from '@mui/icons-material/PhoneCallback';
 import {
   wochenplanService,
@@ -116,6 +118,24 @@ export default function Wochenplan() {
 
   // Dialog state
   const [dialogState, setDialogState] = useState<DialogState>(INITIAL_DIALOG_STATE);
+
+  // Section collapse state (persisted in localStorage)
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(() => {
+    try {
+      const stored = localStorage.getItem('wochenplan-collapsed-sections');
+      return stored ? JSON.parse(stored) as Record<string, boolean> : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleSectionCollapse = useCallback((department: string) => {
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [department]: !prev[department] };
+      localStorage.setItem('wochenplan-collapsed-sections', JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState<SnackbarState>({
@@ -313,6 +333,8 @@ export default function Wochenplan() {
               key={section.department}
               section={section}
               currentKw={kw}
+              collapsed={!!collapsedSections[section.department]}
+              onToggleCollapse={() => toggleSectionCollapse(section.department)}
               onCellClick={handleCellClick}
             />
           ))}
@@ -392,6 +414,8 @@ export default function Wochenplan() {
 interface SectionTableProps {
   section: Section;
   currentKw: number;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
   onCellClick: (
     taskId: string,
     date: string,
@@ -403,7 +427,7 @@ interface SectionTableProps {
   ) => void;
 }
 
-function SectionTable({ section, currentKw, onCellClick }: SectionTableProps) {
+function SectionTable({ section, currentKw, collapsed, onToggleCollapse, onCellClick }: SectionTableProps) {
   const hasTasks = section.tasks.length > 0;
 
   return (
@@ -418,60 +442,70 @@ function SectionTable({ section, currentKw, onCellClick }: SectionTableProps) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          cursor: 'pointer',
+          userSelect: 'none',
         }}
+        onClick={onToggleCollapse}
       >
-        <Typography variant="h6">{section.label}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <IconButton size="small" sx={{ color: 'inherit', p: 0.25 }}>
+            {collapsed ? <ExpandMoreIcon /> : <ExpandLessIcon />}
+          </IconButton>
+          <Typography variant="h6">{section.label}</Typography>
+        </Box>
         <Typography variant="body2">
-          {section.totalHours.planned}h / {section.totalHours.available}h verfügbar
+          {section.tasks.length} Aufträge · {section.totalHours.planned}h / {section.totalHours.available}h verfügbar
           {section.resources.length > 0 && ` · ${section.resources.length} Mitarbeiter`}
         </Typography>
       </Box>
 
-      {!hasTasks ? (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography color="text.secondary">
-            Keine Aufträge in dieser Woche
-          </Typography>
-        </Box>
-      ) : (
-        <TableContainer sx={{ overflowX: 'auto' }}>
-          <Table size="small" sx={{ minWidth: 1400 }}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Auftrag</TableCell>
-                <TableCell sx={{ fontWeight: 700, minWidth: 50 }}>SB</TableCell>
-                <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Kunde</TableCell>
-                <TableCell sx={{ fontWeight: 700, minWidth: 150 }}>Arbeit</TableCell>
-                <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Montageort</TableCell>
-                {Object.entries(PHASE_LABELS).map(([key, label]) => (
-                  <TableCell key={key} sx={{ fontWeight: 700, textAlign: 'center', minWidth: 60 }}>
-                    {label}
-                  </TableCell>
+      {!collapsed && (
+        !hasTasks ? (
+          <Box sx={{ p: 3, textAlign: 'center' }}>
+            <Typography color="text.secondary">
+              Keine Aufträge in dieser Woche
+            </Typography>
+          </Box>
+        ) : (
+          <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small" sx={{ minWidth: 1400 }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Auftrag</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 50 }}>SB</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Kunde</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 150 }}>Arbeit</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Montageort</TableCell>
+                  {Object.entries(PHASE_LABELS).map(([key, label]) => (
+                    <TableCell key={key} sx={{ fontWeight: 700, textAlign: 'center', minWidth: 60 }}>
+                      {label}
+                    </TableCell>
+                  ))}
+                  <TableCell sx={{ fontWeight: 700, textAlign: 'center', minWidth: 40 }}>Arb.</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 60 }}>Farbe</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Kontakt</TableCell>
+                  {DAY_LABELS.map((d) => (
+                    <TableCell key={d} sx={{ fontWeight: 700, textAlign: 'center', minWidth: 80 }}>
+                      {d}
+                    </TableCell>
+                  ))}
+                  <TableCell sx={{ fontWeight: 700, minWidth: 150 }}>Bemerkungen</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {section.tasks.map((task) => (
+                  <TaskRow
+                    key={task.taskId}
+                    task={task}
+                    currentKw={currentKw}
+                    department={section.department}
+                    onCellClick={onCellClick}
+                  />
                 ))}
-                <TableCell sx={{ fontWeight: 700, textAlign: 'center', minWidth: 40 }}>Arb.</TableCell>
-                <TableCell sx={{ fontWeight: 700, minWidth: 60 }}>Farbe</TableCell>
-                <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Kontakt</TableCell>
-                {DAY_LABELS.map((d) => (
-                  <TableCell key={d} sx={{ fontWeight: 700, textAlign: 'center', minWidth: 80 }}>
-                    {d}
-                  </TableCell>
-                ))}
-                <TableCell sx={{ fontWeight: 700, minWidth: 150 }}>Bemerkungen</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {section.tasks.map((task) => (
-                <TaskRow
-                  key={task.taskId}
-                  task={task}
-                  currentKw={currentKw}
-                  department={section.department}
-                  onCellClick={onCellClick}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )
       )}
     </Paper>
   );
