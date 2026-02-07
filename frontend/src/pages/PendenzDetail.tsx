@@ -11,7 +11,6 @@ import {
   CircularProgress,
   Alert,
   Snackbar,
-  Chip,
   Stack,
   Tabs,
   Tab,
@@ -359,19 +358,19 @@ export default function PendenzDetail() {
           <Divider sx={{ my: 3 }} />
 
           <Grid container spacing={3}>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Bereich
               </Typography>
               <Typography variant="body1">{bereichLabel[pendenz.bereich]}</Typography>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Kategorie
               </Typography>
               <Typography variant="body1">{kategorieLabel[pendenz.kategorie]}</Typography>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Priorität
               </Typography>
@@ -379,7 +378,7 @@ export default function PendenzDetail() {
                 <PendenzPrioritaetBadge prioritaet={pendenz.prioritaet} />
               </Box>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Status
               </Typography>
@@ -387,7 +386,7 @@ export default function PendenzDetail() {
                 <PendenzStatusBadge status={pendenz.status} />
               </Box>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Fällig bis
               </Typography>
@@ -397,7 +396,7 @@ export default function PendenzDetail() {
                   : '–'}
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Erledigt am
               </Typography>
@@ -407,19 +406,19 @@ export default function PendenzDetail() {
                   : '–'}
               </Typography>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Verantwortlich
               </Typography>
               <Typography variant="body1">{pendenz.verantwortlichName ?? '–'}</Typography>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Erfasst von
               </Typography>
               <Typography variant="body1">{pendenz.erfasstVonName}</Typography>
             </Grid>
-            <Grid item xs={12} sm={6} md={4}>
+            <Grid size={{ xs: 12, sm: 6, md: 4 }}>
               <Typography variant="caption" color="text.secondary">
                 Auftragsnummer
               </Typography>
