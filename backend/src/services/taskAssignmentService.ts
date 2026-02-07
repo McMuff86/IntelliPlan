@@ -1,5 +1,6 @@
 import { pool } from '../config/database';
 import type {
+  BulkCreateAssignmentDTO,
   CreateTaskAssignmentDTO,
   TaskAssignment,
   TaskAssignmentWithNames,
@@ -12,6 +13,7 @@ const SELECT_WITH_NAMES = `
   SELECT
     ta.*,
     r.name AS resource_name,
+    r.short_code AS resource_short_code,
     t.title AS task_title,
     t.project_id AS project_id,
     p.name AS project_name
@@ -27,8 +29,8 @@ export async function createTaskAssignment(data: CreateTaskAssignmentDTO): Promi
   const result = await pool.query<TaskAssignment>(
     `INSERT INTO task_assignments (
       task_id, resource_id, assignment_date, half_day,
-      notes, is_fixed, start_time
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      notes, is_fixed, start_time, status_code
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
     RETURNING *`,
     [
       data.task_id,
@@ -38,6 +40,7 @@ export async function createTaskAssignment(data: CreateTaskAssignmentDTO): Promi
       data.notes ?? null,
       data.is_fixed ?? false,
       data.start_time ?? null,
+      data.status_code ?? 'assigned',
     ]
   );
 
@@ -67,6 +70,7 @@ export async function updateTaskAssignment(
     ['notes', 'notes'],
     ['is_fixed', 'is_fixed'],
     ['start_time', 'start_time'],
+    ['status_code', 'status_code'],
   ];
 
   for (const [key, col] of mappings) {
@@ -99,6 +103,51 @@ export async function deleteTaskAssignment(id: string): Promise<boolean> {
   return (result.rowCount ?? 0) > 0;
 }
 
+// ─── Bulk Create ───────────────────────────────────────
+
+export async function bulkCreateAssignments(data: BulkCreateAssignmentDTO): Promise<TaskAssignmentWithNames[]> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const createdIds: string[] = [];
+
+    for (const date of data.dates) {
+      const result = await client.query<TaskAssignment>(
+        `INSERT INTO task_assignments (
+          task_id, resource_id, assignment_date, half_day,
+          is_fixed, status_code
+        ) VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id`,
+        [
+          data.task_id,
+          data.resource_id,
+          date,
+          data.half_day,
+          data.is_fixed ?? false,
+          data.status_code ?? 'assigned',
+        ]
+      );
+      createdIds.push(result.rows[0].id);
+    }
+
+    await client.query('COMMIT');
+
+    // Fetch all created assignments with names
+    const result = await pool.query<TaskAssignmentWithNames>(
+      `${SELECT_WITH_NAMES} WHERE ta.id = ANY($1) AND ta.deleted_at IS NULL ORDER BY ta.assignment_date ASC`,
+      [createdIds]
+    );
+
+    return result.rows;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // ─── Queries ───────────────────────────────────────────
 
 export interface ListAssignmentsOptions {
@@ -106,6 +155,7 @@ export interface ListAssignmentsOptions {
   to?: string;
   resourceId?: string;
   taskId?: string;
+  statusCode?: string;
   limit?: number;
   offset?: number;
 }
@@ -143,6 +193,12 @@ export async function listAssignments(opts: ListAssignmentsOptions): Promise<Pag
   if (opts.taskId) {
     conditions.push(`ta.task_id = $${paramIdx}`);
     params.push(opts.taskId);
+    paramIdx++;
+  }
+
+  if (opts.statusCode) {
+    conditions.push(`ta.status_code = $${paramIdx}`);
+    params.push(opts.statusCode);
     paramIdx++;
   }
 

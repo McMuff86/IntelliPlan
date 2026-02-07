@@ -2,6 +2,9 @@ export type TaskStatus = 'planned' | 'in_progress' | 'blocked' | 'done';
 export type SchedulingMode = 'manual' | 'auto';
 export type DependencyType = 'finish_start' | 'start_start' | 'finish_finish';
 export type ResourceType = 'person' | 'machine' | 'vehicle';
+export type PhaseCode = 'ZUS' | 'CNC' | 'PROD' | 'VORBEH' | 'NACHBEH' | 'BESCHL' | 'TRANS' | 'MONT';
+
+export const VALID_PHASE_CODES: PhaseCode[] = ['ZUS', 'CNC', 'PROD', 'VORBEH', 'NACHBEH', 'BESCHL', 'TRANS', 'MONT'];
 
 export interface Task {
   id: string;
@@ -17,6 +20,9 @@ export interface Task {
   start_date: string | null;
   due_date: string | null;
   reminder_enabled: boolean;
+  phase_code: PhaseCode | null;
+  planned_week: number | null;
+  planned_year: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -37,6 +43,9 @@ export interface TaskResponse {
   startDate: string | null;
   dueDate: string | null;
   reminderEnabled: boolean;
+  phaseCode: PhaseCode | null;
+  plannedWeek: number | null;
+  plannedYear: number | null;
   createdAt: string;
   updatedAt: string;
   isBlocked?: boolean;
@@ -55,6 +64,9 @@ export interface CreateTaskDTO {
   start_date?: string | null;
   due_date?: string | null;
   reminder_enabled?: boolean;
+  phase_code?: PhaseCode | null;
+  planned_week?: number | null;
+  planned_year?: number | null;
 }
 
 export interface UpdateTaskDTO {
@@ -68,6 +80,9 @@ export interface UpdateTaskDTO {
   start_date?: string | null;
   due_date?: string | null;
   reminder_enabled?: boolean;
+  phase_code?: PhaseCode | null;
+  planned_week?: number | null;
+  planned_year?: number | null;
 }
 
 export interface TaskDependency {
@@ -132,6 +147,9 @@ export const toTaskResponse = (
   startDate: task.start_date,
   dueDate: task.due_date,
   reminderEnabled: task.reminder_enabled,
+  phaseCode: task.phase_code,
+  plannedWeek: task.planned_week,
+  plannedYear: task.planned_year,
   createdAt: task.created_at,
   updatedAt: task.updated_at,
   isBlocked: task.is_blocked ?? undefined,

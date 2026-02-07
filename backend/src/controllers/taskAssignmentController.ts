@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { validationResult } from 'express-validator';
 import {
+  bulkCreateAssignments,
   createTaskAssignment,
   deleteTaskAssignment,
   getAssignmentsByResource,
@@ -36,12 +37,13 @@ export async function list(
       return;
     }
 
-    const { from, to, resource_id, limit, offset } = req.query;
+    const { from, to, resource_id, status_code, limit, offset } = req.query;
 
     const result = await listAssignments({
       from: from as string | undefined,
       to: to as string | undefined,
       resourceId: resource_id as string | undefined,
+      statusCode: status_code as string | undefined,
       limit: limit ? parseInt(limit as string, 10) : undefined,
       offset: offset ? parseInt(offset as string, 10) : undefined,
     });
@@ -107,7 +109,7 @@ export async function createForTask(
     }
 
     const taskId = req.params.taskId as string;
-    const { resourceId, assignmentDate, halfDay, notes, isFixed, startTime } = req.body;
+    const { resourceId, assignmentDate, halfDay, notes, isFixed, startTime, statusCode } = req.body;
 
     const assignment = await createTaskAssignment({
       task_id: taskId,
@@ -117,6 +119,7 @@ export async function createForTask(
       notes: notes ?? null,
       is_fixed: isFixed ?? false,
       start_time: startTime ?? null,
+      status_code: statusCode ?? 'assigned',
     });
 
     res.status(201).json({ success: true, data: toTaskAssignmentResponse(assignment) });
@@ -130,6 +133,66 @@ export async function createForTask(
       return;
     }
     // Handle FK violation
+    if ((error as any)?.code === '23503') {
+      res.status(400).json({
+        success: false,
+        error: 'Referenced task or resource does not exist',
+      });
+      return;
+    }
+    next(error);
+  }
+}
+
+// ─── Bulk create assignments ───────────────────────────
+
+export async function bulkCreateForTask(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const { assignments } = req.body;
+
+    const results = [];
+
+    for (const item of assignments) {
+      const created = await bulkCreateAssignments({
+        task_id: item.taskId,
+        resource_id: item.resourceId,
+        dates: item.dates,
+        half_day: item.halfDay,
+        is_fixed: item.isFixed ?? false,
+        status_code: item.statusCode ?? 'assigned',
+      });
+      results.push(...created);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: results.map(toTaskAssignmentResponse),
+      count: results.length,
+    });
+  } catch (error) {
+    if ((error as any)?.code === '23505') {
+      res.status(409).json({
+        success: false,
+        error: 'One or more assignments already exist for the given task, resource, date, and half-day combination',
+      });
+      return;
+    }
     if ((error as any)?.code === '23503') {
       res.status(400).json({
         success: false,
@@ -187,7 +250,7 @@ export async function update(
       return;
     }
 
-    const { resourceId, assignmentDate, halfDay, notes, isFixed, startTime } = req.body;
+    const { resourceId, assignmentDate, halfDay, notes, isFixed, startTime, statusCode } = req.body;
 
     const updated = await updateTaskAssignment(req.params.id as string, {
       resource_id: resourceId,
@@ -196,6 +259,7 @@ export async function update(
       notes,
       is_fixed: isFixed,
       start_time: startTime,
+      status_code: statusCode,
     });
 
     if (!updated) {

@@ -4,13 +4,11 @@ import type { CreateResourceDTO, Resource, UpdateResourceDTO } from '../models/r
 export async function createResource(data: CreateResourceDTO): Promise<Resource> {
   const result = await pool.query<Resource>(
     `INSERT INTO resources (
-        owner_id,
-        name,
-        resource_type,
-        description,
-        is_active,
-        availability_enabled
-     ) VALUES ($1, $2, $3, $4, $5, $6)
+        owner_id, name, resource_type, description,
+        is_active, availability_enabled,
+        department, employee_type, short_code,
+        default_location, weekly_hours, skills
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      RETURNING *`,
     [
       data.owner_id,
@@ -19,6 +17,12 @@ export async function createResource(data: CreateResourceDTO): Promise<Resource>
       data.description ?? null,
       data.is_active ?? true,
       data.availability_enabled ?? false,
+      data.department ?? null,
+      data.employee_type ?? null,
+      data.short_code ?? null,
+      data.default_location ?? null,
+      data.weekly_hours ?? null,
+      data.skills ?? null,
     ]
   );
 
@@ -43,13 +47,29 @@ export async function getResourceById(resourceId: string, ownerId: string): Prom
   return result.rows[0] || null;
 }
 
+export async function getResourceByShortCode(shortCode: string): Promise<Resource | null> {
+  const result = await pool.query<Resource>(
+    `SELECT * FROM resources WHERE short_code = $1 AND deleted_at IS NULL`,
+    [shortCode]
+  );
+  return result.rows[0] || null;
+}
+
+export async function getResourcesByDepartment(department: string): Promise<Resource[]> {
+  const result = await pool.query<Resource>(
+    `SELECT * FROM resources WHERE department = $1 AND is_active = true AND deleted_at IS NULL ORDER BY short_code ASC NULLS LAST, name ASC`,
+    [department]
+  );
+  return result.rows;
+}
+
 export async function updateResource(
   resourceId: string,
   ownerId: string,
   data: UpdateResourceDTO
 ): Promise<Resource | null> {
   const fields: string[] = [];
-  const values: (string | boolean | null)[] = [];
+  const values: (string | boolean | number | string[] | null)[] = [];
   let paramIndex = 1;
 
   if (data.name !== undefined) {
@@ -71,6 +91,30 @@ export async function updateResource(
   if (data.availability_enabled !== undefined) {
     fields.push(`availability_enabled = $${paramIndex++}`);
     values.push(data.availability_enabled);
+  }
+  if (data.department !== undefined) {
+    fields.push(`department = $${paramIndex++}`);
+    values.push(data.department);
+  }
+  if (data.employee_type !== undefined) {
+    fields.push(`employee_type = $${paramIndex++}`);
+    values.push(data.employee_type);
+  }
+  if (data.short_code !== undefined) {
+    fields.push(`short_code = $${paramIndex++}`);
+    values.push(data.short_code);
+  }
+  if (data.default_location !== undefined) {
+    fields.push(`default_location = $${paramIndex++}`);
+    values.push(data.default_location);
+  }
+  if (data.weekly_hours !== undefined) {
+    fields.push(`weekly_hours = $${paramIndex++}`);
+    values.push(data.weekly_hours);
+  }
+  if (data.skills !== undefined) {
+    fields.push(`skills = $${paramIndex++}`);
+    values.push(data.skills);
   }
 
   if (fields.length === 0) {

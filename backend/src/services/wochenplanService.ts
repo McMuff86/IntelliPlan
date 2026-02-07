@@ -39,6 +39,8 @@ export interface DayAssignment {
   dayName: string;
   morning: string | null;
   afternoon: string | null;
+  morningStatusCode: string | null;
+  afternoonStatusCode: string | null;
   isFixed: boolean;
   notes: string | null;
 }
@@ -46,6 +48,7 @@ export interface DayAssignment {
 export interface WeekPlanResource {
   id: string;
   name: string;
+  shortCode: string | null;
   department: string | null;
   employeeType: string | null;
   weeklyHours: number;
@@ -72,10 +75,12 @@ const DEPARTMENTS = [
   { key: 'produktion', label: 'Produktion' },
   { key: 'behandlung', label: 'Behandlung' },
   { key: 'beschlaege', label: 'Beschläge' },
+  { key: 'transport', label: 'Transport' },
   { key: 'montage', label: 'Montage' },
+  { key: 'buero', label: 'Büro' },
 ] as const;
 
-const PHASE_ORDER = ['zuschnitt', 'cnc', 'produktion', 'behandlung', 'beschlaege', 'montage'] as const;
+const PHASE_ORDER = ['zuschnitt', 'cnc', 'produktion', 'behandlung', 'beschlaege', 'transport', 'montage'] as const;
 
 const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 
@@ -191,7 +196,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
   // 3. Load task_assignments for the week
   let assignmentsMap = new Map<
     string,
-    { date: string; half_day: string; resource_name: string; is_fixed: boolean; notes: string | null }[]
+    { date: string; half_day: string; resource_short_code: string | null; resource_name: string; is_fixed: boolean; notes: string | null; status_code: string | null }[]
   >();
 
   if (taskIds.length > 0) {
@@ -199,17 +204,21 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       task_id: string;
       assignment_date: string;
       half_day: string;
+      resource_short_code: string | null;
       resource_name: string;
       is_fixed: boolean;
       notes: string | null;
+      status_code: string | null;
     }>(
       `SELECT
          ta.task_id,
          ta.assignment_date::text AS assignment_date,
          ta.half_day,
+         r.short_code AS resource_short_code,
          r.name AS resource_name,
          ta.is_fixed,
-         ta.notes
+         ta.notes,
+         ta.status_code
        FROM task_assignments ta
        JOIN resources r ON r.id = ta.resource_id
        WHERE ta.task_id = ANY($1)
@@ -227,9 +236,11 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
       assignmentsMap.get(row.task_id)!.push({
         date: row.assignment_date,
         half_day: row.half_day,
+        resource_short_code: row.resource_short_code,
         resource_name: row.resource_name,
         is_fixed: row.is_fixed,
         notes: row.notes,
+        status_code: row.status_code,
       });
     }
   }
@@ -238,15 +249,16 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
   const resourcesResult = await pool.query<{
     id: string;
     name: string;
+    short_code: string | null;
     department: string | null;
     employee_type: string | null;
     weekly_hours: number | null;
   }>(
-    `SELECT id, name, department, employee_type, weekly_hours
+    `SELECT id, name, short_code, department, employee_type, weekly_hours
      FROM resources
      WHERE is_active = true
        AND resource_type = 'person'
-     ORDER BY department ASC NULLS LAST, name ASC`
+     ORDER BY department ASC NULLS LAST, short_code ASC NULLS LAST, name ASC`
   );
 
   const resourcesByDept = new Map<string, WeekPlanResource[]>();
@@ -258,6 +270,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
     resourcesByDept.get(dept)!.push({
       id: r.id,
       name: r.name,
+      shortCode: r.short_code,
       department: r.department,
       employeeType: r.employee_type,
       weeklyHours: Number(r.weekly_hours) || 42.5,
@@ -301,11 +314,17 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
         .map((a) => a.notes)
         .join('; ') || null;
 
+      // Prefer short_code over name for KW-View display
+      const getDisplayName = (a: typeof morningAssignment) =>
+        a ? (a.resource_short_code || a.resource_name) : null;
+
       return {
         date,
         dayName: DAY_NAMES[idx],
-        morning: morningAssignment?.resource_name ?? null,
-        afternoon: afternoonAssignment?.resource_name ?? null,
+        morning: getDisplayName(morningAssignment),
+        afternoon: getDisplayName(afternoonAssignment),
+        morningStatusCode: morningAssignment?.status_code ?? null,
+        afternoonStatusCode: afternoonAssignment?.status_code ?? null,
         isFixed,
         notes,
       };

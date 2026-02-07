@@ -1,4 +1,5 @@
 import { body, ValidationChain } from 'express-validator';
+import { VALID_DEPARTMENTS, VALID_EMPLOYEE_TYPES } from '../models/resource';
 
 const resourceTypes = ['person', 'machine', 'vehicle'];
 
@@ -27,6 +28,28 @@ export const createResourceValidator: ValidationChain[] = [
     .optional()
     .isBoolean()
     .withMessage('availabilityEnabled must be boolean'),
+  body('department')
+    .optional({ values: 'null' })
+    .isIn(VALID_DEPARTMENTS)
+    .withMessage(`department must be one of: ${VALID_DEPARTMENTS.join(', ')}`),
+  body('employeeType')
+    .optional({ values: 'null' })
+    .isIn(VALID_EMPLOYEE_TYPES)
+    .withMessage(`employeeType must be one of: ${VALID_EMPLOYEE_TYPES.join(', ')}`),
+  body('shortCode')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('shortCode must be less than 20 characters'),
+  body('defaultLocation')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('defaultLocation must be less than 200 characters'),
+  body('weeklyHours')
+    .optional({ values: 'null' })
+    .isFloat({ min: 0, max: 168 })
+    .withMessage('weeklyHours must be between 0 and 168'),
 ];
 
 export const updateResourceValidator: ValidationChain[] = [
@@ -54,4 +77,26 @@ export const updateResourceValidator: ValidationChain[] = [
     .optional()
     .isBoolean()
     .withMessage('availabilityEnabled must be boolean'),
+  body('department')
+    .optional({ values: 'null' })
+    .isIn(VALID_DEPARTMENTS)
+    .withMessage(`department must be one of: ${VALID_DEPARTMENTS.join(', ')}`),
+  body('employeeType')
+    .optional({ values: 'null' })
+    .isIn(VALID_EMPLOYEE_TYPES)
+    .withMessage(`employeeType must be one of: ${VALID_EMPLOYEE_TYPES.join(', ')}`),
+  body('shortCode')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 20 })
+    .withMessage('shortCode must be less than 20 characters'),
+  body('defaultLocation')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 200 })
+    .withMessage('defaultLocation must be less than 200 characters'),
+  body('weeklyHours')
+    .optional({ values: 'null' })
+    .isFloat({ min: 0, max: 168 })
+    .withMessage('weeklyHours must be between 0 and 168'),
 ];

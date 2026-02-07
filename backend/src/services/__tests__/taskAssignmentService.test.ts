@@ -30,6 +30,7 @@ const mockAssignment: TaskAssignment = {
   notes: 'Fix ab 06:00 Uhr',
   is_fixed: true,
   start_time: '06:00:00',
+  status_code: 'assigned',
   created_at: '2026-02-07T10:00:00Z',
   updated_at: '2026-02-07T10:00:00Z',
   deleted_at: null,
@@ -37,7 +38,8 @@ const mockAssignment: TaskAssignment = {
 
 const mockAssignmentWithNames: TaskAssignmentWithNames = {
   ...mockAssignment,
-  resource_name: 'MA_14',
+  resource_name: 'Hans Müller',
+  resource_short_code: 'MA_14',
   task_title: 'Montage',
   project_id: 'proj-1',
   project_name: 'Küche Familie Müller',
@@ -65,7 +67,8 @@ describe('taskAssignmentService', () => {
         start_time: '06:00:00',
       });
 
-      expect(result.resource_name).toBe('MA_14');
+      expect(result.resource_name).toBe('Hans Müller');
+      expect(result.resource_short_code).toBe('MA_14');
       expect(result.task_title).toBe('Montage');
       expect(result.project_name).toBe('Küche Familie Müller');
 
@@ -77,6 +80,7 @@ describe('taskAssignmentService', () => {
       expect(insertParams[4]).toBe('Fix ab 06:00 Uhr');
       expect(insertParams[5]).toBe(true);
       expect(insertParams[6]).toBe('06:00:00');
+      expect(insertParams[7]).toBe('assigned');
     });
 
     it('should use default values for optional fields', async () => {
@@ -95,6 +99,7 @@ describe('taskAssignmentService', () => {
       expect(insertParams[4]).toBeNull(); // notes
       expect(insertParams[5]).toBe(false); // is_fixed
       expect(insertParams[6]).toBeNull(); // start_time
+      expect(insertParams[7]).toBe('assigned'); // status_code default
     });
   });
 
@@ -106,7 +111,8 @@ describe('taskAssignmentService', () => {
 
       expect(result).not.toBeNull();
       expect(result!.id).toBe('assign-1');
-      expect(result!.resource_name).toBe('MA_14');
+      expect(result!.resource_name).toBe('Hans Müller');
+      expect(result!.resource_short_code).toBe('MA_14');
       expect(result!.task_title).toBe('Montage');
 
       const query = mockedPool.query.mock.calls[0][0] as string;

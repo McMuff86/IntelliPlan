@@ -4,6 +4,7 @@ import { loadUser, requireUserId } from '../middleware/roleMiddleware';
 import {
   updateTaskAssignmentValidator,
   listAssignmentsQueryValidator,
+  bulkAssignmentValidator,
 } from '../validators/taskAssignmentValidator';
 
 const router = Router();
@@ -13,6 +14,10 @@ router.use(loadUser);
 
 // Global assignment queries
 router.get('/', listAssignmentsQueryValidator, taskAssignmentController.list);
+
+// Bulk create (POST /api/assignments/bulk)
+router.post('/bulk', bulkAssignmentValidator, taskAssignmentController.bulkCreateForTask);
+
 router.get('/:id', taskAssignmentController.getById);
 router.put('/:id', updateTaskAssignmentValidator, taskAssignmentController.update);
 router.delete('/:id', taskAssignmentController.remove);

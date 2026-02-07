@@ -158,6 +158,9 @@ export async function createInProject(
       startDate,
       dueDate,
       reminderEnabled,
+      phaseCode,
+      plannedWeek,
+      plannedYear,
     } = req.body;
     const task = await createTask({
       project_id: projectId,
@@ -172,6 +175,9 @@ export async function createInProject(
       start_date: startDate ?? null,
       due_date: dueDate ?? null,
       reminder_enabled: reminderEnabled ?? false,
+      phase_code: phaseCode ?? null,
+      planned_week: plannedWeek ?? null,
+      planned_year: plannedYear ?? null,
     });
 
     await createProjectActivity({
@@ -240,6 +246,9 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       startDate,
       dueDate,
       reminderEnabled,
+      phaseCode,
+      plannedWeek,
+      plannedYear,
     } = req.body;
     if (status === 'in_progress') {
       const blocked = await isTaskBlocked(req.params.id as string, userId);
@@ -261,6 +270,9 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       start_date: startDate ?? null,
       due_date: dueDate ?? null,
       reminder_enabled: reminderEnabled,
+      phase_code: phaseCode,
+      planned_week: plannedWeek,
+      planned_year: plannedYear,
     });
 
     if (!updated) {

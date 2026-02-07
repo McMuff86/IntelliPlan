@@ -1,4 +1,5 @@
 import { body, ValidationChain } from 'express-validator';
+import { VALID_PHASE_CODES } from '../models/task';
 
 const statusValues = ['planned', 'in_progress', 'blocked', 'done'];
 const schedulingValues = ['manual', 'auto'];
@@ -39,6 +40,18 @@ export const createTaskValidator: ValidationChain[] = [
   body('startDate').optional().isISO8601().withMessage('startDate must be ISO 8601'),
   body('dueDate').optional().isISO8601().withMessage('dueDate must be ISO 8601'),
   body('reminderEnabled').optional().isBoolean().withMessage('reminderEnabled must be boolean'),
+  body('phaseCode')
+    .optional({ values: 'null' })
+    .isIn(VALID_PHASE_CODES)
+    .withMessage(`phaseCode must be one of: ${VALID_PHASE_CODES.join(', ')}`),
+  body('plannedWeek')
+    .optional({ values: 'null' })
+    .isInt({ min: 1, max: 53 })
+    .withMessage('plannedWeek must be between 1 and 53'),
+  body('plannedYear')
+    .optional({ values: 'null' })
+    .isInt({ min: 2020, max: 2099 })
+    .withMessage('plannedYear must be between 2020 and 2099'),
 ];
 
 export const updateTaskValidator: ValidationChain[] = [
@@ -77,6 +90,18 @@ export const updateTaskValidator: ValidationChain[] = [
   body('startDate').optional().isISO8601().withMessage('startDate must be ISO 8601'),
   body('dueDate').optional().isISO8601().withMessage('dueDate must be ISO 8601'),
   body('reminderEnabled').optional().isBoolean().withMessage('reminderEnabled must be boolean'),
+  body('phaseCode')
+    .optional({ values: 'null' })
+    .isIn(VALID_PHASE_CODES)
+    .withMessage(`phaseCode must be one of: ${VALID_PHASE_CODES.join(', ')}`),
+  body('plannedWeek')
+    .optional({ values: 'null' })
+    .isInt({ min: 1, max: 53 })
+    .withMessage('plannedWeek must be between 1 and 53'),
+  body('plannedYear')
+    .optional({ values: 'null' })
+    .isInt({ min: 2020, max: 2099 })
+    .withMessage('plannedYear must be between 2020 and 2099'),
 ];
 
 export const createDependencyValidator: ValidationChain[] = [

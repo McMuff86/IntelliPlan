@@ -39,8 +39,11 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
         resource_id,
         start_date,
         due_date,
-        reminder_enabled
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        reminder_enabled,
+        phase_code,
+        planned_week,
+        planned_year
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
      RETURNING *`,
     [
       data.project_id,
@@ -55,6 +58,9 @@ export async function createTask(data: CreateTaskDTO): Promise<Task> {
       data.start_date ?? null,
       data.due_date ?? null,
       data.reminder_enabled ?? false,
+      data.phase_code ?? null,
+      data.planned_week ?? null,
+      data.planned_year ?? null,
     ]
   );
 
@@ -184,6 +190,18 @@ export async function updateTask(
   if (data.reminder_enabled !== undefined) {
     fields.push(`reminder_enabled = $${paramIndex++}`);
     values.push(data.reminder_enabled);
+  }
+  if (data.phase_code !== undefined) {
+    fields.push(`phase_code = $${paramIndex++}`);
+    values.push(data.phase_code);
+  }
+  if (data.planned_week !== undefined) {
+    fields.push(`planned_week = $${paramIndex++}`);
+    values.push(data.planned_week);
+  }
+  if (data.planned_year !== undefined) {
+    fields.push(`planned_year = $${paramIndex++}`);
+    values.push(data.planned_year);
   }
 
   if (fields.length === 0) {

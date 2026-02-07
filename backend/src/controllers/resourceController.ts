@@ -45,7 +45,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, resourceType, description, isActive, availabilityEnabled } = req.body;
+    const { name, resourceType, description, isActive, availabilityEnabled, department, employeeType, shortCode, defaultLocation, weeklyHours, skills } = req.body;
     const resource = await createResource({
       owner_id: userId,
       name,
@@ -53,6 +53,12 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       description: description ?? null,
       is_active: isActive ?? true,
       availability_enabled: availabilityEnabled ?? false,
+      department: department ?? null,
+      employee_type: employeeType ?? null,
+      short_code: shortCode ?? null,
+      default_location: defaultLocation ?? null,
+      weekly_hours: weeklyHours ?? null,
+      skills: skills ?? null,
     });
 
     res.status(201).json({ success: true, data: toResourceResponse(resource) });
@@ -95,13 +101,19 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       return;
     }
 
-    const { name, resourceType, description, isActive, availabilityEnabled } = req.body;
+    const { name, resourceType, description, isActive, availabilityEnabled, department, employeeType, shortCode, defaultLocation, weeklyHours, skills } = req.body;
     const updated = await updateResource(req.params.id as string, userId, {
       name,
       resource_type: resourceType,
       description,
       is_active: isActive,
       availability_enabled: availabilityEnabled,
+      department,
+      employee_type: employeeType,
+      short_code: shortCode,
+      default_location: defaultLocation,
+      weekly_hours: weeklyHours,
+      skills,
     });
 
     if (!updated) {
