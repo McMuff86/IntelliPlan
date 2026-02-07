@@ -944,13 +944,13 @@ export async function copyWeek(
       const assignResult = await client.query<{ count: string }>(
         `INSERT INTO task_assignments (task_id, resource_id, assignment_date, half_day, is_fixed, status_code, notes)
          SELECT task_id, resource_id,
-                (assignment_date + INTERVAL '${dayOffset} days')::date,
+                (assignment_date + ($3 || ' days')::interval)::date,
                 half_day, is_fixed, status_code, notes
          FROM task_assignments
          WHERE assignment_date >= $1
            AND assignment_date <= $2
            AND deleted_at IS NULL`,
-        [source.from, source.to]
+        [source.from, source.to, String(dayOffset)]
       );
 
       copiedAssignments = assignResult.rowCount ?? 0;

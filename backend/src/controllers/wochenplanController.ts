@@ -240,7 +240,7 @@ export async function getResourceScheduleHandler(
       return;
     }
 
-    const { resourceId } = req.params;
+    const resourceId = req.params.resourceId as string;
     const kw = parseInt(req.query.kw as string, 10);
     const year = parseInt(req.query.year as string, 10);
 
