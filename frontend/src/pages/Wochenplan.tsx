@@ -17,6 +17,7 @@ import {
   Alert,
   Tooltip,
   LinearProgress,
+  Snackbar,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -27,7 +28,11 @@ import {
   type WeekPlanResponse,
   type Section,
   type WeekPlanTask,
+  type WeekPlanResource,
+  type DayAssignmentDetail,
 } from '../services/wochenplanService';
+import AssignmentDialog from '../components/wochenplan/AssignmentDialog';
+import type { HalfDay } from '../services/assignmentService';
 
 // ─── Helpers ───────────────────────────────────────────
 
@@ -62,6 +67,42 @@ const PHASE_COLORS: Record<string, string> = {
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
 
+// ─── Assignment Dialog State ───────────────────────────
+
+interface DialogState {
+  open: boolean;
+  taskId: string;
+  date: string;
+  dayName: string;
+  halfDay: HalfDay;
+  department: string;
+  taskInfo: {
+    projectOrderNumber: string;
+    customerName: string;
+    description: string;
+  };
+  existingAssignment: DayAssignmentDetail | null;
+}
+
+const INITIAL_DIALOG_STATE: DialogState = {
+  open: false,
+  taskId: '',
+  date: '',
+  dayName: '',
+  halfDay: 'morning',
+  department: '',
+  taskInfo: { projectOrderNumber: '', customerName: '', description: '' },
+  existingAssignment: null,
+};
+
+// ─── Snackbar State ────────────────────────────────────
+
+interface SnackbarState {
+  open: boolean;
+  message: string;
+  severity: 'success' | 'error';
+}
+
 // ─── Component ─────────────────────────────────────────
 
 export default function Wochenplan() {
@@ -72,6 +113,16 @@ export default function Wochenplan() {
   const initial = getCurrentISOWeek();
   const [kw, setKw] = useState(initial.kw);
   const [year, setYear] = useState(initial.year);
+
+  // Dialog state
+  const [dialogState, setDialogState] = useState<DialogState>(INITIAL_DIALOG_STATE);
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState<SnackbarState>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const fetchWeekPlan = useCallback(async () => {
     setLoading(true);
@@ -117,6 +168,60 @@ export default function Wochenplan() {
   const handleYearChange = (e: SelectChangeEvent<number>) => {
     setYear(Number(e.target.value));
   };
+
+  // ─── Assignment Dialog Handlers ─────────────────────
+
+  const handleCellClick = (
+    taskId: string,
+    date: string,
+    dayName: string,
+    halfDay: HalfDay,
+    department: string,
+    taskInfo: DialogState['taskInfo'],
+    existingAssignment: DayAssignmentDetail | null
+  ) => {
+    setDialogState({
+      open: true,
+      taskId,
+      date,
+      dayName,
+      halfDay,
+      department,
+      taskInfo,
+      existingAssignment,
+    });
+  };
+
+  const handleDialogClose = () => {
+    setDialogState(INITIAL_DIALOG_STATE);
+  };
+
+  const handleDialogSave = async () => {
+    setDialogState(INITIAL_DIALOG_STATE);
+    setSnackbar({
+      open: true,
+      message: 'Zuordnung gespeichert',
+      severity: 'success',
+    });
+    // Reload data to reflect changes
+    await fetchWeekPlan();
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbar((s) => ({ ...s, open: false }));
+  };
+
+  // Collect all resources from the current weekPlan for the dialog
+  const allResources: WeekPlanResource[] = weekPlan
+    ? weekPlan.sections.flatMap((s) => s.resources)
+    : [];
+
+  // De-duplicate resources by ID
+  const resourceMap = new Map<string, WeekPlanResource>();
+  for (const r of allResources) {
+    resourceMap.set(r.id, r);
+  }
+  const uniqueResources = Array.from(resourceMap.values());
 
   // Generate KW options 1-53
   const kwOptions = Array.from({ length: 53 }, (_, i) => i + 1);
@@ -204,7 +309,12 @@ export default function Wochenplan() {
       {!loading && weekPlan && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {weekPlan.sections.map((section) => (
-            <SectionTable key={section.department} section={section} currentKw={kw} />
+            <SectionTable
+              key={section.department}
+              section={section}
+              currentKw={kw}
+              onCellClick={handleCellClick}
+            />
           ))}
 
           {/* Global Capacity Summary */}
@@ -241,19 +351,59 @@ export default function Wochenplan() {
           </Paper>
         </Box>
       )}
+
+      {/* Assignment Dialog */}
+      <AssignmentDialog
+        open={dialogState.open}
+        taskId={dialogState.taskId}
+        date={dialogState.date}
+        dayName={dialogState.dayName}
+        halfDay={dialogState.halfDay}
+        department={dialogState.department}
+        taskInfo={dialogState.taskInfo}
+        existingAssignment={dialogState.existingAssignment}
+        resources={uniqueResources}
+        onSave={handleDialogSave}
+        onClose={handleDialogClose}
+      />
+
+      {/* Success/Error Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }
 
 // ─── Section Table ─────────────────────────────────────
 
-function SectionTable({
-  section,
-  currentKw,
-}: {
+interface SectionTableProps {
   section: Section;
   currentKw: number;
-}) {
+  onCellClick: (
+    taskId: string,
+    date: string,
+    dayName: string,
+    halfDay: HalfDay,
+    department: string,
+    taskInfo: DialogState['taskInfo'],
+    existingAssignment: DayAssignmentDetail | null
+  ) => void;
+}
+
+function SectionTable({ section, currentKw, onCellClick }: SectionTableProps) {
   const hasTasks = section.tasks.length > 0;
 
   return (
@@ -311,7 +461,13 @@ function SectionTable({
             </TableHead>
             <TableBody>
               {section.tasks.map((task) => (
-                <TaskRow key={task.taskId} task={task} currentKw={currentKw} />
+                <TaskRow
+                  key={task.taskId}
+                  task={task}
+                  currentKw={currentKw}
+                  department={section.department}
+                  onCellClick={onCellClick}
+                />
               ))}
             </TableBody>
           </Table>
@@ -323,13 +479,20 @@ function SectionTable({
 
 // ─── Task Row ──────────────────────────────────────────
 
-function TaskRow({
-  task,
-  currentKw,
-}: {
+interface TaskRowProps {
   task: WeekPlanTask;
   currentKw: number;
-}) {
+  department: string;
+  onCellClick: SectionTableProps['onCellClick'];
+}
+
+function TaskRow({ task, currentKw, department, onCellClick }: TaskRowProps) {
+  const taskInfo: DialogState['taskInfo'] = {
+    projectOrderNumber: task.projectOrderNumber,
+    customerName: task.customerName,
+    description: task.description,
+  };
+
   return (
     <TableRow hover>
       <TableCell>
@@ -423,10 +586,17 @@ function TaskRow({
         </Box>
       </TableCell>
 
-      {/* Day assignments */}
+      {/* Day assignments – now clickable */}
       {task.assignments.map((day, idx) => (
         <TableCell key={day.date} sx={{ textAlign: 'center', px: 0.5 }}>
-          <DayCell day={day} dayLabel={DAY_LABELS[idx]} />
+          <DayCell
+            day={day}
+            dayLabel={DAY_LABELS[idx]}
+            taskId={task.taskId}
+            department={department}
+            taskInfo={taskInfo}
+            onCellClick={onCellClick}
+          />
         </TableCell>
       ))}
 
@@ -442,18 +612,61 @@ function TaskRow({
   );
 }
 
-// ─── Day Cell ──────────────────────────────────────────
+// ─── Day Cell (Interactive) ────────────────────────────
 
-function DayCell({
-  day,
-}: {
+interface DayCellProps {
   day: WeekPlanTask['assignments'][number];
   dayLabel: string;
-}) {
+  taskId: string;
+  department: string;
+  taskInfo: DialogState['taskInfo'];
+  onCellClick: SectionTableProps['onCellClick'];
+}
+
+function DayCell({ day, dayLabel, taskId, department, taskInfo, onCellClick }: DayCellProps) {
   const morning = day.morning;
   const afternoon = day.afternoon;
+  const morningDetail = day.morningDetail ?? null;
+  const afternoonDetail = day.afternoonDetail ?? null;
 
-  // If same person for both halves, show once
+  const handleMorningClick = () => {
+    onCellClick(
+      taskId,
+      day.date,
+      day.dayName,
+      'morning',
+      department,
+      taskInfo,
+      morningDetail
+    );
+  };
+
+  const handleAfternoonClick = () => {
+    onCellClick(
+      taskId,
+      day.date,
+      day.dayName,
+      'afternoon',
+      department,
+      taskInfo,
+      afternoonDetail
+    );
+  };
+
+  const handleFullDayClick = () => {
+    // If both are the same person (full_day), open with the morning detail
+    onCellClick(
+      taskId,
+      day.date,
+      day.dayName,
+      morningDetail?.halfDay === 'full_day' ? 'full_day' : 'morning',
+      department,
+      taskInfo,
+      morningDetail
+    );
+  };
+
+  // If same person for both halves, show once (clickable)
   if (morning && afternoon && morning === afternoon) {
     return (
       <Tooltip title={day.notes || day.dayName}>
@@ -462,7 +675,16 @@ function DayCell({
           size="small"
           color={day.isFixed ? 'primary' : 'default'}
           variant={day.isFixed ? 'filled' : 'outlined'}
-          sx={{ fontSize: '0.7rem', height: 22, fontWeight: 600 }}
+          onClick={handleFullDayClick}
+          sx={{
+            fontSize: '0.7rem',
+            height: 22,
+            fontWeight: 600,
+            cursor: 'pointer',
+            '&:hover': {
+              boxShadow: '0 0 0 2px rgba(25, 118, 210, 0.4)',
+            },
+          }}
         />
       </Tooltip>
     );
@@ -470,31 +692,52 @@ function DayCell({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.25 }}>
-      <Tooltip title={morning ? `VM: ${morning}` : 'Vormittag frei'}>
+      {/* Morning */}
+      <Tooltip title={morning ? `VM: ${morning}` : `${dayLabel} VM – Klick zum Zuweisen`}>
         <Chip
           label={morning ? getInitials(morning) : 'FREI'}
           size="small"
           color={morning ? (day.isFixed ? 'primary' : 'default') : 'default'}
           variant={morning ? (day.isFixed ? 'filled' : 'outlined') : 'outlined'}
+          onClick={handleMorningClick}
           sx={{
             fontSize: '0.6rem',
             height: 18,
             fontWeight: morning ? 600 : 400,
             opacity: morning ? 1 : 0.5,
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 1,
+              boxShadow: morning
+                ? '0 0 0 2px rgba(25, 118, 210, 0.4)'
+                : '0 0 0 2px rgba(76, 175, 80, 0.5)',
+              bgcolor: morning ? undefined : 'action.hover',
+            },
           }}
         />
       </Tooltip>
-      <Tooltip title={afternoon ? `NM: ${afternoon}` : 'Nachmittag frei'}>
+
+      {/* Afternoon */}
+      <Tooltip title={afternoon ? `NM: ${afternoon}` : `${dayLabel} NM – Klick zum Zuweisen`}>
         <Chip
           label={afternoon ? getInitials(afternoon) : 'FREI'}
           size="small"
           color={afternoon ? (day.isFixed ? 'primary' : 'default') : 'default'}
           variant={afternoon ? (day.isFixed ? 'filled' : 'outlined') : 'outlined'}
+          onClick={handleAfternoonClick}
           sx={{
             fontSize: '0.6rem',
             height: 18,
             fontWeight: afternoon ? 600 : 400,
             opacity: afternoon ? 1 : 0.5,
+            cursor: 'pointer',
+            '&:hover': {
+              opacity: 1,
+              boxShadow: afternoon
+                ? '0 0 0 2px rgba(25, 118, 210, 0.4)'
+                : '0 0 0 2px rgba(76, 175, 80, 0.5)',
+              bgcolor: afternoon ? undefined : 'action.hover',
+            },
           }}
         />
       </Tooltip>
