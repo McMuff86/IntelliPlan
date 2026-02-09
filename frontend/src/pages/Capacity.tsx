@@ -24,6 +24,7 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import GroupIcon from '@mui/icons-material/Group';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
 import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
 import ConstructionIcon from '@mui/icons-material/Construction';
@@ -111,6 +112,22 @@ const DEPT_ICONS: Record<string, React.ReactNode> = {
 };
 
 const DAY_LABELS = ['Mo', 'Di', 'Mi', 'Do', 'Fr'];
+const TREND_WEEKS = 4;
+
+interface TrendWeekData {
+  kw: number;
+  year: number;
+  from: string;
+  to: string;
+  utilizationPercent: number;
+  totalAssignedHours: number;
+  totalAvailableHours: number;
+  departments: Array<{
+    department: string;
+    label: string;
+    utilizationPercent: number;
+  }>;
+}
 
 // ─── Main Component ────────────────────────────────────
 
@@ -119,6 +136,9 @@ export default function Capacity() {
   const [from, setFrom] = useState(initial.from);
   const [to, setTo] = useState(initial.to);
   const [overview, setOverview] = useState<CapacityOverview | null>(null);
+  const [trendData, setTrendData] = useState<TrendWeekData[]>([]);
+  const [trendLoading, setTrendLoading] = useState(true);
+  const [trendError, setTrendError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedDepts, setExpandedDepts] = useState<Set<string>>(new Set());
@@ -143,6 +163,52 @@ export default function Capacity() {
   useEffect(() => {
     fetchCapacity();
   }, [fetchCapacity]);
+
+  const fetchTrendData = useCallback(async () => {
+    setTrendLoading(true);
+    setTrendError(null);
+    try {
+      const ranges = Array.from({ length: TREND_WEEKS }, (_, index) => {
+        const delta = index - (TREND_WEEKS - 1); // oldest -> newest
+        return weekOffset(from, to, delta);
+      });
+      const overviews = await Promise.all(
+        ranges.map((range) => capacityService.getOverview(range.from, range.to))
+      );
+
+      const mapped = overviews.map((item, idx) => {
+        const range = ranges[idx];
+        const rangeDate = new Date(`${range.from}T00:00:00Z`);
+        return {
+          kw: getISOWeekNumber(range.from),
+          year: rangeDate.getUTCFullYear(),
+          from: range.from,
+          to: range.to,
+          utilizationPercent: item.utilizationPercent,
+          totalAssignedHours: item.totalAssignedHours,
+          totalAvailableHours: item.totalAvailableHours,
+          departments: item.departments.map((dept) => ({
+            department: dept.department,
+            label: dept.label,
+            utilizationPercent: dept.utilizationPercent,
+          })),
+        };
+      });
+
+      setTrendData(mapped);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Fehler beim Laden der Trenddaten';
+      setTrendError(msg);
+      setTrendData([]);
+    } finally {
+      setTrendLoading(false);
+    }
+  }, [from, to]);
+
+  useEffect(() => {
+    fetchTrendData();
+  }, [fetchTrendData]);
 
   const handlePrev = () => {
     const next = weekOffset(from, to, -1);
@@ -291,6 +357,17 @@ export default function Capacity() {
               </Box>
             )}
           </Paper>
+
+          <MultiWeekTrend
+            data={trendData}
+            loading={trendLoading}
+            error={trendError}
+            weeks={TREND_WEEKS}
+            departments={overview.departments.map((dept) => ({
+              department: dept.department,
+              label: dept.label,
+            }))}
+          />
 
           {/* Department Cards Grid */}
           <Grid container spacing={2}>
@@ -601,8 +678,9 @@ function PeriodCell({ period }: { period: PeriodCapacity }) {
 interface MultiWeekTrendProps {
   data: TrendWeekData[];
   loading: boolean;
+  error: string | null;
   weeks: number;
-  departments: { department: string; label: string }[];
+  departments: Array<{ department: string; label: string }>;
 }
 
 const TREND_DEPT_COLORS: Record<string, string> = {
@@ -616,37 +694,56 @@ const TREND_DEPT_COLORS: Record<string, string> = {
   buero: '#546e7a',
 };
 
-function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendProps) {
+function MultiWeekTrend({
+  data,
+  loading,
+  error,
+  weeks,
+  departments,
+}: MultiWeekTrendProps) {
   if (loading) {
     return (
-      <Paper sx={{ p: 3, mb: 3, display: 'flex', justifyContent: 'center' }}>
+      <Paper sx={{ p: 3, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <CircularProgress size={24} />
         <Typography variant="body2" sx={{ ml: 2 }}>
-          Lade {weeks}-Wochen-Trend…
+          Lade {weeks}-Wochen-Trend...
         </Typography>
       </Paper>
     );
   }
 
+  if (error) {
+    return <Alert severity="warning">Trenddaten konnten nicht geladen werden: {error}</Alert>;
+  }
+
   if (data.length === 0) return null;
 
-  // Get unique departments from all trend data
   const allDepts = new Set<string>();
   for (const week of data) {
-    for (const d of week.departments) {
-      allDepts.add(d.department);
+    for (const dept of week.departments) {
+      allDepts.add(dept.department);
     }
   }
-  const deptList = departments.filter((d) => allDepts.has(d.department));
+
+  const departmentLabelMap = new Map(
+    departments.map((dept) => [dept.department, dept.label] as const)
+  );
+  const deptList = Array.from(allDepts).map((department) => ({
+    department,
+    label: departmentLabelMap.get(department) ?? department,
+  }));
 
   return (
-    <Paper sx={{ p: 3, mb: 3 }}>
-      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Paper sx={{ p: 3 }}>
+      <Typography
+        variant="h6"
+        gutterBottom
+        sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+      >
         <TrendingUpIcon />
         {weeks}-Wochen-Trend
       </Typography>
 
-      {/* Overall utilization bars */}
       <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle2" gutterBottom>
           Gesamtauslastung
@@ -654,11 +751,13 @@ function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendPro
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end', height: 120 }}>
           {data.map((week) => (
             <Tooltip
-              key={week.kw}
+              key={`${week.year}-${week.kw}`}
               title={`KW ${week.kw}: ${week.utilizationPercent}% (${week.totalAssignedHours}h / ${week.totalAvailableHours}h)`}
               arrow
             >
-              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <Box
+                sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+              >
                 <Box
                   sx={{
                     width: '100%',
@@ -687,7 +786,6 @@ function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendPro
         </Box>
       </Box>
 
-      {/* Per-department trend */}
       {deptList.length > 0 && (
         <>
           <Typography variant="subtitle2" gutterBottom>
@@ -697,9 +795,12 @@ function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendPro
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Abteilung</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 110 }}>Abteilung</TableCell>
                   {data.map((week) => (
-                    <TableCell key={week.kw} sx={{ fontWeight: 700, textAlign: 'center', minWidth: 60 }}>
+                    <TableCell
+                      key={`${week.year}-${week.kw}`}
+                      sx={{ fontWeight: 700, textAlign: 'center', minWidth: 70 }}
+                    >
                       KW {week.kw}
                     </TableCell>
                   ))}
@@ -715,11 +816,14 @@ function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendPro
                     </TableCell>
                     {data.map((week) => {
                       const deptData = week.departments.find(
-                        (d) => d.department === dept.department
+                        (entry) => entry.department === dept.department
                       );
                       const pct = deptData?.utilizationPercent ?? 0;
                       return (
-                        <TableCell key={week.kw} sx={{ textAlign: 'center', p: 0.5 }}>
+                        <TableCell
+                          key={`${week.year}-${week.kw}-${dept.department}`}
+                          sx={{ textAlign: 'center', p: 0.5 }}
+                        >
                           <Tooltip title={`${dept.label} KW ${week.kw}: ${pct}%`}>
                             <Box
                               sx={{
@@ -743,7 +847,7 @@ function MultiWeekTrend({ data, loading, weeks, departments }: MultiWeekTrendPro
                                     width: `${Math.min(pct, 100)}%`,
                                     height: '100%',
                                     bgcolor:
-                                      TREND_DEPT_COLORS[dept.department] || '#757575',
+                                      TREND_DEPT_COLORS[dept.department] ?? '#757575',
                                     borderRadius: 4,
                                     transition: 'width 0.3s ease',
                                   }}

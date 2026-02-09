@@ -27,7 +27,6 @@ import ResourceEditDialog from './ResourceEditDialog';
 import {
   mitarbeiterService,
   type ResourceWeekSchedule,
-  type ResourceSlot,
 } from '../../services/mitarbeiterService';
 
 // ─── Constants ─────────────────────────────────────────
