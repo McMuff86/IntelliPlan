@@ -107,6 +107,99 @@ export interface ConflictResponse {
   conflicts: ResourceConflict[];
 }
 
+// ─── Batch Assign Types ────────────────────────────────
+
+export interface QuickAssignInput {
+  taskId: string;
+  resourceId: string;
+  date: string;
+  halfDay: string;
+  isFixed?: boolean;
+  statusCode?: string;
+  notes?: string;
+}
+
+export interface QuickAssignResponse {
+  created: number;
+  conflicts: ResourceConflict[];
+  assignments: {
+    id: string;
+    taskId: string;
+    resourceId: string;
+    date: string;
+    halfDay: string;
+    isFixed: boolean;
+    statusCode: string;
+  }[];
+}
+
+// ─── Copy Week Types ──────────────────────────────────
+
+export interface CopyWeekRequest {
+  sourceKw: number;
+  sourceYear: number;
+  targetKw: number;
+  targetYear: number;
+  options?: { includeAssignments?: boolean };
+}
+
+export interface CopyWeekResponse {
+  copiedPhaseSchedules: number;
+  copiedAssignments: number;
+  targetKw: number;
+  targetYear: number;
+}
+
+// ─── Unassigned Types ─────────────────────────────────
+
+export interface UnassignedTask {
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  installationLocation: string;
+  phases: { phase: string; plannedKw: number | null }[];
+}
+
+export interface UnassignedByDepartment {
+  department: string;
+  label: string;
+  tasks: UnassignedTask[];
+}
+
+export interface UnassignedResponse {
+  kw: number;
+  year: number;
+  totalUnassigned: number;
+  departments: UnassignedByDepartment[];
+}
+
+// ─── Phase Matrix Types ───────────────────────────────
+
+export interface PhaseMatrixEntry {
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  weeks: { kw: number; phases: string[] }[];
+}
+
+export interface PhaseMatrixResponse {
+  fromKw: number;
+  toKw: number;
+  year: number;
+  kwRange: number[];
+  tasks: PhaseMatrixEntry[];
+}
+
+// ─── Batch Assign Error Response ──────────────────────
+
+export interface BatchAssignConflictResponse {
+  success: false;
+  error: string;
+  data: { conflicts: ResourceConflict[] };
+}
+
 // ─── Service ───────────────────────────────────────────
 
 export const wochenplanService = {
@@ -118,14 +211,45 @@ export const wochenplanService = {
   },
 
   async getConflicts(kw: number, year: number): Promise<ConflictResponse> {
-    try {
-      const response = await api.get<ApiResponse<ConflictResponse>>(
-        `/wochenplan/conflicts?kw=${kw}&year=${year}`
-      );
-      return response.data.data;
-    } catch {
-      // TODO: API endpoint may not exist yet – return empty conflicts
-      return { conflicts: [] };
-    }
+    const response = await api.get<ApiResponse<ConflictResponse>>(
+      `/wochenplan/conflicts?kw=${kw}&year=${year}`
+    );
+    return response.data.data;
+  },
+
+  async assignBatch(assignments: QuickAssignInput[]): Promise<QuickAssignResponse> {
+    const response = await api.post<ApiResponse<QuickAssignResponse>>(
+      '/wochenplan/assign',
+      { assignments }
+    );
+    return response.data.data;
+  },
+
+  async copyWeek(request: CopyWeekRequest): Promise<CopyWeekResponse> {
+    const response = await api.post<ApiResponse<CopyWeekResponse>>(
+      '/wochenplan/copy',
+      request
+    );
+    return response.data.data;
+  },
+
+  async getUnassigned(kw: number, year: number): Promise<UnassignedResponse> {
+    const response = await api.get<ApiResponse<UnassignedResponse>>(
+      `/wochenplan/unassigned?kw=${kw}&year=${year}`
+    );
+    return response.data.data;
+  },
+
+  async getPhaseMatrix(fromKw: number, toKw: number, year: number): Promise<PhaseMatrixResponse> {
+    const response = await api.get<ApiResponse<PhaseMatrixResponse>>(
+      `/wochenplan/phase-matrix?from_kw=${fromKw}&to_kw=${toKw}&year=${year}`
+    );
+    return response.data.data;
+  },
+
+  getExportCsvUrl(kw: number, year: number, department?: string): string {
+    let url = `/api/export/wochenplan/csv?kw=${kw}&year=${year}`;
+    if (department) url += `&department=${encodeURIComponent(department)}`;
+    return url;
   },
 };

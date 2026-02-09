@@ -14,7 +14,7 @@ import {
 import SearchIcon from '@mui/icons-material/Search';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
 import type { WeekPlanResource } from '../../services/wochenplanService';
-import { assignmentService } from '../../services/assignmentService';
+import { wochenplanService } from '../../services/wochenplanService';
 import type { HalfDay } from '../../services/assignmentService';
 
 export interface SelectedCell {
@@ -85,36 +85,38 @@ export default function QuickAssignPopover({
       setAssigning(true);
       setError(null);
       try {
-        // Assign to the primary cell
-        await assignmentService.createAssignment(taskId, {
-          resourceId,
-          assignmentDate: date,
-          halfDay,
-        });
-
-        // Assign to all batch-selected cells
+        // Collect all cells: primary + batch (deduplicated)
+        const allCells: SelectedCell[] = [
+          { taskId, date, halfDay, department },
+        ];
         for (const cell of batchCells) {
-          // Skip if same as primary cell
           if (cell.taskId === taskId && cell.date === date && cell.halfDay === halfDay) {
             continue;
           }
-          try {
-            await assignmentService.createAssignment(cell.taskId, {
-              resourceId,
-              assignmentDate: cell.date,
-              halfDay: cell.halfDay,
-            });
-          } catch {
-            // Skip conflicts on individual batch cells
-          }
+          allCells.push(cell);
         }
 
+        const assignments = allCells.map((cell) => ({
+          taskId: cell.taskId,
+          resourceId,
+          date: cell.date,
+          halfDay: cell.halfDay,
+        }));
+
+        await wochenplanService.assignBatch(assignments);
         onAssigned();
       } catch (err: unknown) {
         if (err && typeof err === 'object' && 'response' in err) {
-          const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
+          const axiosErr = err as { response?: { status?: number; data?: { error?: string; data?: { conflicts?: unknown[] } } } };
           if (axiosErr.response?.status === 409) {
-            setError('Bereits zugewiesen');
+            const conflicts = axiosErr.response?.data?.data?.conflicts ?? [];
+            const totalCells = batchCells.length + 1;
+            const conflictCount = conflicts.length;
+            if (conflictCount > 0 && totalCells > 1) {
+              setError(`${totalCells - conflictCount} von ${totalCells} zugewiesen, ${conflictCount} Konflikte`);
+            } else {
+              setError('Bereits zugewiesen');
+            }
           } else {
             setError(axiosErr.response?.data?.error || 'Fehler');
           }
@@ -124,7 +126,7 @@ export default function QuickAssignPopover({
         setAssigning(false);
       }
     },
-    [taskId, date, halfDay, batchCells, onAssigned]
+    [taskId, date, halfDay, department, batchCells, onAssigned]
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
