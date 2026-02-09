@@ -104,6 +104,8 @@ export interface ResourceConflict {
 }
 
 export interface ConflictResponse {
+  kw?: number;
+  year?: number;
   conflicts: ResourceConflict[];
 }
 
@@ -118,14 +120,9 @@ export const wochenplanService = {
   },
 
   async getConflicts(kw: number, year: number): Promise<ConflictResponse> {
-    try {
-      const response = await api.get<ApiResponse<ConflictResponse>>(
-        `/wochenplan/conflicts?kw=${kw}&year=${year}`
-      );
-      return response.data.data;
-    } catch {
-      // TODO: API endpoint may not exist yet – return empty conflicts
-      return { conflicts: [] };
-    }
+    const response = await api.get<ApiResponse<ConflictResponse>>(
+      `/wochenplan/conflicts?kw=${kw}&year=${year}`
+    );
+    return response.data.data;
   },
 };

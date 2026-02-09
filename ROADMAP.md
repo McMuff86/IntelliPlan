@@ -8,15 +8,10 @@ Stand: 2026-02-09
 - `main` ist synchron mit `origin/main`.
 - Letzter Remote-Commit: `9d78d08` (2026-02-07).
 - Backend-Qualitaet: `25` Testfiles, `475` Tests, alle gruen (`cd backend && npm test`).
-- Frontend-Qualitaet: Build aktuell rot (`cd frontend && npm run build`).
+- Frontend-Qualitaet: Build gruen (`cd frontend && npm run build`, Stand 2026-02-09).
 
 ### Aktuelle harte Blocker fuer Praxistauglichkeit (P0)
-1. Frontend TypeScript/Build-Fehler in:
-   - `frontend/src/pages/Capacity.tsx`
-   - `frontend/src/components/mitarbeiter/ResourceDetailPanel.tsx`
-   - `frontend/src/services/assignmentService.ts`
-2. API-Contract Drift zwischen Frontend und Backend (Resource-/Wochenplan-Modelle).
-3. Teilweise noch Fallback-Logik im Frontend fuer Endpunkte, die mittlerweile existieren.
+1. Manueller Smoke-Test fuer Kern-Views (Wochenplan, Capacity, Mitarbeiter) noch ausstehend.
 
 ## 2. Letzte relevante Commits (GitHub/Remote)
 
@@ -46,15 +41,15 @@ Stand: 2026-02-09
 **Ziel:** Build gruen, Contract konsistent, keine stillen Fallbacks.
 
 **Arbeitspakete:**
-- Frontend Build-Fehler beheben (Capacity/ResourceDetailPanel/assignmentService).
-- Frontend- und Backend-Resource-Typen vereinheitlichen.
-- Veraltete TODO/Fallbacks entfernen oder auf echten Feature-Flags umstellen.
-- Kurzer Smoke-Test-Run fuer Kern-Views (Wochenplan, Capacity, Mitarbeiter).
+- [x] Frontend Build-Fehler beheben (Capacity/ResourceDetailPanel/assignmentService).
+- [x] Frontend- und Backend-Resource-Typen vereinheitlichen.
+- [x] Veraltete TODO/Fallbacks entfernen oder auf echten Feature-Flags umstellen.
+- [ ] Kurzer Smoke-Test-Run fuer Kern-Views (Wochenplan, Capacity, Mitarbeiter).
 
 **Exit-Kriterien:**
-- `cd frontend && npm run build` ist gruen.
-- `cd backend && npm test` bleibt gruen.
-- Keine API-Contract-Mismatch-Workarounds mehr in Kernpfaden.
+- [x] `cd frontend && npm run build` ist gruen.
+- [x] `cd backend && npm test` bleibt gruen.
+- [x] Keine API-Contract-Mismatch-Workarounds mehr in Kernpfaden.
 
 ## Phase 1 - Wochenplan End-to-End schliessen (1-2 Wochen)
 **Ziel:** Die bereits gebauten Backend-Features sind voll in der UI nutzbar.

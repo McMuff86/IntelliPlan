@@ -27,6 +27,7 @@ import ResourceEditDialog from './ResourceEditDialog';
 import {
   mitarbeiterService,
   type ResourceWeekSchedule,
+  type ResourceScheduleSlot,
 } from '../../services/mitarbeiterService';
 
 // ─── Constants ─────────────────────────────────────────
@@ -367,7 +368,7 @@ function InfoRow({
   );
 }
 
-function SlotDetail({ slot }: { slot: import('../../services/mitarbeiterService').ResourceSlot | null }) {
+function SlotDetail({ slot }: { slot: ResourceScheduleSlot | null }) {
   if (!slot) {
     return (
       <Chip

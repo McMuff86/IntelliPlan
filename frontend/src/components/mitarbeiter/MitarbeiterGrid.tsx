@@ -16,7 +16,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import type {
   ResourceOverviewEntry,
-  ResourceSlot,
+  ResourceOverviewSlot,
 } from '../../services/mitarbeiterService';
 
 // ─── Constants ─────────────────────────────────────────
@@ -40,9 +40,6 @@ const STATUS_BG_COLORS: Record<string, string> = {
   training: '#f5f5f5',
   other: '#f5f5f5',
 };
-
-const FIX_COLOR = '#c62828'; // Red for FIX
-const FIX_BG = '#ffebee';
 
 const WORK_ROLE_LABELS: Record<string, string> = {
   arbeiter: 'Arb.',
@@ -364,8 +361,8 @@ function ResourceRow({ resource, onResourceClick, onCellClick }: ResourceRowProp
 // ─── Day Cells (Morning + Afternoon) ──────────────────
 
 interface DayCellsProps {
-  morning: ResourceSlot | null;
-  afternoon: ResourceSlot | null;
+  morning: ResourceOverviewSlot | null;
+  afternoon: ResourceOverviewSlot | null;
   date: string;
   dayName: string;
   onCellClick: (taskId: string | null) => void;
@@ -407,7 +404,7 @@ function DayCells({ morning, afternoon, date, dayName, onCellClick }: DayCellsPr
 // ─── Slot Chip ─────────────────────────────────────────
 
 interface SlotChipProps {
-  slot: ResourceSlot | null;
+  slot: ResourceOverviewSlot | null;
   halfLabel: string;
   date: string;
   dayName: string;
@@ -439,34 +436,28 @@ function SlotChip({ slot, halfLabel, date, dayName, onClick }: SlotChipProps) {
     );
   }
 
-  const isFixed = slot.isFixed;
   const status = slot.statusCode || 'assigned';
-  const bgColor = isFixed ? FIX_BG : STATUS_BG_COLORS[status] || STATUS_BG_COLORS.assigned;
-  const textColor = isFixed ? FIX_COLOR : STATUS_COLORS[status] || STATUS_COLORS.assigned;
+  const bgColor = STATUS_BG_COLORS[status] || STATUS_BG_COLORS.assigned;
+  const textColor = STATUS_COLORS[status] || STATUS_COLORS.assigned;
 
-  // Display text: project order number abbreviation or status
+  // Display text: status keyword or short assignment label
   let label = '';
   if (status === 'sick') label = 'KRANK';
   else if (status === 'vacation') label = 'FERIEN';
   else if (status === 'training') label = 'KURS';
   else if (status === 'other') label = 'ANDERE';
-  else if (slot.projectOrderNumber) {
-    // Abbreviate: take first 6 chars
-    label = slot.projectOrderNumber.length > 6
-      ? slot.projectOrderNumber.substring(0, 6)
-      : slot.projectOrderNumber;
+  else if (slot.shortLabel) {
+    label = slot.shortLabel.length > 6
+      ? slot.shortLabel.substring(0, 6)
+      : slot.shortLabel;
   } else {
-    label = isFixed ? 'FIX' : '●';
+    label = '●';
   }
 
   // Tooltip
   const tooltipLines: string[] = [];
-  if (slot.projectOrderNumber) tooltipLines.push(`Auftrag: ${slot.projectOrderNumber}`);
-  if (slot.customerName) tooltipLines.push(`Kunde: ${slot.customerName}`);
-  if (slot.description) tooltipLines.push(`Arbeit: ${slot.description}`);
-  if (slot.installationLocation) tooltipLines.push(`Ort: ${slot.installationLocation}`);
-  if (isFixed) tooltipLines.push('⚡ FIX');
-  if (slot.notes) tooltipLines.push(`Notiz: ${slot.notes}`);
+  if (slot.shortLabel) tooltipLines.push(slot.shortLabel);
+  if (status && status !== 'assigned') tooltipLines.push(`Status: ${status}`);
   tooltipLines.push(`${dayName} ${halfLabel} · ${date}`);
 
   return (
@@ -480,7 +471,7 @@ function SlotChip({ slot, halfLabel, date, dayName, onClick }: SlotChipProps) {
           justifyContent: 'center',
           borderRadius: 1,
           bgcolor: bgColor,
-          border: isFixed ? `2px solid ${FIX_COLOR}` : '1px solid transparent',
+          border: '1px solid transparent',
           cursor: slot.taskId ? 'pointer' : 'default',
           transition: 'all 0.15s',
           '&:hover': slot.taskId

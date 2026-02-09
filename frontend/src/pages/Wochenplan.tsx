@@ -296,7 +296,7 @@ export default function Wochenplan() {
       return;
     }
 
-    // Otherwise, open full dialog (for editing existing assignments or fallback)
+    // Otherwise, open full dialog (for editing existing assignments)
     clearSelection();
     setDialogState({
       open: true,
