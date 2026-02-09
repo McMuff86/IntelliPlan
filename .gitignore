@@ -49,6 +49,7 @@ archive/
 
 # Beads (if used)
 *.bead
+.beads/
 
 # Python (if using Python backend/AI)
 __pycache__/
