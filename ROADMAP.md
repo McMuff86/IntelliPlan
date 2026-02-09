@@ -1,6 +1,6 @@
 # IntelliPlan ROADMAP
 
-Stand: 2026-02-09
+Stand: 2026-02-10
 
 ## 1. Ist-Stand (nach Merge PR #11)
 
@@ -28,6 +28,21 @@ Stand: 2026-02-09
   - `GET /api/wochenplan/resources`
   - `GET /api/wochenplan/resource/:resourceId`
 - CSV-Export Endpoint ist implementiert:
+  - `GET /api/export/wochenplan/csv`
+- **Phase 1A (Nightly 10.02.2026) — Frontend Integration abgeschlossen:**
+  - `wochenplanService` erweitert: `assignBatch`, `copyWeek`, `getUnassigned`, `getPhaseMatrix`, `getExportCsvUrl`
+  - QuickAssignPopover auf Batch-Assign umgestellt (ein Request statt Schleife)
+  - Copy-Week Dialog in Wochenplan-UI
+  - CSV-Export Button in Wochenplan-UI
+  - Unassigned-Anzeige unter Kapazitaetsuebersicht
+  - Phase-Matrix Drawer (7-Wochen-Uebersicht)
+- **Phase 1A.1 (Nightly 10.02.2026) — Bruecke Projekt→Wochenplan:**
+  - `autoScheduleProjectTasks` publiziert jetzt nach `task_phase_schedules` (UPSERT)
+  - Phase-Code Mapping (ZUS→zuschnitt, CNC→cnc, etc.)
+  - ISO-Week Berechnung aus due_date
+  - Frontend Types: `phaseCode`, `plannedWeek`, `plannedYear` auf Task
+- Backend: 479 Tests gruen (4 neue), Frontend Build gruen
+- Branch: `nightly/10-02-intelliplan-phase1a` (ready for review)
   - `GET /api/export/wochenplan/csv`
 
 ## 3. Aktuelle Luecken (naechster Fokus)
