@@ -15,6 +15,8 @@ import {
   createDependency,
   shiftTaskWithDependents,
   shiftProjectSchedule,
+  autoScheduleProjectTasks,
+  getISOWeek,
 } from '../taskService';
 import { pool } from '../../config/database';
 
@@ -184,6 +186,90 @@ describe('taskService', () => {
 
       const result = await createDependency('nonexistent', 'user-1', 'task-2', 'finish_start');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getISOWeek', () => {
+    it('should return correct ISO week for a known date', () => {
+      // 2026-02-10 is a Tuesday in ISO week 7
+      const result = getISOWeek(new Date(2026, 1, 10));
+      expect(result.kw).toBe(7);
+      expect(result.year).toBe(2026);
+    });
+
+    it('should handle year boundary correctly', () => {
+      // 2025-12-29 (Monday) is ISO week 1 of 2026
+      const result = getISOWeek(new Date(2025, 11, 29));
+      expect(result.kw).toBe(1);
+      expect(result.year).toBe(2026);
+    });
+  });
+
+  describe('autoScheduleProjectTasks', () => {
+    it('should publish to task_phase_schedules when task has phase_code', async () => {
+      const task = {
+        id: 'task-1',
+        project_id: 'proj-1',
+        owner_id: 'user-1',
+        title: 'Zuschnitt Platte',
+        duration_minutes: 60,
+        phase_code: 'ZUS',
+        status: 'planned',
+      };
+
+      // 1: SELECT tasks
+      // 2: DELETE work_slots
+      // 3: UPDATE tasks (start/due date)
+      // 4: INSERT work_slot
+      // 5: INSERT task_phase_schedules (publish)
+      mockedPool.query
+        .mockResolvedValueOnce({ rows: [task], rowCount: 1 } as any) // SELECT
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any) // DELETE slots
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any) // UPDATE task dates
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any) // INSERT work_slot
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any); // INSERT phase_schedule
+
+      const result = await autoScheduleProjectTasks(
+        'proj-1', 'user-1', ['task-1'],
+        '2026-02-13', false, '08:00', '17:00'
+      );
+
+      expect(result.scheduledTaskIds).toContain('task-1');
+
+      // Find the phase_schedule INSERT call
+      const calls = mockedPool.query.mock.calls;
+      const phaseCall = calls.find(
+        (c) => typeof c[0] === 'string' && c[0].includes('task_phase_schedules')
+      );
+      expect(phaseCall).toBeDefined();
+      expect(phaseCall![1]![0]).toBe('task-1'); // task_id
+      expect(phaseCall![1]![1]).toBe('zuschnitt'); // mapped phase
+    });
+
+    it('should add warning when task has no phase_code', async () => {
+      const task = {
+        id: 'task-2',
+        project_id: 'proj-1',
+        owner_id: 'user-1',
+        title: 'Generic Task',
+        duration_minutes: 60,
+        phase_code: null,
+        status: 'planned',
+      };
+
+      mockedPool.query
+        .mockResolvedValueOnce({ rows: [task], rowCount: 1 } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);
+
+      const result = await autoScheduleProjectTasks(
+        'proj-1', 'user-1', ['task-2'],
+        '2026-02-13', false, '08:00', '17:00'
+      );
+
+      expect(result.scheduledTaskIds).toContain('task-2');
+      expect(result.warnings.some((w) => w.includes('phase_code'))).toBe(true);
     });
   });
 
