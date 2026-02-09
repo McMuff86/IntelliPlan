@@ -95,6 +95,7 @@ export const assignmentService = {
       department: (r.department as string) || null,
       employeeType: (r.employeeType as string) || null,
       weeklyHours: (r.weeklyHours as number) || 42.5,
+      workRole: (r.workRole as string) || 'arbeiter',
     }));
   },
 };
