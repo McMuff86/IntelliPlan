@@ -329,13 +329,15 @@ export default function Wochenplan() {
     setQuickAssign((s) => ({ ...s, open: false, anchorEl: null }));
   };
 
-  const handleQuickAssigned = async () => {
-    const count = selectedCells.length;
+  const handleQuickAssigned = async (createdAssignments: number) => {
     handleQuickAssignClose();
     clearSelection();
+    const successCount = Math.max(1, createdAssignments);
     setSnackbar({
       open: true,
-      message: count > 0 ? `${count + 1} Zuordnungen gespeichert` : 'Zuordnung gespeichert',
+      message: successCount === 1
+        ? 'Zuordnung gespeichert'
+        : `${successCount} Zuordnungen gespeichert`,
       severity: 'success',
     });
     await fetchWeekPlan();

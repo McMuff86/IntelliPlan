@@ -109,6 +109,34 @@ export interface ConflictResponse {
   conflicts: ResourceConflict[];
 }
 
+// ─── Batch Assign Types ───────────────────────────────
+
+export type AssignHalfDay = 'morning' | 'afternoon' | 'full_day';
+
+export interface BatchAssignItem {
+  taskId: string;
+  resourceId: string;
+  date: string;
+  halfDay: AssignHalfDay;
+  isFixed?: boolean;
+  statusCode?: string;
+  notes?: string;
+}
+
+export interface BatchAssignResult {
+  created: number;
+  conflicts: ResourceConflict[];
+  assignments: Array<{
+    id: string;
+    taskId: string;
+    resourceId: string;
+    date: string;
+    halfDay: AssignHalfDay;
+    isFixed: boolean;
+    statusCode: string;
+  }>;
+}
+
 // ─── Service ───────────────────────────────────────────
 
 export const wochenplanService = {
@@ -122,6 +150,14 @@ export const wochenplanService = {
   async getConflicts(kw: number, year: number): Promise<ConflictResponse> {
     const response = await api.get<ApiResponse<ConflictResponse>>(
       `/wochenplan/conflicts?kw=${kw}&year=${year}`
+    );
+    return response.data.data;
+  },
+
+  async assignBatch(assignments: BatchAssignItem[]): Promise<BatchAssignResult> {
+    const response = await api.post<ApiResponse<BatchAssignResult>>(
+      '/wochenplan/assign',
+      { assignments }
     );
     return response.data.data;
   },

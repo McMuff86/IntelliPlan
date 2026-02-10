@@ -55,10 +55,10 @@ Stand: 2026-02-09
 **Ziel:** Die bereits gebauten Backend-Features sind voll in der UI nutzbar.
 
 **Arbeitspakete:**
-- Batch-Assign (`POST /api/wochenplan/assign`) in Wochenplan-UI verdrahten.
-- Copy-Week, Unassigned-View, Phase-Matrix im Frontend aktiv nutzen.
-- CSV-Export aus UI nutzbar machen.
-- URL-Sync + "Heute"-Navigation konsistent umsetzen.
+- [x] Batch-Assign (`POST /api/wochenplan/assign`) in Wochenplan-UI verdrahten.
+- [ ] Copy-Week, Unassigned-View, Phase-Matrix im Frontend aktiv nutzen.
+- [ ] CSV-Export aus UI nutzbar machen.
+- [ ] URL-Sync + "Heute"-Navigation konsistent umsetzen.
 
 **Exit-Kriterien:**
 - Alle relevanten Wochenplan-Endpunkte haben produktive UI-Flows.
