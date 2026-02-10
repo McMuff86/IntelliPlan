@@ -207,7 +207,7 @@ npm run typecheck    # TypeScript Type Checking
 
 ## 📐 Codebase Patterns
 
-Diese Patterns wurden während der Entwicklung mit Ralph entdeckt und sollten konsistent angewendet werden.
+Diese Patterns wurden während der Entwicklung entdeckt und sollten konsistent angewendet werden.
 
 ### Datenbank-Patterns
 
@@ -462,33 +462,6 @@ npm test                # Läuft auch Integration Tests mit
 - Prüfe ob vorherige Migrationen erfolgreich waren
 - Manuelle Prüfung: `psql -U postgres -d intelliplan -c "\dt"`
 
-## 🤖 Ralph Autonomous Agent
-
-IntelliPlan wird mit dem **Ralph Pattern** entwickelt - einem autonomen AI Agent Loop, der [Amp](https://ampcode.com) verwendet.
-
-**Key Concepts:**
-
-- Jede Iteration = frische Amp-Instanz mit clean context
-- Memory via git history, `progress.txt`, `prd.json`
-- Kleine User Stories (1 Context Window)
-- Automatische Updates von AGENTS.md mit Learnings
-
-**Wichtige Dateien:**
-
-- `prd.json`: User Stories mit `passes` Status
-- `progress.txt`: Learnings aus vergangenen Iterationen
-- `scripts/ralph/ralph.sh`: Der Bash-Loop
-- `scripts/ralph/prompt.md`: Instruktionen für Amp
-- `AGENTS.md`: Entwickler-Referenz und Patterns
-
-**Ralph starten:**
-
-```bash
-./scripts/ralph/ralph.sh [max_iterations]
-```
-
-**Mehr Details:** [scripts/ralph/README.md](scripts/ralph/README.md)
-
 ## 📦 Dependencies
 
 ### Backend
@@ -512,7 +485,7 @@ IntelliPlan wird mit dem **Ralph Pattern** entwickelt - einem autonomen AI Agent
 ### Branch Strategy
 
 - `main`: Production-ready Code
-- `feature/*`: Feature Branches (von Ralph erstellt)
+- `feature/*`: Feature Branches
 - `hotfix/*`: Bugfixes
 
 ### Commit Messages
@@ -568,9 +541,8 @@ npm run lint --fix  # Auto-Fix
 ## 📚 Weitere Ressourcen
 
 - [README.md](README.md): Hauptdokumentation für End-User
-- [AGENTS.md](AGENTS.md): Ralph Pattern und Agent Instructions
+- [AGENTS.md](AGENTS.md): Agent Instructions
 - [IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md): Implementierungs-Zusammenfassung
-- [scripts/ralph/README.md](scripts/ralph/README.md): Ralph Dokumentation
 - [tasks/](tasks/): PRD-Dokumente für Features
 
 ---

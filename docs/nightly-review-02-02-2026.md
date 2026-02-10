@@ -15,7 +15,7 @@
 
 ### Abgeschlossene PRD-Runden
 - **Task Planning** (US-TP-001 bis US-TP-012) – Projekte, Tasks, Work Slots, Dependencies, Timeline
-- **Beads Integration** (US-015) – Memory Management für Ralph Loop
+- **Beads Integration** (US-015) – Memory Management für Agent-Loop
 - **AI Conflict Resolution** (US-016) – 5 Strategien für Terminoptimierung
 - **Reverse Planning** (US-017) – Rückwärtsplanung von Deadlines
 - **Auth + DSGVO** (US-018) – Basis-Authentifizierung, Datenschutz
