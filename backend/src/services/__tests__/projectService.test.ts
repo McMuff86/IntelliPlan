@@ -41,6 +41,9 @@ function makeProject(overrides: Partial<Project> = {}): Project {
     worker_count: null,
     helper_count: null,
     remarks: null,
+    target_end_date: null,
+    priority: 'normal',
+    risk_level: 'medium',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
     deleted_at: null,
@@ -127,6 +130,19 @@ describe('toProjectResponse', () => {
     expect(response.workerCount).toBe(2.5);
     expect(response.helperCount).toBe(0);
   });
+
+  it('should map project-first planning fields', () => {
+    const project = makeProject({
+      target_end_date: '2026-06-30',
+      priority: 'high',
+      risk_level: 'critical',
+    });
+    const response = toProjectResponse(project);
+
+    expect(response.targetEndDate).toBe('2026-06-30');
+    expect(response.priority).toBe('high');
+    expect(response.riskLevel).toBe('critical');
+  });
 });
 
 // ─── createProject ─────────────────────────────────────
@@ -174,9 +190,9 @@ describe('createProject', () => {
     expect(result.needs_callback).toBe(true);
     expect(result.worker_count).toBe(2);
 
-    // Verify the INSERT query was called with 19 params
+    // Verify the INSERT query was called with 22 params
     const call = mockedPool.query.mock.calls[0];
-    expect(call[1]).toHaveLength(19);
+    expect(call[1]).toHaveLength(22);
     expect(call[1]![8]).toBe('2026-100');  // order_number
     expect(call[1]![14]).toBe(true);       // needs_callback
     expect(call[1]![16]).toBe(2);          // worker_count
@@ -197,6 +213,9 @@ describe('createProject', () => {
     expect(call[1]![14]).toBe(false); // needs_callback default
     expect(call[1]![16]).toBeNull();  // worker_count
     expect(call[1]![18]).toBeNull();  // remarks
+    expect(call[1]![19]).toBeNull();  // target_end_date
+    expect(call[1]![20]).toBe('normal'); // priority
+    expect(call[1]![21]).toBe('medium'); // risk_level
   });
 });
 

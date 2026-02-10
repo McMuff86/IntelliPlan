@@ -107,6 +107,9 @@ export interface Team {
 export type TaskStatus = "planned" | "in_progress" | "blocked" | "done";
 export type SchedulingMode = "manual" | "auto";
 export type DependencyType = "finish_start" | "start_start" | "finish_finish";
+export type PhaseCode = "ZUS" | "CNC" | "PROD" | "VORBEH" | "NACHBEH" | "BESCHL" | "TRANS" | "MONT";
+export type ProjectPriority = "low" | "normal" | "high" | "urgent";
+export type ProjectRiskLevel = "low" | "medium" | "high" | "critical";
 
 export interface Project {
   id: string;
@@ -129,6 +132,9 @@ export interface Project {
   workerCount: number | null;
   helperCount: number | null;
   remarks: string | null;
+  targetEndDate: string | null;
+  priority: ProjectPriority;
+  riskLevel: ProjectRiskLevel;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string | null;
@@ -211,6 +217,9 @@ export interface CreateProjectDTO {
   workerCount?: number | null;
   helperCount?: number | null;
   remarks?: string | null;
+  targetEndDate?: string | null;
+  priority?: ProjectPriority;
+  riskLevel?: ProjectRiskLevel;
 }
 
 export interface CreateTaskDTO {
@@ -249,6 +258,43 @@ export interface ProjectActivity {
   summary: string;
   metadata: Record<string, unknown> | null;
   createdAt: string;
+}
+
+export interface ProjectPhasePlan {
+  id: string;
+  projectId: string;
+  ownerId: string;
+  phaseCode: PhaseCode;
+  phaseLabel: string;
+  sequenceOrder: number;
+  isRequired: boolean;
+  isEnabled: boolean;
+  estimatedHoursMin: number | null;
+  estimatedHoursMax: number | null;
+  dependencyPhaseCodes: PhaseCode[];
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface ProjectPhasePlanInput {
+  phaseCode: PhaseCode;
+  phaseLabel?: string;
+  sequenceOrder: number;
+  isRequired?: boolean;
+  isEnabled?: boolean;
+  estimatedHoursMin?: number | null;
+  estimatedHoursMax?: number | null;
+  dependencyPhaseCodes?: PhaseCode[];
+  notes?: string | null;
+}
+
+export interface SyncProjectPhasePlanResult {
+  createdTaskIds: string[];
+  updatedTaskIds: string[];
+  deletedTaskIds: string[];
+  warnings: string[];
 }
 
 export type ResourceType = "person" | "machine" | "vehicle";

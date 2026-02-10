@@ -13,10 +13,19 @@ import {
 } from '../services/projectService';
 import { shiftProjectSchedule, autoScheduleProjectTasks } from '../services/taskService';
 import { applyTemplateToProject, resetProjectTasks } from '../services/templateApplicationService';
+import {
+  getDefaultProjectPhasePlan,
+  listProjectPhasePlan,
+  replaceProjectPhasePlan,
+  syncProjectPhasePlanToTasks,
+  ProjectPhasePlanValidationError,
+} from '../services/projectPhasePlanService';
 import { createProjectActivity, listProjectActivity } from '../services/activityService';
 import { toProjectResponse } from '../models/project';
 import type { Project } from '../models/project';
 import { toProjectActivityResponse } from '../models/activity';
+import { toProjectPhasePlanResponse } from '../models/projectPhasePlan';
+import type { ProjectPhasePlanInput } from '../models/projectPhasePlan';
 
 const getUserId = (req: Request): string | null => {
   if (!req.user) {
@@ -54,6 +63,17 @@ const buildProjectUpdateSummary = (before: Project, after: Project): string | nu
   }
   if (before.work_template !== after.work_template) {
     changes.push(`template ${before.work_template} -> ${after.work_template}`);
+  }
+  if (before.target_end_date !== after.target_end_date) {
+    changes.push(
+      `target end ${formatValue(before.target_end_date)} -> ${formatValue(after.target_end_date)}`
+    );
+  }
+  if (before.priority !== after.priority) {
+    changes.push(`priority ${before.priority} -> ${after.priority}`);
+  }
+  if (before.risk_level !== after.risk_level) {
+    changes.push(`risk ${before.risk_level} -> ${after.risk_level}`);
   }
 
   if (changes.length === 0) {
@@ -146,6 +166,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       name, description, includeWeekends, workdayStart, workdayEnd, workTemplate, taskTemplateId,
       orderNumber, customerName, installationLocation, color, contactName, contactPhone,
       needsCallback, sachbearbeiter, workerCount, helperCount, remarks,
+      targetEndDate, priority, riskLevel,
     } = req.body;
     const templateDefaults = resolveTemplateDefaults(workTemplate);
     const resolvedIncludeWeekends = templateDefaults
@@ -176,6 +197,9 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       worker_count: workerCount,
       helper_count: helperCount,
       remarks,
+      target_end_date: targetEndDate,
+      priority,
+      risk_level: riskLevel,
     });
 
     // Apply task template if provided
@@ -236,6 +260,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       name, description, includeWeekends, workdayStart, workdayEnd, workTemplate,
       orderNumber, customerName, installationLocation, color, contactName, contactPhone,
       needsCallback, sachbearbeiter, workerCount, helperCount, remarks,
+      targetEndDate, priority, riskLevel,
     } = req.body;
     const templateDefaults = resolveTemplateDefaults(workTemplate);
     const resolvedIncludeWeekends = templateDefaults
@@ -267,6 +292,9 @@ export async function update(req: Request, res: Response, next: NextFunction): P
       worker_count: workerCount,
       helper_count: helperCount,
       remarks,
+      target_end_date: targetEndDate,
+      priority,
+      risk_level: riskLevel,
     });
 
     if (!updated) {
@@ -505,6 +533,142 @@ export async function listActivity(req: Request, res: Response, next: NextFuncti
 
     const activity = await listProjectActivity(projectId, userId);
     res.status(200).json({ success: true, data: activity.map(toProjectActivityResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDefaultPhasePlan(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    res.status(200).json({ success: true, data: getDefaultProjectPhasePlan() });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getPhasePlan(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const phases = await listProjectPhasePlan(projectId, userId);
+    res.status(200).json({ success: true, data: phases.map(toProjectPhasePlanResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updatePhasePlan(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const phasesInput = (req.body.phases ?? []) as ProjectPhasePlanInput[];
+    const phases = await replaceProjectPhasePlan(projectId, userId, phasesInput);
+
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'project',
+      action: 'phase_plan_updated',
+      summary: `Project phase plan updated (${phases.length} phases)`,
+      metadata: {
+        projectId,
+        phaseCount: phases.length,
+      },
+    });
+
+    res.status(200).json({ success: true, data: phases.map(toProjectPhasePlanResponse) });
+  } catch (error) {
+    if (error instanceof ProjectPhasePlanValidationError) {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+    next(error);
+  }
+}
+
+export async function syncPhasePlan(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const replaceExistingPhaseTasks = req.body.replaceExistingPhaseTasks === true;
+    const result = await syncProjectPhasePlanToTasks(projectId, userId, {
+      replaceExistingPhaseTasks,
+    });
+
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'project',
+      action: 'phase_plan_synced',
+      summary: `Project phase plan synced to tasks (created ${result.createdTaskIds.length}, updated ${result.updatedTaskIds.length})`,
+      metadata: {
+        projectId,
+        replaceExistingPhaseTasks,
+        createdTaskIds: result.createdTaskIds,
+        updatedTaskIds: result.updatedTaskIds,
+        deletedTaskIds: result.deletedTaskIds,
+        warnings: result.warnings,
+      },
+    });
+
+    res.status(200).json({ success: true, data: result });
   } catch (error) {
     next(error);
   }

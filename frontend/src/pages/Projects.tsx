@@ -58,7 +58,15 @@ import { taskService } from "../services/taskService";
 import { industryService } from "../services/industryService";
 import { productTypeService } from "../services/productTypeService";
 import { taskTemplateService } from "../services/taskTemplateService";
-import type { Project, TaskWorkSlotCalendar, Industry, ProductType, TaskTemplate } from "../types";
+import type {
+  Project,
+  TaskWorkSlotCalendar,
+  Industry,
+  ProductType,
+  TaskTemplate,
+  ProjectPriority,
+  ProjectRiskLevel,
+} from "../types";
 import EmptyState from "../components/EmptyState";
 import YearCalendarGrid from "../components/YearCalendarGrid";
 import YearGanttChart from "../components/YearGanttChart";
@@ -127,6 +135,9 @@ export default function Projects() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [targetEndDate, setTargetEndDate] = useState("");
+  const [projectPriority, setProjectPriority] = useState<ProjectPriority>("normal");
+  const [projectRiskLevel, setProjectRiskLevel] = useState<ProjectRiskLevel>("medium");
   const [workTemplate, setWorkTemplate] = useState(defaultWorkTemplate);
   const [includeWeekends, setIncludeWeekends] = useState(true);
   const [workdayStart, setWorkdayStart] = useState(defaultWorkdayStart);
@@ -304,6 +315,9 @@ export default function Projects() {
   const resetForm = () => {
     setName("");
     setDescription("");
+    setTargetEndDate("");
+    setProjectPriority("normal");
+    setProjectRiskLevel("medium");
     setWorkTemplate(defaultWorkTemplate);
     setIncludeWeekends(true);
     setWorkdayStart(defaultWorkdayStart);
@@ -922,6 +936,9 @@ export default function Projects() {
         workerCount: workerCount === "" ? undefined : workerCount,
         helperCount: helperCount === "" ? undefined : helperCount,
         remarks: projectRemarks.trim() || undefined,
+        targetEndDate: targetEndDate || undefined,
+        priority: projectPriority,
+        riskLevel: projectRiskLevel,
       });
       setProjects((prev) => [created, ...prev]);
       setDialogOpen(false);
@@ -1156,6 +1173,23 @@ export default function Projects() {
                         <Chip
                           size="small"
                           label={`${project.workdayStart} - ${project.workdayEnd}`}
+                          variant="outlined"
+                        />
+                        {project.targetEndDate && (
+                          <Chip
+                            size="small"
+                            label={`Ende: ${project.targetEndDate}`}
+                            color="secondary"
+                          />
+                        )}
+                        <Chip
+                          size="small"
+                          label={`Prio: ${project.priority}`}
+                          variant="outlined"
+                        />
+                        <Chip
+                          size="small"
+                          label={`Risiko: ${project.riskLevel}`}
                           variant="outlined"
                         />
                       </Stack>
@@ -1813,6 +1847,40 @@ export default function Projects() {
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
+          <Box display="flex" gap={2} mt={1}>
+            <TextField
+              label="Target End Date"
+              type="date"
+              fullWidth
+              value={targetEndDate}
+              onChange={(event) => setTargetEndDate(event.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              select
+              label="Priority"
+              fullWidth
+              value={projectPriority}
+              onChange={(event) => setProjectPriority(event.target.value as ProjectPriority)}
+            >
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="normal">Normal</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="urgent">Urgent</MenuItem>
+            </TextField>
+            <TextField
+              select
+              label="Risk"
+              fullWidth
+              value={projectRiskLevel}
+              onChange={(event) => setProjectRiskLevel(event.target.value as ProjectRiskLevel)}
+            >
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+              <MenuItem value="critical">Critical</MenuItem>
+            </TextField>
+          </Box>
 
           {/* Cascading template selection */}
           <TextField

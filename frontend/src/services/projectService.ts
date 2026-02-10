@@ -1,4 +1,11 @@
-import type { CreateProjectDTO, Project, ProjectActivity } from '../types';
+import type {
+  CreateProjectDTO,
+  Project,
+  ProjectActivity,
+  ProjectPhasePlan,
+  ProjectPhasePlanInput,
+  SyncProjectPhasePlanResult,
+} from '../types';
 import api from './api';
 
 interface ApiResponse<T> {
@@ -89,5 +96,35 @@ export const projectService = {
 
   async permanentDelete(id: string): Promise<void> {
     await api.delete(`/projects/${id}/permanent`);
+  },
+
+  async getDefaultPhasePlan(): Promise<ProjectPhasePlanInput[]> {
+    const response = await api.get<ApiResponse<ProjectPhasePlanInput[]>>('/projects/phase-plan/default');
+    return response.data.data;
+  },
+
+  async getPhasePlan(projectId: string): Promise<ProjectPhasePlan[]> {
+    const response = await api.get<ApiResponse<ProjectPhasePlan[]>>(`/projects/${projectId}/phase-plan`);
+    return response.data.data;
+  },
+
+  async updatePhasePlan(projectId: string, phases: ProjectPhasePlanInput[]): Promise<ProjectPhasePlan[]> {
+    const response = await api.put<ApiResponse<ProjectPhasePlan[]>>(`/projects/${projectId}/phase-plan`, {
+      phases,
+    });
+    return response.data.data;
+  },
+
+  async syncPhasePlanToTasks(
+    projectId: string,
+    options?: { replaceExistingPhaseTasks?: boolean }
+  ): Promise<SyncProjectPhasePlanResult> {
+    const response = await api.post<ApiResponse<SyncProjectPhasePlanResult>>(
+      `/projects/${projectId}/phase-plan/sync-tasks`,
+      {
+        replaceExistingPhaseTasks: options?.replaceExistingPhaseTasks ?? false,
+      }
+    );
+    return response.data.data;
   },
 };
