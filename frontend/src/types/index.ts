@@ -153,6 +153,9 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   isBlocked?: boolean;
+  phaseCode?: string | null;
+  plannedWeek?: number | null;
+  plannedYear?: number | null;
 }
 
 export interface TaskDependency {
@@ -221,6 +224,7 @@ export interface CreateTaskDTO {
   startDate?: string | null;
   dueDate?: string | null;
   reminderEnabled?: boolean;
+  phaseCode?: string | null;
 }
 
 export interface CreateDependencyDTO {

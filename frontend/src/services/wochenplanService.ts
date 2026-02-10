@@ -104,8 +104,6 @@ export interface ResourceConflict {
 }
 
 export interface ConflictResponse {
-  kw?: number;
-  year?: number;
   conflicts: ResourceConflict[];
 }
 
@@ -126,7 +124,7 @@ export interface BatchAssignItem {
 export interface BatchAssignResult {
   created: number;
   conflicts: ResourceConflict[];
-  assignments: Array<{
+  assignments: {
     id: string;
     taskId: string;
     resourceId: string;
@@ -134,7 +132,74 @@ export interface BatchAssignResult {
     halfDay: AssignHalfDay;
     isFixed: boolean;
     statusCode: string;
-  }>;
+  }[];
+}
+
+// ─── Copy Week Types ──────────────────────────────────
+
+export interface CopyWeekRequest {
+  sourceKw: number;
+  sourceYear: number;
+  targetKw: number;
+  targetYear: number;
+  options?: { includeAssignments?: boolean };
+}
+
+export interface CopyWeekResponse {
+  copiedPhaseSchedules: number;
+  copiedAssignments: number;
+  targetKw: number;
+  targetYear: number;
+}
+
+// ─── Unassigned Types ─────────────────────────────────
+
+export interface UnassignedTask {
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  installationLocation: string;
+  phases: { phase: string; plannedKw: number | null }[];
+}
+
+export interface UnassignedByDepartment {
+  department: string;
+  label: string;
+  tasks: UnassignedTask[];
+}
+
+export interface UnassignedResponse {
+  kw: number;
+  year: number;
+  totalUnassigned: number;
+  departments: UnassignedByDepartment[];
+}
+
+// ─── Phase Matrix Types ───────────────────────────────
+
+export interface PhaseMatrixEntry {
+  taskId: string;
+  projectOrderNumber: string;
+  customerName: string;
+  description: string;
+  weeks: { kw: number; phases: string[] }[];
+}
+
+export interface PhaseMatrixResponse {
+  fromKw: number;
+  toKw: number;
+  year: number;
+  kwRange: number[];
+  tasks: PhaseMatrixEntry[];
+}
+
+// ─── Batch Assign Error Response ──────────────────────
+
+export interface BatchAssignConflictResponse {
+  success: false;
+  error: string;
+  data: { conflicts: ResourceConflict[] };
 }
 
 // ─── Service ───────────────────────────────────────────
@@ -160,5 +225,33 @@ export const wochenplanService = {
       { assignments }
     );
     return response.data.data;
+  },
+
+  async copyWeek(request: CopyWeekRequest): Promise<CopyWeekResponse> {
+    const response = await api.post<ApiResponse<CopyWeekResponse>>(
+      '/wochenplan/copy',
+      request
+    );
+    return response.data.data;
+  },
+
+  async getUnassigned(kw: number, year: number): Promise<UnassignedResponse> {
+    const response = await api.get<ApiResponse<UnassignedResponse>>(
+      `/wochenplan/unassigned?kw=${kw}&year=${year}`
+    );
+    return response.data.data;
+  },
+
+  async getPhaseMatrix(fromKw: number, toKw: number, year: number): Promise<PhaseMatrixResponse> {
+    const response = await api.get<ApiResponse<PhaseMatrixResponse>>(
+      `/wochenplan/phase-matrix?from_kw=${fromKw}&to_kw=${toKw}&year=${year}`
+    );
+    return response.data.data;
+  },
+
+  getExportCsvUrl(kw: number, year: number, department?: string): string {
+    let url = `/api/export/wochenplan/csv?kw=${kw}&year=${year}`;
+    if (department) url += `&department=${encodeURIComponent(department)}`;
+    return url;
   },
 };

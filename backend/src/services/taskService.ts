@@ -10,6 +10,26 @@ import type {
   TaskStatus,
 } from '../models/task';
 
+const PHASE_CODE_TO_DB_PHASE: Record<string, string> = {
+  ZUS: 'zuschnitt',
+  CNC: 'cnc',
+  PROD: 'produktion',
+  BEH: 'behandlung',
+  VORBEH: 'vorbehandlung',
+  NACHBEH: 'nachbehandlung',
+  BESCHL: 'beschlaege',
+  TRANS: 'transport',
+  MONT: 'montage',
+};
+
+export function getISOWeek(date: Date): { kw: number; year: number } {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const kw = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return { kw, year: d.getUTCFullYear() };
+}
+
 export interface TaskWorkSlotCalendar {
   id: string;
   task_id: string;
@@ -767,6 +787,29 @@ export async function autoScheduleProjectTasks(
          VALUES ($1, $2, $3, false, false, false)`,
         [taskId, slot.start.toISOString(), slot.end.toISOString()]
       );
+    }
+
+    // Publish to task_phase_schedules for Wochenplan integration
+    const phaseCode = task.phase_code;
+    if (phaseCode) {
+      const dbPhase = PHASE_CODE_TO_DB_PHASE[phaseCode] || phaseCode.toLowerCase();
+      const { kw, year } = getISOWeek(taskDueDate);
+      try {
+        await pool.query(
+          `INSERT INTO task_phase_schedules (task_id, phase, planned_kw, planned_year, status)
+           VALUES ($1, $2::production_phase, $3, $4, 'planned')
+           ON CONFLICT (task_id, phase) DO UPDATE SET
+             planned_kw = EXCLUDED.planned_kw,
+             planned_year = EXCLUDED.planned_year,
+             updated_at = NOW()`,
+          [taskId, dbPhase, kw, year]
+        );
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        warnings.push(`Task "${task.title}": phase schedule publish failed (${errMsg})`);
+      }
+    } else {
+      warnings.push(`Task "${task.title}" hat keinen phase_code, Wochenplan-Eintrag übersprungen`);
     }
 
     scheduledTaskIds.push(taskId);
