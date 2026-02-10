@@ -242,16 +242,37 @@ export const wochenplanService = {
     return response.data.data;
   },
 
-  async getPhaseMatrix(fromKw: number, toKw: number, year: number): Promise<PhaseMatrixResponse> {
-    const response = await api.get<ApiResponse<PhaseMatrixResponse>>(
-      `/wochenplan/phase-matrix?from_kw=${fromKw}&to_kw=${toKw}&year=${year}`
-    );
+  async getPhaseMatrix(
+    fromKw: number,
+    toKw: number,
+    fromYear: number,
+    toYear: number
+  ): Promise<PhaseMatrixResponse> {
+    let url = `/wochenplan/phase-matrix?from_kw=${fromKw}&to_kw=${toKw}&year=${fromYear}`;
+    if (fromYear !== toYear) {
+      url += `&from_year=${fromYear}&to_year=${toYear}`;
+    }
+    const response = await api.get<ApiResponse<PhaseMatrixResponse>>(url);
     return response.data.data;
   },
 
-  getExportCsvUrl(kw: number, year: number, department?: string): string {
-    let url = `/api/export/wochenplan/csv?kw=${kw}&year=${year}`;
+  async downloadCsv(kw: number, year: number, department?: string): Promise<void> {
+    let url = `/export/wochenplan/csv?kw=${kw}&year=${year}`;
     if (department) url += `&department=${encodeURIComponent(department)}`;
-    return url;
+    
+    const response = await api.get(url, {
+      responseType: 'blob',
+    });
+    
+    // Create download link
+    const blob = new Blob([response.data], { type: 'text/csv' });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = `wochenplan-kw${kw}-${year}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
   },
 };

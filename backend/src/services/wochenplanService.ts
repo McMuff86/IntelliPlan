@@ -1081,22 +1081,34 @@ export async function getUnassignedTasks(kw: number, year: number): Promise<Unas
 export async function getPhaseMatrix(
   fromKw: number,
   toKw: number,
-  year: number
+  fromYear: number,
+  toYear: number
 ): Promise<PhaseMatrixResponse> {
   const kwRange: number[] = [];
-  for (let kw = fromKw; kw <= toKw; kw++) {
-    kwRange.push(kw);
+  
+  // Handle year-wrapping: if fromYear < toYear, we span a year boundary
+  if (fromYear === toYear) {
+    // Normal case: same year, fromKw to toKw
+    for (let kw = fromKw; kw <= toKw; kw++) {
+      kwRange.push(kw);
+    }
+  } else {
+    // Year-wrapping case: fromKw to 52/53 in fromYear, then 1 to toKw in toYear
+    for (let kw = fromKw; kw <= 52; kw++) {
+      kwRange.push(kw);
+    }
+    for (let kw = 1; kw <= toKw; kw++) {
+      kwRange.push(kw);
+    }
   }
 
-  const result = await pool.query<{
-    task_id: string;
-    order_number: string | null;
-    customer_name: string | null;
-    task_title: string;
-    phase: string;
-    planned_kw: number;
-  }>(
-    `SELECT
+  // Build query to handle year boundary
+  let query: string;
+  let params: (number | string)[];
+  
+  if (fromYear === toYear) {
+    // Single year query
+    query = `SELECT
        t.id AS task_id,
        p.order_number,
        p.customer_name,
@@ -1111,9 +1123,38 @@ export async function getPhaseMatrix(
        AND tps.planned_year = $1
        AND tps.planned_kw >= $2
        AND tps.planned_kw <= $3
-     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`,
-    [year, fromKw, toKw]
-  );
+     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`;
+    params = [fromYear, fromKw, toKw];
+  } else {
+    // Year-wrapping query: (year=fromYear AND kw>=fromKw) OR (year=toYear AND kw<=toKw)
+    query = `SELECT
+       t.id AS task_id,
+       p.order_number,
+       p.customer_name,
+       t.title AS task_title,
+       tps.phase::text AS phase,
+       tps.planned_kw
+     FROM tasks t
+     JOIN projects p ON p.id = t.project_id
+     JOIN task_phase_schedules tps ON tps.task_id = t.id
+     WHERE t.deleted_at IS NULL
+       AND p.deleted_at IS NULL
+       AND (
+         (tps.planned_year = $1 AND tps.planned_kw >= $2)
+         OR (tps.planned_year = $3 AND tps.planned_kw <= $4)
+       )
+     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`;
+    params = [fromYear, fromKw, toYear, toKw];
+  }
+
+  const result = await pool.query<{
+    task_id: string;
+    order_number: string | null;
+    customer_name: string | null;
+    task_title: string;
+    phase: string;
+    planned_kw: number;
+  }>(query, params);
 
   // Group by task
   const taskMap = new Map<string, {
@@ -1153,7 +1194,7 @@ export async function getPhaseMatrix(
     })),
   }));
 
-  return { fromKw, toKw, year, kwRange, tasks };
+  return { fromKw, toKw, year: fromYear, kwRange, tasks };
 }
 
 // ─── WP4: Mitarbeiter-View API ────────────────────────

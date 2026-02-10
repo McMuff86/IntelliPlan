@@ -214,8 +214,10 @@ export async function getPhaseMatrixHandler(
     const fromKw = parseInt(req.query.from_kw as string, 10);
     const toKw = parseInt(req.query.to_kw as string, 10);
     const year = parseInt(req.query.year as string, 10);
+    const fromYear = req.query.from_year ? parseInt(req.query.from_year as string, 10) : year;
+    const toYear = req.query.to_year ? parseInt(req.query.to_year as string, 10) : year;
 
-    const result = await getPhaseMatrix(fromKw, toKw, year);
+    const result = await getPhaseMatrix(fromKw, toKw, fromYear, toYear);
 
     res.status(200).json({
       success: true,

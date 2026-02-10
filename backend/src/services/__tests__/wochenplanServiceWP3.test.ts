@@ -550,7 +550,7 @@ describe('getPhaseMatrix', () => {
   it('should return empty matrix when no tasks have phase schedules', async () => {
     mockedPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-    const result = await getPhaseMatrix(4, 10, 2026);
+    const result = await getPhaseMatrix(4, 10, 2026, 2026);
 
     expect(result.fromKw).toBe(4);
     expect(result.toKw).toBe(10);
@@ -569,7 +569,7 @@ describe('getPhaseMatrix', () => {
       rowCount: 3,
     } as any);
 
-    const result = await getPhaseMatrix(4, 10, 2026);
+    const result = await getPhaseMatrix(4, 10, 2026, 2026);
 
     expect(result.tasks).toHaveLength(1);
     const task = result.tasks[0];
@@ -602,7 +602,7 @@ describe('getPhaseMatrix', () => {
       rowCount: 2,
     } as any);
 
-    const result = await getPhaseMatrix(6, 6, 2026);
+    const result = await getPhaseMatrix(6, 6, 2026, 2026);
 
     const kw6 = result.tasks[0].weeks[0];
     expect(kw6.phases).toEqual(['cnc', 'produktion']);
@@ -617,7 +617,7 @@ describe('getPhaseMatrix', () => {
       rowCount: 2,
     } as any);
 
-    const result = await getPhaseMatrix(4, 6, 2026);
+    const result = await getPhaseMatrix(4, 6, 2026, 2026);
 
     expect(result.tasks).toHaveLength(2);
   });
@@ -625,7 +625,7 @@ describe('getPhaseMatrix', () => {
   it('should generate correct kwRange', async () => {
     mockedPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-    const result = await getPhaseMatrix(1, 3, 2026);
+    const result = await getPhaseMatrix(1, 3, 2026, 2026);
 
     expect(result.kwRange).toEqual([1, 2, 3]);
   });
@@ -633,7 +633,7 @@ describe('getPhaseMatrix', () => {
   it('should pass correct SQL parameters', async () => {
     mockedPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-    await getPhaseMatrix(4, 10, 2026);
+    await getPhaseMatrix(4, 10, 2026, 2026);
 
     const params = mockedPool.query.mock.calls[0][1] as any[];
     expect(params[0]).toBe(2026); // year

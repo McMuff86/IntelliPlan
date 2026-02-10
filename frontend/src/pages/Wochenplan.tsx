@@ -425,14 +425,14 @@ export default function Wochenplan() {
 
   // ─── CSV Export Handler ─────────────────────────────
 
-  const handleCsvExport = () => {
-    const url = wochenplanService.getExportCsvUrl(kw, year);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wochenplan-kw${kw}-${year}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleCsvExport = async () => {
+    try {
+      await wochenplanService.downloadCsv(kw, year);
+      setSnackbar({ open: true, message: 'CSV erfolgreich exportiert', severity: 'success' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim CSV-Export';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    }
   };
 
   // ─── Phase Matrix Handler ───────────────────────────
@@ -441,9 +441,29 @@ export default function Wochenplan() {
     setMatrixDrawerOpen(true);
     setMatrixLoading(true);
     try {
-      const fromKw = kw > 2 ? kw - 2 : kw - 2 + 52;
-      const toKw = kw + 4 <= 52 ? kw + 4 : kw + 4 - 52;
-      const data = await wochenplanService.getPhaseMatrix(fromKw, toKw, year);
+      // Calculate 7-week window (2 weeks before + current + 4 weeks after)
+      let fromKw: number;
+      let fromYear: number;
+      let toKw: number;
+      let toYear: number;
+
+      if (kw > 2) {
+        fromKw = kw - 2;
+        fromYear = year;
+      } else {
+        fromKw = kw - 2 + 52;
+        fromYear = year - 1;
+      }
+
+      if (kw + 4 <= 52) {
+        toKw = kw + 4;
+        toYear = year;
+      } else {
+        toKw = kw + 4 - 52;
+        toYear = year + 1;
+      }
+
+      const data = await wochenplanService.getPhaseMatrix(fromKw, toKw, fromYear, toYear);
       setPhaseMatrix(data);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Fehler beim Laden der Phase-Matrix';
