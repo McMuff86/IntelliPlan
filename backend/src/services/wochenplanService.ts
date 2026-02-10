@@ -122,6 +122,21 @@ function getWeekDateRange(kw: number, year: number): { from: string; to: string;
   };
 }
 
+/**
+ * Get the number of ISO weeks in a given year.
+ * A year has 53 weeks if Jan 1 is Thursday, or if it's a leap year and Jan 1 is Wednesday.
+ */
+function getWeeksInYear(year: number): number {
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const jan1Day = jan1.getUTCDay() || 7; // 1=Mon … 7=Sun
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  
+  // Year has 53 weeks if:
+  // - Jan 1 is Thursday (day 4)
+  // - OR it's a leap year AND Jan 1 is Wednesday (day 3)
+  return jan1Day === 4 || (isLeapYear && jan1Day === 3) ? 53 : 52;
+}
+
 // ─── WP3 + WP4 Types ──────────────────────────────────
 
 export interface ConflictDetail {
@@ -1093,8 +1108,9 @@ export async function getPhaseMatrix(
       kwRange.push(kw);
     }
   } else {
-    // Year-wrapping case: fromKw to 52/53 in fromYear, then 1 to toKw in toYear
-    for (let kw = fromKw; kw <= 52; kw++) {
+    // Year-wrapping case: fromKw to last week of fromYear, then 1 to toKw in toYear
+    const weeksInFromYear = getWeeksInYear(fromYear);
+    for (let kw = fromKw; kw <= weeksInFromYear; kw++) {
       kwRange.push(kw);
     }
     for (let kw = 1; kw <= toKw; kw++) {

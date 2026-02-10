@@ -64,6 +64,21 @@ function getCurrentISOWeek(): { kw: number; year: number } {
   return { kw: Math.min(kw, 53), year };
 }
 
+/**
+ * Get the number of ISO weeks in a given year.
+ * A year has 53 weeks if Jan 1 is Thursday, or if it's a leap year and Jan 1 is Wednesday.
+ */
+function getWeeksInYear(year: number): number {
+  const jan1 = new Date(year, 0, 1);
+  const jan1Day = jan1.getDay() || 7; // 0=Sun→7, 1=Mon, ..., 6=Sat
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  
+  // Year has 53 weeks if:
+  // - Jan 1 is Thursday (day 4)
+  // - OR it's a leap year AND Jan 1 is Wednesday (day 3)
+  return jan1Day === 4 || (isLeapYear && jan1Day === 3) ? 53 : 52;
+}
+
 const PHASE_LABELS: Record<string, string> = {
   zuschnitt: 'ZUS',
   cnc: 'CNC',
@@ -451,15 +466,19 @@ export default function Wochenplan() {
         fromKw = kw - 2;
         fromYear = year;
       } else {
-        fromKw = kw - 2 + 52;
+        // Need to go back to previous year
         fromYear = year - 1;
+        const weeksInPrevYear = getWeeksInYear(fromYear);
+        fromKw = weeksInPrevYear + (kw - 2); // e.g., if kw=1, fromKw = 52/53 - 1 = 51/52
       }
 
-      if (kw + 4 <= 52) {
+      const weeksInCurrentYear = getWeeksInYear(year);
+      if (kw + 4 <= weeksInCurrentYear) {
         toKw = kw + 4;
         toYear = year;
       } else {
-        toKw = kw + 4 - 52;
+        // Need to wrap to next year
+        toKw = (kw + 4) - weeksInCurrentYear;
         toYear = year + 1;
       }
 

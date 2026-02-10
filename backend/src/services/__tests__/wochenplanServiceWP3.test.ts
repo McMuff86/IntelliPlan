@@ -654,7 +654,7 @@ describe('getPhaseMatrix', () => {
 
     const result = await getPhaseMatrix(51, 2, 2025, 2026);
 
-    // Should generate kwRange from 51-52, then 1-2
+    // Should generate kwRange from 51-52, then 1-2 (2025 has 52 weeks)
     expect(result.kwRange).toEqual([51, 52, 1, 2]);
     expect(result.fromKw).toBe(51);
     expect(result.toKw).toBe(2);
@@ -678,5 +678,33 @@ describe('getPhaseMatrix', () => {
     expect(task.weeks[1]).toEqual({ kw: 52, phases: ['phase2'] });
     expect(task.weeks[2]).toEqual({ kw: 1, phases: ['phase3'] });
     expect(task.weeks[3]).toEqual({ kw: 2, phases: ['phase4'] });
+  });
+
+  it('should handle year-wrapping with 53-week year', async () => {
+    mockedPool.query.mockResolvedValueOnce({
+      rows: [
+        { task_id: 'task-1', order_number: '2020-100', customer_name: 'Test', task_title: 'Long Year', phase: 'phase1', planned_kw: 52 },
+        { task_id: 'task-1', order_number: '2020-100', customer_name: 'Test', task_title: 'Long Year', phase: 'phase2', planned_kw: 53 },
+        { task_id: 'task-1', order_number: '2020-100', customer_name: 'Test', task_title: 'Long Year', phase: 'phase3', planned_kw: 1 },
+      ],
+      rowCount: 3,
+    } as any);
+
+    // 2020 has 53 weeks
+    const result = await getPhaseMatrix(52, 1, 2020, 2021);
+
+    // Should generate kwRange from 52-53, then 1 (2020 has 53 weeks)
+    expect(result.kwRange).toEqual([52, 53, 1]);
+    expect(result.fromKw).toBe(52);
+    expect(result.toKw).toBe(1);
+    expect(result.year).toBe(2020);
+
+    // Verify task has all weeks including week 53
+    expect(result.tasks).toHaveLength(1);
+    const task = result.tasks[0];
+    expect(task.weeks).toHaveLength(3);
+    expect(task.weeks[0]).toEqual({ kw: 52, phases: ['phase1'] });
+    expect(task.weeks[1]).toEqual({ kw: 53, phases: ['phase2'] });
+    expect(task.weeks[2]).toEqual({ kw: 1, phases: ['phase3'] });
   });
 });
