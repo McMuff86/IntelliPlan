@@ -494,7 +494,7 @@ describe('importService', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any) // existing projects
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any); // known resources
 
-      const validation = await validateImport(makePlan());
+      const validation = await validateImport(makePlan(), 'owner-1');
 
       expect(validation.valid).toBe(true);
       expect(validation.errors).toHaveLength(0);
@@ -507,7 +507,7 @@ describe('importService', () => {
         assignments: [],
         resources: [],
         phaseSchedules: [],
-      }));
+      }), 'owner-1');
 
       expect(validation.valid).toBe(false);
       expect(validation.errors).toContain('Keine Projekte im Import gefunden. Prüfen Sie das Excel-Format.');
@@ -521,7 +521,7 @@ describe('importService', () => {
         } as any)
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-      const validation = await validateImport(makePlan());
+      const validation = await validateImport(makePlan(), 'owner-1');
 
       expect(validation.warnings.some((w) => w.includes('existieren bereits'))).toBe(true);
     });
@@ -531,7 +531,7 @@ describe('importService', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any) // no existing projects
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any); // no known resources
 
-      const validation = await validateImport(makePlan());
+      const validation = await validateImport(makePlan(), 'owner-1');
 
       expect(validation.warnings.some((w) => w.includes('unbekannte Mitarbeiter'))).toBe(true);
     });
@@ -541,12 +541,30 @@ describe('importService', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-      const validation = await validateImport(makePlan());
+      const validation = await validateImport(makePlan(), 'owner-1');
 
       expect(validation.summary.projectCount).toBe(1);
       expect(validation.summary.taskCount).toBe(1);
       expect(validation.summary.resourceCount).toBe(1);
       expect(validation.summary.assignmentCount).toBe(1);
+    });
+
+    it('should scope validation queries by owner_id', async () => {
+      mockedPool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
+
+      await validateImport(makePlan(), 'owner-scope-1');
+
+      const projectSql = mockedPool.query.mock.calls[0][0] as string;
+      const projectParams = mockedPool.query.mock.calls[0][1] as unknown[];
+      expect(projectSql).toContain('owner_id = $2');
+      expect(projectParams[1]).toBe('owner-scope-1');
+
+      const resourceSql = mockedPool.query.mock.calls[1][0] as string;
+      const resourceParams = mockedPool.query.mock.calls[1][1] as unknown[];
+      expect(resourceSql).toContain('owner_id = $2');
+      expect(resourceParams[1]).toBe('owner-scope-1');
     });
 
     it('should detect duplicate assignments as warning', async () => {
@@ -577,7 +595,7 @@ describe('importService', () => {
         ],
       });
 
-      const validation = await validateImport(plan);
+      const validation = await validateImport(plan, 'owner-1');
 
       expect(validation.warnings.some((w) => w.includes('Doppelte Zuweisung'))).toBe(true);
     });
@@ -594,7 +612,7 @@ describe('importService', () => {
         ],
       });
 
-      const validation = await validateImport(plan);
+      const validation = await validateImport(plan, 'owner-1');
 
       expect(validation.summary.weeksCovered).toEqual([5, 6]);
     });

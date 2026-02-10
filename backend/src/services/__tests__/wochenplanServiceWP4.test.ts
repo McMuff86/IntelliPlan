@@ -8,12 +8,17 @@ vi.mock('../../config/database', () => ({
 }));
 
 import {
-  getResourceSchedule,
-  getResourcesOverview,
+  getResourceSchedule as getResourceScheduleRaw,
+  getResourcesOverview as getResourcesOverviewRaw,
 } from '../wochenplanService';
 import { pool } from '../../config/database';
 
 const mockedPool = vi.mocked(pool);
+const OWNER_ID = 'owner-1';
+const getResourceSchedule = (resourceId: string, kw: number, year: number) =>
+  getResourceScheduleRaw(resourceId, kw, year, OWNER_ID);
+const getResourcesOverview = (kw: number, year: number, department?: string) =>
+  getResourcesOverviewRaw(kw, year, OWNER_ID, department);
 
 // ─── Factories ─────────────────────────────────────────
 
@@ -244,7 +249,7 @@ describe('getResourceSchedule', () => {
     await getResourceSchedule('res-1', 6, 2026);
 
     // Resource query
-    expect(mockedPool.query.mock.calls[0][1]).toEqual(['res-1']);
+    expect(mockedPool.query.mock.calls[0][1]).toEqual(['res-1', OWNER_ID]);
 
     // Assignments query
     const assignParams = mockedPool.query.mock.calls[1][1] as any[];
@@ -378,7 +383,7 @@ describe('getResourcesOverview', () => {
 
     // Verify the query was called with department filter
     const resourceQuery = mockedPool.query.mock.calls[0];
-    expect(resourceQuery[1]).toEqual(['montage']);
+    expect(resourceQuery[1]).toEqual([OWNER_ID, 'montage']);
   });
 
   it('should handle multiple resources', async () => {

@@ -308,7 +308,7 @@ export interface ResourcesOverviewResponse {
 
 // ─── Main Service ──────────────────────────────────────
 
-export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanResponse> {
+export async function getWeekPlan(kw: number, year: number, ownerId: string): Promise<WeekPlanResponse> {
   const { from, to, dates } = getWeekDateRange(kw, year);
 
   // 1. Load tasks that have phase_schedules for this KW (or assignments in this week)
@@ -349,14 +349,16 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
      JOIN projects p ON p.id = t.project_id
      LEFT JOIN task_phase_schedules tps ON tps.task_id = t.id
      LEFT JOIN task_assignments ta ON ta.task_id = t.id AND ta.deleted_at IS NULL
-     WHERE t.deleted_at IS NULL
-       AND p.deleted_at IS NULL
-       AND (
-         (tps.planned_year = $1 AND tps.planned_kw = $2)
-         OR (ta.assignment_date >= $3 AND ta.assignment_date <= $4)
-       )
-     ORDER BY p.order_number ASC NULLS LAST, t.title ASC`,
-    [year, kw, from, to]
+      WHERE t.deleted_at IS NULL
+        AND p.deleted_at IS NULL
+        AND t.owner_id = $5
+        AND p.owner_id = $5
+        AND (
+          (tps.planned_year = $1 AND tps.planned_kw = $2)
+          OR (ta.assignment_date >= $3 AND ta.assignment_date <= $4)
+        )
+      ORDER BY p.order_number ASC NULLS LAST, t.title ASC`,
+    [year, kw, from, to, ownerId]
   );
 
   // 2. Load all phase_schedules for the found tasks
@@ -435,8 +437,10 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
          AND ta.assignment_date >= $2
          AND ta.assignment_date <= $3
          AND ta.deleted_at IS NULL
+         AND r.owner_id = $4
+         AND r.deleted_at IS NULL
        ORDER BY ta.assignment_date ASC, ta.half_day ASC`,
-      [taskIds, from, to]
+      [taskIds, from, to, ownerId]
     );
 
     for (const row of assignmentsResult.rows) {
@@ -469,9 +473,13 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
   }>(
     `SELECT id, name, short_code, department, employee_type, weekly_hours, work_role
      FROM resources
-     WHERE is_active = true
+     WHERE owner_id = $1
+       AND deleted_at IS NULL
+       AND is_active = true
        AND resource_type = 'person'
      ORDER BY department ASC NULLS LAST, short_code ASC NULLS LAST, name ASC`
+    ,
+    [ownerId]
   );
 
   const resourcesByDept = new Map<string, WeekPlanResource[]>();
@@ -658,7 +666,7 @@ export async function getWeekPlan(kw: number, year: number): Promise<WeekPlanRes
  * 3.1 Conflict Detection
  * Find resources assigned to multiple tasks in the same half-day slot.
  */
-export async function getWeekConflicts(kw: number, year: number): Promise<ConflictsResponse> {
+export async function getWeekConflicts(kw: number, year: number, ownerId: string): Promise<ConflictsResponse> {
   const { from, to } = getWeekDateRange(kw, year);
 
   // Find all (resource_id, assignment_date, effective_half_day) combos with >1 assignment
@@ -684,9 +692,15 @@ export async function getWeekConflicts(kw: number, year: number): Promise<Confli
            END
          ) AS effective_half
        FROM task_assignments ta
+       JOIN tasks t ON t.id = ta.task_id
+       JOIN resources rs ON rs.id = ta.resource_id
        WHERE ta.assignment_date >= $1
          AND ta.assignment_date <= $2
          AND ta.deleted_at IS NULL
+         AND t.owner_id = $3
+         AND t.deleted_at IS NULL
+         AND rs.owner_id = $3
+         AND rs.deleted_at IS NULL
      ),
      conflicts AS (
        SELECT resource_id, assignment_date, effective_half
@@ -697,9 +711,11 @@ export async function getWeekConflicts(kw: number, year: number): Promise<Confli
      SELECT DISTINCT c.resource_id, r.name AS resource_name, r.short_code,
             c.assignment_date::text AS assignment_date, c.effective_half
      FROM conflicts c
-     JOIN resources r ON r.id = c.resource_id
-     ORDER BY assignment_date, short_code, effective_half`,
-    [from, to]
+      JOIN resources r ON r.id = c.resource_id
+      WHERE r.owner_id = $3
+        AND r.deleted_at IS NULL
+      ORDER BY assignment_date, short_code, effective_half`,
+    [from, to, ownerId]
   );
 
   if (conflictsResult.rows.length === 0) {
@@ -738,11 +754,16 @@ export async function getWeekConflicts(kw: number, year: number): Promise<Confli
      FROM task_assignments ta
      JOIN tasks t ON t.id = ta.task_id
      JOIN projects p ON p.id = t.project_id
+     JOIN resources r ON r.id = ta.resource_id
      WHERE ta.assignment_date >= $1
        AND ta.assignment_date <= $2
        AND ta.deleted_at IS NULL
+       AND t.owner_id = $3
+       AND p.owner_id = $3
+       AND r.owner_id = $3
+       AND r.deleted_at IS NULL
      ORDER BY ta.assignment_date ASC`,
-    [from, to]
+    [from, to, ownerId]
   );
 
   // Build conflict entries
@@ -776,7 +797,7 @@ export async function getWeekConflicts(kw: number, year: number): Promise<Confli
  * 3.2 Quick-Assign Batch
  * Create multiple assignments with conflict pre-check.
  */
-export async function quickAssign(assignments: QuickAssignInput[]): Promise<QuickAssignResponse> {
+export async function quickAssign(assignments: QuickAssignInput[], ownerId: string): Promise<QuickAssignResponse> {
   // Pre-check: detect conflicts by looking for existing assignments on the same slots
   const conflictChecks: { resourceId: string; date: string; halfDay: string }[] = [];
   for (const a of assignments) {
@@ -817,8 +838,12 @@ export async function quickAssign(assignments: QuickAssignInput[]): Promise<Quic
        JOIN resources r ON r.id = ta.resource_id
        WHERE ta.resource_id = ANY($1)
          AND ta.assignment_date = ANY($2)
-         AND ta.deleted_at IS NULL`,
-      [resourceIds, dates]
+         AND ta.deleted_at IS NULL
+         AND t.owner_id = $3
+         AND p.owner_id = $3
+         AND r.owner_id = $3
+         AND r.deleted_at IS NULL`,
+      [resourceIds, dates, ownerId]
     );
 
     for (const check of conflictChecks) {
@@ -867,7 +892,18 @@ export async function quickAssign(assignments: QuickAssignInput[]): Promise<Quic
         status_code: string;
       }>(
         `INSERT INTO task_assignments (task_id, resource_id, assignment_date, half_day, is_fixed, status_code, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         SELECT $1, $2, $3, $4, $5, $6, $7
+         WHERE EXISTS (
+           SELECT 1 FROM tasks t WHERE t.id = $1 AND t.owner_id = $8 AND t.deleted_at IS NULL
+         )
+         AND EXISTS (
+           SELECT 1 FROM resources r
+           WHERE r.id = $2
+             AND r.owner_id = $8
+             AND r.deleted_at IS NULL
+             AND r.is_active = true
+             AND r.resource_type = 'person'
+         )
          RETURNING id, task_id, resource_id, assignment_date::text AS assignment_date, half_day, is_fixed, status_code`,
         [
           a.taskId,
@@ -877,8 +913,13 @@ export async function quickAssign(assignments: QuickAssignInput[]): Promise<Quic
           a.isFixed ?? false,
           a.statusCode ?? 'assigned',
           a.notes ?? null,
+          ownerId,
         ]
       );
+
+      if (result.rows.length === 0) {
+        throw new Error('Task or resource is outside your tenant scope');
+      }
 
       const row = result.rows[0];
       createdAssignments.push({
@@ -916,16 +957,22 @@ export async function copyWeek(
   sourceYear: number,
   targetKw: number,
   targetYear: number,
-  options: CopyWeekOptions
+  options: CopyWeekOptions,
+  ownerId: string
 ): Promise<CopyWeekResponse> {
   const source = getWeekDateRange(sourceKw, sourceYear);
   const target = getWeekDateRange(targetKw, targetYear);
 
   // Check if target already has data
   const existingCheck = await pool.query<{ count: string }>(
-    `SELECT COUNT(*) AS count FROM task_phase_schedules
-     WHERE planned_kw = $1 AND planned_year = $2`,
-    [targetKw, targetYear]
+    `SELECT COUNT(*) AS count
+     FROM task_phase_schedules tps
+     JOIN tasks t ON t.id = tps.task_id
+     WHERE tps.planned_kw = $1
+       AND tps.planned_year = $2
+       AND t.owner_id = $3
+       AND t.deleted_at IS NULL`,
+    [targetKw, targetYear, ownerId]
   );
 
   if (parseInt(existingCheck.rows[0].count, 10) > 0) {
@@ -934,9 +981,15 @@ export async function copyWeek(
 
   if (options.includeAssignments) {
     const existingAssignments = await pool.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM task_assignments
-       WHERE assignment_date >= $1 AND assignment_date <= $2 AND deleted_at IS NULL`,
-      [target.from, target.to]
+      `SELECT COUNT(*) AS count
+       FROM task_assignments ta
+       JOIN tasks t ON t.id = ta.task_id
+       WHERE ta.assignment_date >= $1
+         AND ta.assignment_date <= $2
+         AND ta.deleted_at IS NULL
+         AND t.owner_id = $3
+         AND t.deleted_at IS NULL`,
+      [target.from, target.to, ownerId]
     );
 
     if (parseInt(existingAssignments.rows[0].count, 10) > 0) {
@@ -951,11 +1004,15 @@ export async function copyWeek(
     // Copy phase schedules: update planned_kw/planned_year for the new week
     const phaseResult = await client.query<{ count: string }>(
       `INSERT INTO task_phase_schedules (task_id, phase, planned_kw, planned_year, status)
-       SELECT task_id, phase, $3, $4, 'planned'
-       FROM task_phase_schedules
-       WHERE planned_kw = $1 AND planned_year = $2
+       SELECT tps.task_id, tps.phase, $4, $5, 'planned'
+       FROM task_phase_schedules tps
+       JOIN tasks t ON t.id = tps.task_id
+       WHERE tps.planned_kw = $1
+         AND tps.planned_year = $2
+         AND t.owner_id = $3
+         AND t.deleted_at IS NULL
        ON CONFLICT (task_id, phase) DO NOTHING`,
-      [sourceKw, sourceYear, targetKw, targetYear]
+      [sourceKw, sourceYear, ownerId, targetKw, targetYear]
     );
 
     const copiedPhaseSchedules = phaseResult.rowCount ?? 0;
@@ -970,14 +1027,20 @@ export async function copyWeek(
 
       const assignResult = await client.query<{ count: string }>(
         `INSERT INTO task_assignments (task_id, resource_id, assignment_date, half_day, is_fixed, status_code, notes)
-         SELECT task_id, resource_id,
-                (assignment_date + ($3 || ' days')::interval)::date,
-                half_day, is_fixed, status_code, notes
-         FROM task_assignments
-         WHERE assignment_date >= $1
-           AND assignment_date <= $2
-           AND deleted_at IS NULL`,
-        [source.from, source.to, String(dayOffset)]
+         SELECT ta.task_id, ta.resource_id,
+                (ta.assignment_date + ($3 || ' days')::interval)::date,
+                ta.half_day, ta.is_fixed, ta.status_code, ta.notes
+         FROM task_assignments ta
+         JOIN tasks t ON t.id = ta.task_id
+         JOIN resources r ON r.id = ta.resource_id
+         WHERE ta.assignment_date >= $1
+           AND ta.assignment_date <= $2
+           AND ta.deleted_at IS NULL
+           AND t.owner_id = $4
+           AND t.deleted_at IS NULL
+           AND r.owner_id = $4
+           AND r.deleted_at IS NULL`,
+        [source.from, source.to, String(dayOffset), ownerId]
       );
 
       copiedAssignments = assignResult.rowCount ?? 0;
@@ -1003,7 +1066,7 @@ export async function copyWeek(
  * 3.4 Unassigned Tasks
  * Find tasks with phase_schedules for this KW but zero assignments.
  */
-export async function getUnassignedTasks(kw: number, year: number): Promise<UnassignedResponse> {
+export async function getUnassignedTasks(kw: number, year: number, ownerId: string): Promise<UnassignedResponse> {
   const { from, to } = getWeekDateRange(kw, year);
 
   const result = await pool.query<{
@@ -1030,6 +1093,8 @@ export async function getUnassignedTasks(kw: number, year: number): Promise<Unas
        AND p.deleted_at IS NULL
        AND tps.planned_year = $1
        AND tps.planned_kw = $2
+       AND t.owner_id = $5
+       AND p.owner_id = $5
        AND NOT EXISTS (
          SELECT 1 FROM task_assignments ta
          WHERE ta.task_id = t.id
@@ -1038,7 +1103,7 @@ export async function getUnassignedTasks(kw: number, year: number): Promise<Unas
            AND ta.deleted_at IS NULL
        )
      ORDER BY tps.phase, p.order_number ASC NULLS LAST`,
-    [year, kw, from, to]
+    [year, kw, from, to, ownerId]
   );
 
   // Group by department (phase → department mapping)
@@ -1097,7 +1162,8 @@ export async function getPhaseMatrix(
   fromKw: number,
   toKw: number,
   fromYear: number,
-  toYear: number
+  toYear: number,
+  ownerId: string
 ): Promise<PhaseMatrixResponse> {
   const kwRange: number[] = [];
   
@@ -1139,8 +1205,10 @@ export async function getPhaseMatrix(
        AND tps.planned_year = $1
        AND tps.planned_kw >= $2
        AND tps.planned_kw <= $3
+       AND t.owner_id = $4
+       AND p.owner_id = $4
      ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`;
-    params = [fromYear, fromKw, toKw];
+    params = [fromYear, fromKw, toKw, ownerId];
   } else {
     // Year-wrapping query: (year=fromYear AND kw>=fromKw) OR (year=toYear AND kw<=toKw)
     query = `SELECT
@@ -1159,8 +1227,10 @@ export async function getPhaseMatrix(
          (tps.planned_year = $1 AND tps.planned_kw >= $2)
          OR (tps.planned_year = $3 AND tps.planned_kw <= $4)
        )
+       AND t.owner_id = $5
+       AND p.owner_id = $5
      ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`;
-    params = [fromYear, fromKw, toYear, toKw];
+    params = [fromYear, fromKw, toYear, toKw, ownerId];
   }
 
   const result = await pool.query<{
@@ -1222,7 +1292,8 @@ export async function getPhaseMatrix(
 export async function getResourceSchedule(
   resourceId: string,
   kw: number,
-  year: number
+  year: number,
+  ownerId: string
 ): Promise<ResourceWeekSchedule | null> {
   const { from, to, dates } = getWeekDateRange(kw, year);
 
@@ -1239,8 +1310,12 @@ export async function getResourceSchedule(
   }>(
     `SELECT id, name, short_code, department, employee_type, weekly_hours, work_role, skills
      FROM resources
-     WHERE id = $1 AND is_active = true AND resource_type = 'person'`,
-    [resourceId]
+     WHERE id = $1
+       AND owner_id = $2
+       AND deleted_at IS NULL
+       AND is_active = true
+       AND resource_type = 'person'`,
+    [resourceId, ownerId]
   );
 
   if (resourceResult.rows.length === 0) return null;
@@ -1282,8 +1357,10 @@ export async function getResourceSchedule(
        AND ta.assignment_date >= $2
        AND ta.assignment_date <= $3
        AND ta.deleted_at IS NULL
+       AND t.owner_id = $4
+       AND p.owner_id = $4
      ORDER BY ta.assignment_date ASC, ta.half_day ASC`,
-    [resourceId, from, to]
+    [resourceId, from, to, ownerId]
   );
 
   // Build days
@@ -1360,13 +1437,19 @@ export async function getResourceSchedule(
 export async function getResourcesOverview(
   kw: number,
   year: number,
+  ownerId: string,
   department?: string
 ): Promise<ResourcesOverviewResponse> {
   const { from, to, dates } = getWeekDateRange(kw, year);
 
   // Load resources
-  const conditions = [`r.is_active = true`, `r.resource_type = 'person'`];
-  const params: unknown[] = [];
+  const conditions = [
+    `r.owner_id = $1`,
+    `r.deleted_at IS NULL`,
+    `r.is_active = true`,
+    `r.resource_type = 'person'`,
+  ];
+  const params: unknown[] = [ownerId];
 
   if (department) {
     params.push(department);
@@ -1420,8 +1503,10 @@ export async function getResourcesOverview(
        AND ta.assignment_date >= $2
        AND ta.assignment_date <= $3
        AND ta.deleted_at IS NULL
+       AND t.owner_id = $4
+       AND p.owner_id = $4
      ORDER BY ta.assignment_date ASC, ta.half_day ASC`,
-    [resourceIds, from, to]
+    [resourceIds, from, to, ownerId]
   );
 
   // Group assignments by resource

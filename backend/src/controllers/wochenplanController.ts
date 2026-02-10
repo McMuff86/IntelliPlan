@@ -54,7 +54,8 @@ export async function getWochenplan(
       return;
     }
 
-    const weekPlan = await getWeekPlan(kw, year);
+    const userId = req.userId!;
+    const weekPlan = await getWeekPlan(kw, year, userId);
 
     res.status(200).json({
       success: true,
@@ -82,7 +83,8 @@ export async function getConflicts(
     const kw = parseInt(req.query.kw as string, 10);
     const year = parseInt(req.query.year as string, 10);
 
-    const conflicts = await getWeekConflicts(kw, year);
+    const userId = req.userId!;
+    const conflicts = await getWeekConflicts(kw, year, userId);
 
     res.status(200).json({
       success: true,
@@ -109,7 +111,8 @@ export async function assignBatch(
 
     const { assignments } = req.body;
 
-    const result = await quickAssign(assignments);
+    const userId = req.userId!;
+    const result = await quickAssign(assignments, userId);
 
     if (result.conflicts.length > 0) {
       res.status(409).json({
@@ -145,12 +148,14 @@ export async function copyWeekHandler(
 
     const { sourceKw, sourceYear, targetKw, targetYear, options } = req.body;
 
+    const userId = req.userId!;
     const result = await copyWeek(
       sourceKw,
       sourceYear,
       targetKw,
       targetYear,
-      { includeAssignments: options?.includeAssignments ?? true }
+      { includeAssignments: options?.includeAssignments ?? true },
+      userId
     );
 
     res.status(201).json({
@@ -186,7 +191,8 @@ export async function getUnassigned(
     const kw = parseInt(req.query.kw as string, 10);
     const year = parseInt(req.query.year as string, 10);
 
-    const result = await getUnassignedTasks(kw, year);
+    const userId = req.userId!;
+    const result = await getUnassignedTasks(kw, year, userId);
 
     res.status(200).json({
       success: true,
@@ -217,7 +223,8 @@ export async function getPhaseMatrixHandler(
     const fromYear = req.query.from_year ? parseInt(req.query.from_year as string, 10) : year;
     const toYear = req.query.to_year ? parseInt(req.query.to_year as string, 10) : year;
 
-    const result = await getPhaseMatrix(fromKw, toKw, fromYear, toYear);
+    const userId = req.userId!;
+    const result = await getPhaseMatrix(fromKw, toKw, fromYear, toYear, userId);
 
     res.status(200).json({
       success: true,
@@ -246,7 +253,8 @@ export async function getResourceScheduleHandler(
     const kw = parseInt(req.query.kw as string, 10);
     const year = parseInt(req.query.year as string, 10);
 
-    const result = await getResourceSchedule(resourceId, kw, year);
+    const userId = req.userId!;
+    const result = await getResourceSchedule(resourceId, kw, year, userId);
 
     if (!result) {
       res.status(404).json({
@@ -283,7 +291,8 @@ export async function getResourcesOverviewHandler(
     const year = parseInt(req.query.year as string, 10);
     const department = req.query.department as string | undefined;
 
-    const result = await getResourcesOverview(kw, year, department);
+    const userId = req.userId!;
+    const result = await getResourcesOverview(kw, year, userId, department);
 
     res.status(200).json({
       success: true,
