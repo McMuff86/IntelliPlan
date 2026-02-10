@@ -640,4 +640,43 @@ describe('getPhaseMatrix', () => {
     expect(params[1]).toBe(4); // from_kw
     expect(params[2]).toBe(10); // to_kw
   });
+
+  it('should handle year-wrapping correctly', async () => {
+    mockedPool.query.mockResolvedValueOnce({
+      rows: [
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase1', planned_kw: 51 },
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase2', planned_kw: 52 },
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase3', planned_kw: 1 },
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase4', planned_kw: 2 },
+      ],
+      rowCount: 4,
+    } as any);
+
+    const result = await getPhaseMatrix(51, 2, 2025, 2026);
+
+    // Should generate kwRange from 51-52, then 1-2
+    expect(result.kwRange).toEqual([51, 52, 1, 2]);
+    expect(result.fromKw).toBe(51);
+    expect(result.toKw).toBe(2);
+    expect(result.year).toBe(2025);
+
+    // Verify SQL query uses OR condition for year wrapping
+    const queryStr = mockedPool.query.mock.calls[0][0] as string;
+    expect(queryStr).toContain('(tps.planned_year = $1 AND tps.planned_kw >= $2)');
+    expect(queryStr).toContain('OR (tps.planned_year = $3 AND tps.planned_kw <= $4)');
+
+    const params = mockedPool.query.mock.calls[0][1] as any[];
+    expect(params[0]).toBe(2025); // from_year
+    expect(params[1]).toBe(51); // from_kw
+    expect(params[2]).toBe(2026); // to_year
+    expect(params[3]).toBe(2); // to_kw
+
+    // Verify task has all weeks with correct phases
+    expect(result.tasks).toHaveLength(1);
+    const task = result.tasks[0];
+    expect(task.weeks[0]).toEqual({ kw: 51, phases: ['phase1'] });
+    expect(task.weeks[1]).toEqual({ kw: 52, phases: ['phase2'] });
+    expect(task.weeks[2]).toEqual({ kw: 1, phases: ['phase3'] });
+    expect(task.weeks[3]).toEqual({ kw: 2, phases: ['phase4'] });
+  });
 });
