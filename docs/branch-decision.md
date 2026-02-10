@@ -73,9 +73,9 @@
 ### AGENTS.md / CLAUDE.md (623 Zeilen)
 | Abschnitt | Status | Empfehlung |
 |-----------|--------|------------|
-| Ralph Loop Beschreibung | ❌ Veraltet – wird nicht mehr genutzt | Entfernen |
+| Legacy-Loop Beschreibung | ❌ Veraltet – wird nicht mehr genutzt | Entfernen |
 | Beads System (150+ Zeilen) | ❌ Veraltet – durch Claude/OpenClaw ersetzt | Entfernen |
-| Working Modes (Ralph/Beads/Single-Agent) | ❌ Veraltet | Entfernen |
+| Working Modes (Legacy/Beads/Single-Agent) | ❌ Veraltet | Entfernen |
 | Tech Stack / Core Features | ⚠️ Teilweise veraltet (AI Features nicht gebaut) | Aktualisieren |
 | PRD-basierter Workflow | ❌ Veraltet | Entfernen |
 | Project Goal ("Appointment Management") | ❌ Veraltet – IntelliPlan ist jetzt Fertigungs-Planung | Komplett neu |
@@ -85,8 +85,6 @@
 ### Scripts
 | Script | Status | Empfehlung |
 |--------|--------|------------|
-| `scripts/ralph/ralph.sh` | ❌ Nicht mehr genutzt | Entfernen |
-| `scripts/ralph/prompt.md` | ❌ Nicht mehr genutzt | Entfernen |
 | `scripts/beads/deduplicate_progress.py` | ❌ Nicht mehr genutzt | Entfernen |
 | `scripts/beads/version_beads.py` | ❌ Nicht mehr genutzt | Entfernen |
 
@@ -157,7 +155,7 @@ main ─── merge ← phase2 ─── cleanup/refactoring ─── Weiteren
 
 **Cleanup-Sprint Scope:**
 1. Merge phase2 → main
-2. Legacy entfernen (Ralph, Beads, prd.json, alte Scripts)
+2. Legacy entfernen (Legacy-Loop, Beads, prd.json, alte Scripts)
 3. AGENTS.md komplett neu schreiben (Produktbeschreibung, nicht Tooling)
 4. progress.txt archivieren
 5. Junk-Resources cleanup (Migration)

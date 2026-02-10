@@ -35,7 +35,7 @@ This document summarizes the implementation of business goal enhancements for In
 ### US-015: Enhanced Beads Integration ✅
 
 **What is Beads?**  
-File-based memory system for autonomous AI agents (inspired by Steve Yegge's Beads pattern). Enables the Ralph loop to maintain context across iterations without databases.
+File-based memory system for autonomous AI agents (inspired by Steve Yegge's Beads pattern). Enables the agent loop to maintain context across iterations without databases.
 
 **Deliverables:**
 
@@ -52,14 +52,14 @@ File-based memory system for autonomous AI agents (inspired by Steve Yegge's Bea
    - Non-destructive (copies files)
    - Supports multiple files simultaneously
 
-3. **Bead Validation** (`bead_check()` in `ralph.sh`)
+3. **Bead Validation** (`bead_check()` im Loop-Script)
    - Validates JSON integrity before iterations
    - Checks required fields (name, userStories, id, passes)
    - Handles boolean false values correctly
    - Fails fast on validation errors
 
 **Integration:**
-- Versioning runs at start of Ralph loop
+- Versioning runs at start of the agent loop
 - Validation runs before each iteration
 - Deduplication runs after each iteration
 - All failures logged but don't stop the loop
@@ -305,7 +305,7 @@ From `progress.txt` and `AGENTS.md`:
 - Use environment variables for configurable paths (BEADS_DIR)
 - Prefer SHA-256 over MD5 even for non-cryptographic purposes
 - Document test setup requirements clearly in comments
-- Ralph loop integrates beads scripts automatically but continues on failure
+- Agent loop integrates beads scripts automatically but continues on failure
 ```
 
 ---
@@ -355,12 +355,9 @@ From `progress.txt` and `AGENTS.md`:
 - [version_beads.py](../scripts/beads/version_beads.py)
 - [aiConflictService.ts](../backend/src/services/aiConflictService.ts)
 - [appointmentController.ts](../backend/src/controllers/appointmentController.ts)
-- [ralph.sh](../scripts/ralph/ralph.sh)
 
 ### External
 - [Steve Yegge's Beads](https://github.com/steveyegge/beads)
-- [Geoffrey Huntley's Ralph](https://ghuntley.com/ralph/)
-- [Amp CLI](https://ampcode.com)
 
 ---
 

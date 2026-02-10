@@ -208,9 +208,8 @@ npm run dev
 
 ## 📚 Dokumentation
 
-- **[AGENTS.md](AGENTS.md)**: Entwickler-Referenz und Ralph-Pattern
+- **[AGENTS.md](AGENTS.md)**: Entwickler-Referenz und Agent Instructions
 - **[DEVELOPMENT.md](DEVELOPMENT.md)**: Entwickler-Setup und Codebase-Patterns
-- **[scripts/ralph/README.md](scripts/ralph/README.md)**: Ralph Autonomous Agent Loop
 - **[IMPLEMENTATION_SUMMARY.md](IMPLEMENTATION_SUMMARY.md)**: Implementierungs-Zusammenfassung
 - **[CASHFLOW_PLAN.md](CASHFLOW_PLAN.md)**: Business-Agent Briefing für ersten Cashflow
 
@@ -277,8 +276,6 @@ Kontakt: [GitHub](https://github.com/McMuff86)
 
 ## 🙏 Danksagungen
 
-- **Geoffrey Huntley** für das [Ralph Pattern](https://ghuntley.com/ralph/)
-- **Amp** für den [AI-gestützten Entwicklungs-Workflow](https://ampcode.com)
 - Die Open-Source-Community für die fantastischen Tools und Libraries
 
 ---

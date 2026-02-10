@@ -75,8 +75,8 @@ These extend core features with ML capabilities:
 Load the prd skill and create a PRD for [feature name]
 ```
 
-## How to Convert PRD to Ralph Format
+## How to Convert PRD to Agent Format
 
 ```
-Load the ralph skill and convert tasks/prd-[feature-name].md to prd.json
+Load the skill template and convert tasks/prd-[feature-name].md to prd.json
 ```
