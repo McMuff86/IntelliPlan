@@ -148,17 +148,17 @@ export const phaseMatrixValidator: ValidationChain[] = [
     .withMessage('to_kw is required')
     .isInt({ min: 1, max: 53 })
     .withMessage('to_kw must be between 1 and 53')
-    .toInt()
-    .custom((value, { req }) => {
-      const fromKw = parseInt(req.query?.from_kw as string, 10);
-      if (value < fromKw) {
-        throw new Error('to_kw must be >= from_kw');
-      }
-      if (value - fromKw > 26) {
-        throw new Error('KW range must not exceed 26 weeks');
-      }
-      return true;
-    }),
+    .toInt(),
+  query('from_year')
+    .optional()
+    .isInt({ min: 2020, max: 2099 })
+    .withMessage('from_year must be between 2020 and 2099')
+    .toInt(),
+  query('to_year')
+    .optional()
+    .isInt({ min: 2020, max: 2099 })
+    .withMessage('to_year must be between 2020 and 2099')
+    .toInt(),
   query('year')
     .notEmpty()
     .withMessage('year is required')

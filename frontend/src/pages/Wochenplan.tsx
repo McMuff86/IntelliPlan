@@ -18,6 +18,13 @@ import {
   Tooltip,
   LinearProgress,
   Snackbar,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Drawer,
+  TextField,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -25,6 +32,10 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import PhoneCallbackIcon from '@mui/icons-material/PhoneCallback';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import GridOnIcon from '@mui/icons-material/GridOn';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import {
   wochenplanService,
   type WeekPlanResponse,
@@ -33,6 +44,8 @@ import {
   type WeekPlanResource,
   type DayAssignmentDetail,
   type ResourceConflict,
+  type UnassignedResponse,
+  type PhaseMatrixResponse,
 } from '../services/wochenplanService';
 import AssignmentDialog from '../components/wochenplan/AssignmentDialog';
 import QuickAssignPopover from '../components/wochenplan/QuickAssignPopover';
@@ -49,6 +62,21 @@ function getCurrentISOWeek(): { kw: number; year: number } {
   );
   const kw = Math.ceil((dayOfYear + jan4.getDay() + 1) / 7);
   return { kw: Math.min(kw, 53), year };
+}
+
+/**
+ * Get the number of ISO weeks in a given year.
+ * A year has 53 weeks if Jan 1 is Thursday, or if it's a leap year and Jan 1 is Wednesday.
+ */
+function getWeeksInYear(year: number): number {
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const jan1Day = jan1.getUTCDay() || 7; // 0=Sun→7, 1=Mon, ..., 6=Sat → 1=Mon, ..., 7=Sun
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  
+  // Year has 53 weeks if:
+  // - Jan 1 is Thursday (day 4)
+  // - OR it's a leap year AND Jan 1 is Wednesday (day 3)
+  return jan1Day === 4 || (isLeapYear && jan1Day === 3) ? 53 : 52;
 }
 
 const PHASE_LABELS: Record<string, string> = {
@@ -116,6 +144,18 @@ export default function Wochenplan() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<ResourceConflict[]>([]);
+  const [unassigned, setUnassigned] = useState<UnassignedResponse | null>(null);
+
+  // Copy-Week dialog state
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
+  const [copyTargetKw, setCopyTargetKw] = useState(1);
+  const [copyTargetYear, setCopyTargetYear] = useState(new Date().getFullYear());
+  const [copyLoading, setCopyLoading] = useState(false);
+
+  // Phase-Matrix drawer state
+  const [matrixDrawerOpen, setMatrixDrawerOpen] = useState(false);
+  const [phaseMatrix, setPhaseMatrix] = useState<PhaseMatrixResponse | null>(null);
+  const [matrixLoading, setMatrixLoading] = useState(false);
 
   const initial = getCurrentISOWeek();
   const [kw, setKw] = useState(initial.kw);
@@ -181,12 +221,14 @@ export default function Wochenplan() {
     setLoading(true);
     setError(null);
     try {
-      const [data, conflictData] = await Promise.all([
+      const [data, conflictData, unassignedData] = await Promise.all([
         wochenplanService.getWeekPlan(kw, year),
         wochenplanService.getConflicts(kw, year),
+        wochenplanService.getUnassigned(kw, year),
       ]);
       setWeekPlan(data);
       setConflicts(conflictData.conflicts);
+      setUnassigned(unassignedData);
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'Fehler beim Laden des Wochenplans';
@@ -362,6 +404,96 @@ export default function Wochenplan() {
     setSnackbar((s) => ({ ...s, open: false }));
   };
 
+  // ─── Copy Week Handlers ─────────────────────────────
+
+  const handleOpenCopyDialog = () => {
+    // Default target: next week
+    const nextKw = kw >= 52 ? 1 : kw + 1;
+    const nextYear = kw >= 52 ? year + 1 : year;
+    setCopyTargetKw(nextKw);
+    setCopyTargetYear(nextYear);
+    setCopyDialogOpen(true);
+  };
+
+  const handleCopyWeek = async () => {
+    setCopyLoading(true);
+    try {
+      const result = await wochenplanService.copyWeek({
+        sourceKw: kw,
+        sourceYear: year,
+        targetKw: copyTargetKw,
+        targetYear: copyTargetYear,
+      });
+      setCopyDialogOpen(false);
+      setSnackbar({
+        open: true,
+        message: `${result.copiedPhaseSchedules} Phasen, ${result.copiedAssignments} Zuweisungen kopiert nach KW ${result.targetKw}`,
+        severity: 'success',
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Kopieren';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setCopyLoading(false);
+    }
+  };
+
+  // ─── CSV Export Handler ─────────────────────────────
+
+  const handleCsvExport = async () => {
+    try {
+      await wochenplanService.downloadCsv(kw, year);
+      setSnackbar({ open: true, message: 'CSV erfolgreich exportiert', severity: 'success' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim CSV-Export';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    }
+  };
+
+  // ─── Phase Matrix Handler ───────────────────────────
+
+  const handleOpenPhaseMatrix = async () => {
+    setMatrixDrawerOpen(true);
+    setMatrixLoading(true);
+    try {
+      // Calculate 7-week window (2 weeks before + current + 4 weeks after)
+      let fromKw: number;
+      let fromYear: number;
+      let toKw: number;
+      let toYear: number;
+
+      if (kw > 2) {
+        fromKw = kw - 2;
+        fromYear = year;
+      } else {
+        // Need to go back to previous year
+        // e.g., if kw=1 and prevYear has 52 weeks: fromKw = 52 + (1-2) = 51
+        // e.g., if kw=1 and prevYear has 53 weeks: fromKw = 53 + (1-2) = 52
+        fromYear = year - 1;
+        const weeksInPrevYear = getWeeksInYear(fromYear);
+        fromKw = weeksInPrevYear + (kw - 2);
+      }
+
+      const weeksInCurrentYear = getWeeksInYear(year);
+      if (kw + 4 <= weeksInCurrentYear) {
+        toKw = kw + 4;
+        toYear = year;
+      } else {
+        // Need to wrap to next year
+        toKw = (kw + 4) - weeksInCurrentYear;
+        toYear = year + 1;
+      }
+
+      const data = await wochenplanService.getPhaseMatrix(fromKw, toKw, fromYear, toYear);
+      setPhaseMatrix(data);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim Laden der Phase-Matrix';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    } finally {
+      setMatrixLoading(false);
+    }
+  };
+
   // ─── Keyboard Shortcuts ─────────────────────────────
   const handlePrevRef = useRef(handlePrev);
   const handleNextRef = useRef(handleNext);
@@ -497,6 +629,24 @@ export default function Wochenplan() {
               ⌨
             </Typography>
           </Tooltip>
+
+          <Tooltip title="Woche kopieren">
+            <IconButton onClick={handleOpenCopyDialog} size="small">
+              <ContentCopyIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="CSV Export">
+            <IconButton onClick={handleCsvExport} size="small">
+              <FileDownloadIcon />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Phase-Matrix (7 Wochen)">
+            <IconButton onClick={handleOpenPhaseMatrix} size="small">
+              <GridOnIcon />
+            </IconButton>
+          </Tooltip>
         </Box>
       </Box>
 
@@ -568,6 +718,69 @@ export default function Wochenplan() {
               </Typography>
             </Box>
           </Paper>
+
+          {/* Unassigned Tasks */}
+          {unassigned && unassigned.totalUnassigned > 0 && (
+            <Paper sx={{ p: 3 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                <WarningAmberIcon color="warning" />
+                <Typography variant="h6">
+                  Nicht zugewiesene Aufträge ({unassigned.totalUnassigned})
+                </Typography>
+              </Box>
+              {unassigned.departments.map((dept) => (
+                <Box key={dept.department} sx={{ mb: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>
+                    {dept.label} ({dept.tasks.length})
+                  </Typography>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 700 }}>Auftrag</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Kunde</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Beschreibung</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Montageort</TableCell>
+                        <TableCell sx={{ fontWeight: 700 }}>Phasen</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {dept.tasks.map((task) => (
+                        <TableRow key={task.taskId}>
+                          <TableCell>
+                            <Typography variant="body2" fontWeight={600}>
+                              {task.projectOrderNumber}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>{task.customerName}</TableCell>
+                          <TableCell>{task.description}</TableCell>
+                          <TableCell>{task.installationLocation || '—'}</TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                              {task.phases
+                                .filter((p) => p.plannedKw !== null)
+                                .map((p) => (
+                                  <Chip
+                                    key={p.phase}
+                                    label={`${PHASE_LABELS[p.phase] || p.phase} KW${p.plannedKw}`}
+                                    size="small"
+                                    sx={{
+                                      bgcolor: PHASE_COLORS[p.phase] || 'grey.400',
+                                      color: '#fff',
+                                      fontSize: '0.65rem',
+                                      height: 20,
+                                    }}
+                                  />
+                                ))}
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+              ))}
+            </Paper>
+          )}
         </Box>
       )}
 
@@ -600,6 +813,129 @@ export default function Wochenplan() {
         onClose={handleQuickAssignClose}
         onOpenFullDialog={handleQuickAssignOpenFull}
       />
+
+      {/* Copy Week Dialog */}
+      <Dialog open={copyDialogOpen} onClose={() => setCopyDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Woche kopieren</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Kopiert alle Phasen und Zuweisungen von KW {kw}/{year} in die Zielwoche.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField
+              label="Ziel-KW"
+              type="number"
+              value={copyTargetKw}
+              onChange={(e) => setCopyTargetKw(Math.max(1, Math.min(53, Number(e.target.value))))}
+              inputProps={{ min: 1, max: 53 }}
+              size="small"
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              label="Ziel-Jahr"
+              type="number"
+              value={copyTargetYear}
+              onChange={(e) => setCopyTargetYear(Number(e.target.value))}
+              size="small"
+              sx={{ flex: 1 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCopyDialogOpen(false)} disabled={copyLoading}>
+            Abbrechen
+          </Button>
+          <Button onClick={handleCopyWeek} variant="contained" disabled={copyLoading} startIcon={<ContentCopyIcon />}>
+            {copyLoading ? 'Kopiere…' : 'Kopieren'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Phase Matrix Drawer */}
+      <Drawer
+        anchor="right"
+        open={matrixDrawerOpen}
+        onClose={() => setMatrixDrawerOpen(false)}
+        PaperProps={{ sx: { width: { xs: '100%', md: '80%', lg: '70%' }, p: 3 } }}
+      >
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h5">Phase-Matrix</Typography>
+          <Button onClick={() => setMatrixDrawerOpen(false)}>Schliessen</Button>
+        </Box>
+        {matrixLoading && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
+            <CircularProgress />
+          </Box>
+        )}
+        {!matrixLoading && phaseMatrix && (
+          <TableContainer sx={{ overflowX: 'auto' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 100 }}>Auftrag</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 120 }}>Kunde</TableCell>
+                  <TableCell sx={{ fontWeight: 700, minWidth: 150 }}>Beschreibung</TableCell>
+                  {phaseMatrix.kwRange.map((kwNum) => (
+                    <TableCell
+                      key={kwNum}
+                      sx={{
+                        fontWeight: 700,
+                        textAlign: 'center',
+                        minWidth: 80,
+                        bgcolor: kwNum === kw ? 'action.selected' : undefined,
+                      }}
+                    >
+                      KW {kwNum}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {phaseMatrix.tasks.map((task) => (
+                  <TableRow key={task.taskId} hover>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight={600}>
+                        {task.projectOrderNumber}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{task.customerName}</TableCell>
+                    <TableCell>
+                      <Typography variant="body2" noWrap sx={{ maxWidth: 200 }} title={task.description}>
+                        {task.description}
+                      </Typography>
+                    </TableCell>
+                    {task.weeks.map((w) => (
+                      <TableCell key={w.kw} sx={{ textAlign: 'center', bgcolor: w.kw === kw ? 'action.hover' : undefined }}>
+                        <Box sx={{ display: 'flex', gap: 0.25, flexWrap: 'wrap', justifyContent: 'center' }}>
+                          {w.phases.map((phase) => (
+                            <Chip
+                              key={phase}
+                              label={PHASE_LABELS[phase] || phase}
+                              size="small"
+                              sx={{
+                                bgcolor: PHASE_COLORS[phase] || 'grey.400',
+                                color: '#fff',
+                                fontSize: '0.6rem',
+                                height: 18,
+                                fontWeight: 700,
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+        {!matrixLoading && phaseMatrix && phaseMatrix.tasks.length === 0 && (
+          <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+            Keine Phasen im gewählten Zeitraum
+          </Typography>
+        )}
+      </Drawer>
 
       {/* Success/Error Snackbar */}
       <Snackbar
