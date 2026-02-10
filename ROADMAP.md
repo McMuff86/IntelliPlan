@@ -117,10 +117,12 @@ Stand: 2026-02-10
 
 ## 5. Priorisierung (ab jetzt)
 
-1. **P0:** Phase 1B: Contract-Fallbacks entfernen, Smoke-Tests.
-2. **P1:** Multi-Tenant/Owner-Scoping absichern.
-3. **P2:** Ressourcen/Absenzen fuer realistische Kapazitaet ausbauen.
-4. **P2:** Import-UX als Onboarding standardisieren.
+1. **P0:** Datenkorrektheit + Owner-Scoping haerten (Wochenplan/Import).
+2. **P0:** Projekt-getriebener Ablauf definieren: Projekt -> Gantt -> Produktionsfreigabe -> KW-Plan.
+3. **P1:** Produktionsphasen pro Projekt konfigurierbar machen (inkl. optionaler Schritte).
+4. **P1:** Regelbasierte Auto-Planung + Umplanung bei Verschiebungen.
+5. **P2:** Lernschleife (Soll/Ist + Verzoegerungsgruende) als Grundlage fuer spaetere ML-Vorhersagen.
+6. **P2:** Import-UX als Onboarding standardisieren.
 
 ## 6. Definition "Praxistauglich" fuer IntelliPlan
 
@@ -136,3 +138,103 @@ IntelliPlan gilt als praxistauglich, wenn alle Punkte erfuellt sind:
 - Update-Rhythmus: mindestens 1x pro Woche oder bei jedem Merge in `main` mit hohem Impact.
 - Jede Phase enthaelt: Ziel, Arbeitspakete, Exit-Kriterien.
 - Erledigte Punkte werden nach oben in "abgeschlossen" uebernommen.
+
+## 8. Neue Produktlinie 2026: "Projekt zuerst, Wochenplan intelligent"
+
+**Produktfluss (Soll):**
+1. Projekt in IntelliPlan erfassen (inkl. Endtermin, Kunde, Prioritaet, Risiko).
+2. Im Projekt definieren, welche Phasen wirklich noetig sind (z. B. ohne Zuschnitt / ohne Behandlung).
+3. Vor Produktionsstart "Readiness Gate" pruefen:
+   - AVOR abgeschlossen
+   - Material bestellt/verfuegbar
+   - Beschlaege bestellt/verfuegbar
+   - Plaene freigegeben
+4. Nach Gate-Freigabe automatische Einplanung in KWs mit Kapazitaetspruefung.
+5. Bei Stoerungen (Baustelle nicht bereit, Engpass, Krankheit) automatische Umplanung mit manueller Ueberschreibung.
+6. Task-Notizen zu Abweichungen erfassen und als Lernbasis nutzen.
+
+**Warum jetzt:**
+- Zielgruppe plant individualisiert (kein Serienbetrieb), deshalb braucht es starke Soll-/Ist-Planung statt starrem Schema.
+- Endtermin ist kundenseitig fuehrend; Rueckwaerts-/Vorwaertsplanung muss robust sein.
+- Lernen aus realen Gruenden fuer Verzoegerung ist differenzierendes Kernfeature.
+
+## 9. Umsetzungsphasen fuer die neue Produktlinie
+
+### Phase 0R - Wochenplan-Daten resetbar + Schutz gegen erneute Verschmutzung (kurzfristig)
+**Ziel:** Sauberer Neustart fuer produktive Testplanung.
+
+**Arbeitspakete:**
+- Bereinigungs-Playbook fuer `task_assignments`, `task_phase_schedules`, optional importierte Test-`tasks/projects/resources`.
+- Import-Validierung schaerfen (nur echte Mitarbeiter-Codes, Notizen getrennt erfassen).
+- Owner-Scoping fuer Import upserts und Wochenplan-Queries verbindlich machen.
+
+**Exit-Kriterien:**
+- Definierter "Reset to clean state" Ablauf dokumentiert und testbar.
+- Keine Cross-Owner-Zuordnungen nach neuem Import.
+
+### Phase 1C - Projektmodell fuer Custom-Fertigung
+**Ziel:** Projekte tragen die komplette Produktionsdefinition.
+
+**Arbeitspakete:**
+- Projektanlage mit Endtermin, Prioritaet, Risikoklasse.
+- Projektphasen-Definition pro Auftrag (Pflicht/Optional/entfaellt).
+- Geschaetzte Dauer je Phase (Bandbreite statt starre Dauer).
+- Abhaengigkeiten je Phase (z. B. Montage erst nach Produktion + Baustellenfreigabe).
+
+**Exit-Kriterien:**
+- Jeder neue Auftrag ist ohne Excel vollstaendig in IntelliPlan definierbar.
+- Gantt zeigt komplette Projektlogik inkl. optionaler/entfallender Phasen.
+
+### Phase 2B - Readiness Gate vor Produktionsplanung
+**Ziel:** Produktion startet nur bei fachlich sinnvollem Zustand.
+
+**Arbeitspakete:**
+- Gate-Checks als strukturierte Daten (AVOR, Material, Beschlaege, Plaene, externe Freigaben).
+- Gate-Status in Projekt- und Gantt-Ansicht sichtbar.
+- Blockierte Phasen duerfen nicht automatisch eingeplant werden.
+
+**Exit-Kriterien:**
+- "Nicht bereit" Projekte erscheinen nicht als normale produktive Wochenplan-Kandidaten.
+- Gate-Status ist revisionssicher historisiert.
+
+### Phase 3B - Intelligente Wochenplanung + Umplanung
+**Ziel:** Planvorschlaege sind realistisch und im Alltag anpassbar.
+
+**Arbeitspakete:**
+- Regelbasierter Scheduler (Kapazitaet, Skills/Rollen, Abhaengigkeiten, Kalenderrestriktionen).
+- Szenario-Regeln fuer Spezialfaelle (z. B. Tueren ohne Zuschnitt).
+- Umplanungs-Engine bei Terminverschiebungen (Baustelle, Lieferverzug, Krankmeldungen).
+- Compare-Ansicht: alter Plan vs. neuer Plan inkl. Delta.
+
+**Exit-Kriterien:**
+- Planer kann eine Woche per Vorschlag erzeugen, pruefen und uebernehmen.
+- Umplanung erzeugt nachvollziehbare Aenderungshistorie.
+
+### Phase 4B - Lernsystem auf Basis realer Produktionsdaten
+**Ziel:** IntelliPlan verbessert Schaetzungen und Risiko-Hinweise laufend.
+
+**Arbeitspakete:**
+- Strukturierte Erfassung von Verzoegerungsgruenden auf Task-Ebene.
+- Soll/Ist-Dauern je Phase speichern und auswerten.
+- Risikofaktoren je Projekt/Kunde/Phase aggregieren.
+- Erste "ML-light" Stufe: statistische Vorschlaege + Risiko-Warnungen (ohne Blackbox).
+
+**Exit-Kriterien:**
+- Dashboard zeigt Top-Verzoegerungsgruende und wiederkehrende Muster.
+- Planvorschlaege beruecksichtigen historische Ist-Daten sichtbar.
+
+## 10. PR-Strategie fuer die naechsten Iterationen
+
+1. **PR-A:** Datenreset-Playbook + owner-safe Import/Query-Fixes.
+2. **PR-B:** Projektphasen-Definition + Endtermin-/Gantt-Erweiterung.
+3. **PR-C:** Readiness-Gate (Datenmodell, API, UI).
+4. **PR-D:** Regelbasierter Auto-Scheduler + Umplanung.
+5. **PR-E:** Lernschleife (Soll/Ist, Delay-Reason, Analytics).
+
+Jede PR enthaelt:
+- Migrationen (falls noetig) + Backfill/Repair-Plan
+- API-Contract-Aenderungen
+- Frontend-Flow inkl. Empty-/Error-States
+- Tests (Service/Validator/Flow)
+
+Detailkonzept: `docs/project-first-planning-plan.md`
