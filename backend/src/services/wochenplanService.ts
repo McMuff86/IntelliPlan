@@ -104,7 +104,7 @@ const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 function getWeekDateRange(kw: number, year: number): { from: string; to: string; dates: string[] } {
   // ISO week date: Jan 4 is always in week 1
   const jan4 = new Date(Date.UTC(year, 0, 4));
-  const dayOfWeek = jan4.getUTCDay() || 7; // 1=Mon … 7=Sun
+  const dayOfWeek = jan4.getUTCDay() || 7; // getUTCDay: 0=Sun, 1=Mon...6=Sat → after || 7: 1=Mon...7=Sun
   const monday = new Date(jan4);
   monday.setUTCDate(jan4.getUTCDate() - (dayOfWeek - 1) + (kw - 1) * 7);
 
@@ -120,6 +120,21 @@ function getWeekDateRange(kw: number, year: number): { from: string; to: string;
     to: dates[4],
     dates,
   };
+}
+
+/**
+ * Get the number of ISO weeks in a given year.
+ * A year has 53 weeks if Jan 1 is Thursday, or if it's a leap year and Jan 1 is Wednesday.
+ */
+function getWeeksInYear(year: number): number {
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const jan1Day = jan1.getUTCDay() || 7; // 1=Mon … 7=Sun
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  
+  // Year has 53 weeks if:
+  // - Jan 1 is Thursday (day 4)
+  // - OR it's a leap year AND Jan 1 is Wednesday (day 3)
+  return jan1Day === 4 || (isLeapYear && jan1Day === 3) ? 53 : 52;
 }
 
 // ─── WP3 + WP4 Types ──────────────────────────────────
@@ -1081,22 +1096,35 @@ export async function getUnassignedTasks(kw: number, year: number): Promise<Unas
 export async function getPhaseMatrix(
   fromKw: number,
   toKw: number,
-  year: number
+  fromYear: number,
+  toYear: number
 ): Promise<PhaseMatrixResponse> {
   const kwRange: number[] = [];
-  for (let kw = fromKw; kw <= toKw; kw++) {
-    kwRange.push(kw);
+  
+  // Handle year-wrapping: if fromYear < toYear, we span a year boundary
+  if (fromYear === toYear) {
+    // Normal case: same year, fromKw to toKw
+    for (let kw = fromKw; kw <= toKw; kw++) {
+      kwRange.push(kw);
+    }
+  } else {
+    // Year-wrapping case: fromKw to last week of fromYear, then 1 to toKw in toYear
+    const weeksInFromYear = getWeeksInYear(fromYear);
+    for (let kw = fromKw; kw <= weeksInFromYear; kw++) {
+      kwRange.push(kw);
+    }
+    for (let kw = 1; kw <= toKw; kw++) {
+      kwRange.push(kw);
+    }
   }
 
-  const result = await pool.query<{
-    task_id: string;
-    order_number: string | null;
-    customer_name: string | null;
-    task_title: string;
-    phase: string;
-    planned_kw: number;
-  }>(
-    `SELECT
+  // Build query to handle year boundary
+  let query: string;
+  let params: (number | string)[];
+  
+  if (fromYear === toYear) {
+    // Single year query
+    query = `SELECT
        t.id AS task_id,
        p.order_number,
        p.customer_name,
@@ -1111,9 +1139,38 @@ export async function getPhaseMatrix(
        AND tps.planned_year = $1
        AND tps.planned_kw >= $2
        AND tps.planned_kw <= $3
-     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`,
-    [year, fromKw, toKw]
-  );
+     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`;
+    params = [fromYear, fromKw, toKw];
+  } else {
+    // Year-wrapping query: (year=fromYear AND kw>=fromKw) OR (year=toYear AND kw<=toKw)
+    query = `SELECT
+       t.id AS task_id,
+       p.order_number,
+       p.customer_name,
+       t.title AS task_title,
+       tps.phase::text AS phase,
+       tps.planned_kw
+     FROM tasks t
+     JOIN projects p ON p.id = t.project_id
+     JOIN task_phase_schedules tps ON tps.task_id = t.id
+     WHERE t.deleted_at IS NULL
+       AND p.deleted_at IS NULL
+       AND (
+         (tps.planned_year = $1 AND tps.planned_kw >= $2)
+         OR (tps.planned_year = $3 AND tps.planned_kw <= $4)
+       )
+     ORDER BY p.order_number ASC NULLS LAST, t.title ASC, tps.planned_kw ASC`;
+    params = [fromYear, fromKw, toYear, toKw];
+  }
+
+  const result = await pool.query<{
+    task_id: string;
+    order_number: string | null;
+    customer_name: string | null;
+    task_title: string;
+    phase: string;
+    planned_kw: number;
+  }>(query, params);
 
   // Group by task
   const taskMap = new Map<string, {
@@ -1153,7 +1210,7 @@ export async function getPhaseMatrix(
     })),
   }));
 
-  return { fromKw, toKw, year, kwRange, tasks };
+  return { fromKw, toKw, year: fromYear, kwRange, tasks };
 }
 
 // ─── WP4: Mitarbeiter-View API ────────────────────────

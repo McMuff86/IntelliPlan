@@ -64,6 +64,21 @@ function getCurrentISOWeek(): { kw: number; year: number } {
   return { kw: Math.min(kw, 53), year };
 }
 
+/**
+ * Get the number of ISO weeks in a given year.
+ * A year has 53 weeks if Jan 1 is Thursday, or if it's a leap year and Jan 1 is Wednesday.
+ */
+function getWeeksInYear(year: number): number {
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const jan1Day = jan1.getUTCDay() || 7; // 0=Sun→7, 1=Mon, ..., 6=Sat → 1=Mon, ..., 7=Sun
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  
+  // Year has 53 weeks if:
+  // - Jan 1 is Thursday (day 4)
+  // - OR it's a leap year AND Jan 1 is Wednesday (day 3)
+  return jan1Day === 4 || (isLeapYear && jan1Day === 3) ? 53 : 52;
+}
+
 const PHASE_LABELS: Record<string, string> = {
   zuschnitt: 'ZUS',
   cnc: 'CNC',
@@ -425,14 +440,14 @@ export default function Wochenplan() {
 
   // ─── CSV Export Handler ─────────────────────────────
 
-  const handleCsvExport = () => {
-    const url = wochenplanService.getExportCsvUrl(kw, year);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `wochenplan-kw${kw}-${year}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const handleCsvExport = async () => {
+    try {
+      await wochenplanService.downloadCsv(kw, year);
+      setSnackbar({ open: true, message: 'CSV erfolgreich exportiert', severity: 'success' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Fehler beim CSV-Export';
+      setSnackbar({ open: true, message: msg, severity: 'error' });
+    }
   };
 
   // ─── Phase Matrix Handler ───────────────────────────
@@ -441,9 +456,35 @@ export default function Wochenplan() {
     setMatrixDrawerOpen(true);
     setMatrixLoading(true);
     try {
-      const fromKw = kw > 2 ? kw - 2 : kw - 2 + 52;
-      const toKw = kw + 4 <= 52 ? kw + 4 : kw + 4 - 52;
-      const data = await wochenplanService.getPhaseMatrix(fromKw, toKw, year);
+      // Calculate 7-week window (2 weeks before + current + 4 weeks after)
+      let fromKw: number;
+      let fromYear: number;
+      let toKw: number;
+      let toYear: number;
+
+      if (kw > 2) {
+        fromKw = kw - 2;
+        fromYear = year;
+      } else {
+        // Need to go back to previous year
+        // e.g., if kw=1 and prevYear has 52 weeks: fromKw = 52 + (1-2) = 51
+        // e.g., if kw=1 and prevYear has 53 weeks: fromKw = 53 + (1-2) = 52
+        fromYear = year - 1;
+        const weeksInPrevYear = getWeeksInYear(fromYear);
+        fromKw = weeksInPrevYear + (kw - 2);
+      }
+
+      const weeksInCurrentYear = getWeeksInYear(year);
+      if (kw + 4 <= weeksInCurrentYear) {
+        toKw = kw + 4;
+        toYear = year;
+      } else {
+        // Need to wrap to next year
+        toKw = (kw + 4) - weeksInCurrentYear;
+        toYear = year + 1;
+      }
+
+      const data = await wochenplanService.getPhaseMatrix(fromKw, toKw, fromYear, toYear);
       setPhaseMatrix(data);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Fehler beim Laden der Phase-Matrix';

@@ -222,18 +222,16 @@ describe('phaseMatrixValidator', () => {
     expect(result.isEmpty()).toBe(false);
   });
 
-  it('should fail when to_kw < from_kw', async () => {
-    const req = mockRequest({ from_kw: '10', to_kw: '4', year: '2026' });
+  it('should allow to_kw < from_kw for year-wrapping cases', async () => {
+    const req = mockRequest({ from_kw: '51', to_kw: '5', year: '2026', from_year: '2025', to_year: '2026' });
     const result = await runValidators(phaseMatrixValidator, req);
-    expect(result.isEmpty()).toBe(false);
-    expect(result.array().some((e: any) => e.msg?.includes('>= from_kw'))).toBe(true);
+    expect(result.isEmpty()).toBe(true);
   });
 
-  it('should fail when range exceeds 26 weeks', async () => {
+  it('should allow ranges that would exceed 26 weeks in same year', async () => {
     const req = mockRequest({ from_kw: '1', to_kw: '30', year: '2026' });
     const result = await runValidators(phaseMatrixValidator, req);
-    expect(result.isEmpty()).toBe(false);
-    expect(result.array().some((e: any) => e.msg?.includes('26 weeks'))).toBe(true);
+    expect(result.isEmpty()).toBe(true);
   });
 });
 

@@ -550,7 +550,7 @@ describe('getPhaseMatrix', () => {
   it('should return empty matrix when no tasks have phase schedules', async () => {
     mockedPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-    const result = await getPhaseMatrix(4, 10, 2026);
+    const result = await getPhaseMatrix(4, 10, 2026, 2026);
 
     expect(result.fromKw).toBe(4);
     expect(result.toKw).toBe(10);
@@ -569,7 +569,7 @@ describe('getPhaseMatrix', () => {
       rowCount: 3,
     } as any);
 
-    const result = await getPhaseMatrix(4, 10, 2026);
+    const result = await getPhaseMatrix(4, 10, 2026, 2026);
 
     expect(result.tasks).toHaveLength(1);
     const task = result.tasks[0];
@@ -602,7 +602,7 @@ describe('getPhaseMatrix', () => {
       rowCount: 2,
     } as any);
 
-    const result = await getPhaseMatrix(6, 6, 2026);
+    const result = await getPhaseMatrix(6, 6, 2026, 2026);
 
     const kw6 = result.tasks[0].weeks[0];
     expect(kw6.phases).toEqual(['cnc', 'produktion']);
@@ -617,7 +617,7 @@ describe('getPhaseMatrix', () => {
       rowCount: 2,
     } as any);
 
-    const result = await getPhaseMatrix(4, 6, 2026);
+    const result = await getPhaseMatrix(4, 6, 2026, 2026);
 
     expect(result.tasks).toHaveLength(2);
   });
@@ -625,7 +625,7 @@ describe('getPhaseMatrix', () => {
   it('should generate correct kwRange', async () => {
     mockedPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-    const result = await getPhaseMatrix(1, 3, 2026);
+    const result = await getPhaseMatrix(1, 3, 2026, 2026);
 
     expect(result.kwRange).toEqual([1, 2, 3]);
   });
@@ -633,11 +633,78 @@ describe('getPhaseMatrix', () => {
   it('should pass correct SQL parameters', async () => {
     mockedPool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 } as any);
 
-    await getPhaseMatrix(4, 10, 2026);
+    await getPhaseMatrix(4, 10, 2026, 2026);
 
     const params = mockedPool.query.mock.calls[0][1] as any[];
     expect(params[0]).toBe(2026); // year
     expect(params[1]).toBe(4); // from_kw
     expect(params[2]).toBe(10); // to_kw
+  });
+
+  it('should handle year-wrapping correctly', async () => {
+    mockedPool.query.mockResolvedValueOnce({
+      rows: [
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase1', planned_kw: 51 },
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase2', planned_kw: 52 },
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase3', planned_kw: 1 },
+        { task_id: 'task-1', order_number: '2025-100', customer_name: 'Test', task_title: 'Year End', phase: 'phase4', planned_kw: 2 },
+      ],
+      rowCount: 4,
+    } as any);
+
+    const result = await getPhaseMatrix(51, 2, 2025, 2026);
+
+    // Should generate kwRange from 51-52, then 1-2 (2025 has 52 weeks)
+    expect(result.kwRange).toEqual([51, 52, 1, 2]);
+    expect(result.fromKw).toBe(51);
+    expect(result.toKw).toBe(2);
+    expect(result.year).toBe(2025);
+
+    // Verify SQL query uses OR condition for year wrapping
+    const queryStr = mockedPool.query.mock.calls[0][0] as string;
+    expect(queryStr).toContain('(tps.planned_year = $1 AND tps.planned_kw >= $2)');
+    expect(queryStr).toContain('OR (tps.planned_year = $3 AND tps.planned_kw <= $4)');
+
+    const params = mockedPool.query.mock.calls[0][1] as any[];
+    expect(params[0]).toBe(2025); // from_year
+    expect(params[1]).toBe(51); // from_kw
+    expect(params[2]).toBe(2026); // to_year
+    expect(params[3]).toBe(2); // to_kw
+
+    // Verify task has all weeks with correct phases
+    expect(result.tasks).toHaveLength(1);
+    const task = result.tasks[0];
+    expect(task.weeks[0]).toEqual({ kw: 51, phases: ['phase1'] });
+    expect(task.weeks[1]).toEqual({ kw: 52, phases: ['phase2'] });
+    expect(task.weeks[2]).toEqual({ kw: 1, phases: ['phase3'] });
+    expect(task.weeks[3]).toEqual({ kw: 2, phases: ['phase4'] });
+  });
+
+  it('should handle year-wrapping with 53-week year', async () => {
+    mockedPool.query.mockResolvedValueOnce({
+      rows: [
+        { task_id: 'task-1', order_number: '2020-100', customer_name: 'Test', task_title: 'Long Year', phase: 'phase1', planned_kw: 52 },
+        { task_id: 'task-1', order_number: '2020-100', customer_name: 'Test', task_title: 'Long Year', phase: 'phase2', planned_kw: 53 },
+        { task_id: 'task-1', order_number: '2020-100', customer_name: 'Test', task_title: 'Long Year', phase: 'phase3', planned_kw: 1 },
+      ],
+      rowCount: 3,
+    } as any);
+
+    // 2020 has 53 weeks
+    const result = await getPhaseMatrix(52, 1, 2020, 2021);
+
+    // Should generate kwRange from 52-53, then 1 (2020 has 53 weeks)
+    expect(result.kwRange).toEqual([52, 53, 1]);
+    expect(result.fromKw).toBe(52);
+    expect(result.toKw).toBe(1);
+    expect(result.year).toBe(2020);
+
+    // Verify task has all weeks including week 53
+    expect(result.tasks).toHaveLength(1);
+    const task = result.tasks[0];
+    expect(task.weeks).toHaveLength(3);
+    expect(task.weeks[0]).toEqual({ kw: 52, phases: ['phase1'] });
+    expect(task.weeks[1]).toEqual({ kw: 53, phases: ['phase2'] });
+    expect(task.weeks[2]).toEqual({ kw: 1, phases: ['phase3'] });
   });
 });
