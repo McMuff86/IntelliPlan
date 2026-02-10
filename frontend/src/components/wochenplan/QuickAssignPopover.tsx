@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   Popover,
   Box,
@@ -13,8 +13,12 @@ import {
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import OpenInFullIcon from '@mui/icons-material/OpenInFull';
-import type { WeekPlanResource } from '../../services/wochenplanService';
-import { assignmentService } from '../../services/assignmentService';
+import {
+  wochenplanService,
+  type WeekPlanResource,
+  type BatchAssignItem,
+  type ResourceConflict,
+} from '../../services/wochenplanService';
 import type { HalfDay } from '../../services/assignmentService';
 
 export interface SelectedCell {
@@ -34,9 +38,52 @@ export interface QuickAssignPopoverProps {
   resources: WeekPlanResource[];
   /** Additional cells selected via shift+click for batch assignment */
   batchCells: SelectedCell[];
-  onAssigned: () => void;
+  onAssigned: (createdAssignments: number) => void | Promise<void>;
   onClose: () => void;
   onOpenFullDialog: () => void;
+}
+
+interface ApiConflictResponse {
+  error?: string;
+  data?: {
+    conflicts?: ResourceConflict[];
+  };
+}
+
+function formatHalfDayLabel(value: string): string {
+  if (value === 'morning') return 'VM';
+  if (value === 'afternoon') return 'NM';
+  if (value === 'full_day') return 'Ganztag';
+  return value;
+}
+
+function formatConflictLabel(conflict: ResourceConflict): string {
+  const resource = conflict.shortCode || conflict.resourceName || 'Mitarbeiter';
+  return `${resource} ${conflict.date} ${formatHalfDayLabel(conflict.halfDay)}`;
+}
+
+function extractAssignError(error: unknown): string {
+  if (error && typeof error === 'object' && 'response' in error) {
+    const response = (error as {
+      response?: { status?: number; data?: ApiConflictResponse };
+    }).response;
+
+    if (response?.status === 409) {
+      const conflicts = response.data?.data?.conflicts;
+      if (Array.isArray(conflicts) && conflicts.length > 0) {
+        const preview = conflicts.slice(0, 2).map(formatConflictLabel).join(' · ');
+        const more = conflicts.length > 2 ? ` +${conflicts.length - 2} weitere` : '';
+        return `Konflikt erkannt: ${preview}${more}`;
+      }
+      return response.data?.error || 'Konflikte erkannt. Keine Zuordnung gespeichert.';
+    }
+
+    if (typeof response?.data?.error === 'string' && response.data.error.length > 0) {
+      return response.data.error;
+    }
+  }
+
+  return 'Fehler beim Zuweisen';
 }
 
 export default function QuickAssignPopover({
@@ -57,82 +104,90 @@ export default function QuickAssignPopover({
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Filter resources by department + search
-  const filtered = resources.filter((r) => {
-    const matchesDept = !department || r.department === department || !r.department;
-    if (!matchesDept) return false;
-    if (!filter.trim()) return true;
-    const q = filter.toLowerCase();
-    return (
-      r.name.toLowerCase().includes(q) ||
-      (r.shortCode?.toLowerCase().includes(q) ?? false)
-    );
-  });
+  const resetLocalState = useCallback(() => {
+    setFilter('');
+    setAssigning(false);
+    setError(null);
+  }, []);
 
-  // Reset state when popover opens
-  useEffect(() => {
-    if (open) {
-      setFilter('');
-      setError(null);
-      setAssigning(false);
-      // Focus search input
-      setTimeout(() => inputRef.current?.focus(), 100);
+  const selectedTargets = useMemo(() => {
+    const targetMap = new Map<string, SelectedCell>();
+    const addTarget = (cell: SelectedCell) => {
+      targetMap.set(`${cell.taskId}|${cell.date}|${cell.halfDay}`, cell);
+    };
+
+    addTarget({ taskId, date, halfDay, department });
+    for (const cell of batchCells) {
+      addTarget(cell);
     }
+
+    return Array.from(targetMap.values());
+  }, [taskId, date, halfDay, department, batchCells]);
+
+  // Filter resources by department + search
+  const filtered = useMemo(() => {
+    return resources.filter((resource) => {
+      const matchesDept =
+        !department || resource.department === department || !resource.department;
+      if (!matchesDept) return false;
+      if (!filter.trim()) return true;
+      const query = filter.toLowerCase();
+      return (
+        resource.name.toLowerCase().includes(query) ||
+        (resource.shortCode?.toLowerCase().includes(query) ?? false)
+      );
+    });
+  }, [resources, department, filter]);
+
+  // Focus input when popover opens
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 100);
+    return () => window.clearTimeout(timer);
   }, [open]);
 
   const handleAssign = useCallback(
     async (resourceId: string) => {
       setAssigning(true);
       setError(null);
+
       try {
-        // Assign to the primary cell
-        await assignmentService.createAssignment(taskId, {
+        const assignments: BatchAssignItem[] = selectedTargets.map((cell) => ({
+          taskId: cell.taskId,
           resourceId,
-          assignmentDate: date,
-          halfDay,
-        });
+          date: cell.date,
+          halfDay: cell.halfDay,
+        }));
 
-        // Assign to all batch-selected cells
-        for (const cell of batchCells) {
-          // Skip if same as primary cell
-          if (cell.taskId === taskId && cell.date === date && cell.halfDay === halfDay) {
-            continue;
-          }
-          try {
-            await assignmentService.createAssignment(cell.taskId, {
-              resourceId,
-              assignmentDate: cell.date,
-              halfDay: cell.halfDay,
-            });
-          } catch {
-            // Skip conflicts on individual batch cells
-          }
-        }
-
-        onAssigned();
+        const result = await wochenplanService.assignBatch(assignments);
+        resetLocalState();
+        await onAssigned(result.created);
       } catch (err: unknown) {
-        if (err && typeof err === 'object' && 'response' in err) {
-          const axiosErr = err as { response?: { status?: number; data?: { error?: string } } };
-          if (axiosErr.response?.status === 409) {
-            setError('Bereits zugewiesen');
-          } else {
-            setError(axiosErr.response?.data?.error || 'Fehler');
-          }
-        } else {
-          setError('Fehler beim Zuweisen');
-        }
+        setError(extractAssignError(err));
         setAssigning(false);
       }
     },
-    [taskId, date, halfDay, batchCells, onAssigned]
+    [selectedTargets, resetLocalState, onAssigned]
   );
+
+  const handleCloseInternal = useCallback(() => {
+    if (assigning) return;
+    resetLocalState();
+    onClose();
+  }, [assigning, resetLocalState, onClose]);
+
+  const handleOpenFullDialogInternal = useCallback(() => {
+    if (assigning) return;
+    resetLocalState();
+    onOpenFullDialog();
+  }, [assigning, resetLocalState, onOpenFullDialog]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && filtered.length === 1) {
       e.preventDefault();
       void handleAssign(filtered[0].id);
     } else if (e.key === 'Escape') {
-      onClose();
+      handleCloseInternal();
     }
   };
 
@@ -140,7 +195,7 @@ export default function QuickAssignPopover({
     <Popover
       open={open}
       anchorEl={anchorEl}
-      onClose={assigning ? undefined : onClose}
+      onClose={handleCloseInternal}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       transformOrigin={{ vertical: 'top', horizontal: 'center' }}
       slotProps={{
@@ -171,9 +226,9 @@ export default function QuickAssignPopover({
         />
       </Box>
 
-      {batchCells.length > 0 && (
+      {selectedTargets.length > 1 && (
         <Typography variant="caption" sx={{ px: 1.5, display: 'block', color: 'info.main', fontWeight: 600 }}>
-          {batchCells.length + 1} Zellen ausgewählt (Batch-Zuweisung)
+          {selectedTargets.length} Zellen ausgewählt (Batch-Zuweisung)
         </Typography>
       )}
 
@@ -212,7 +267,7 @@ export default function QuickAssignPopover({
         <Button
           size="small"
           startIcon={<OpenInFullIcon fontSize="small" />}
-          onClick={onOpenFullDialog}
+          onClick={handleOpenFullDialogInternal}
           disabled={assigning}
         >
           Erweitert…

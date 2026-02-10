@@ -6,137 +6,133 @@ Stand: 2026-02-09
 
 ### Repo + Qualitaet
 - `main` ist synchron mit `origin/main`.
-- Letzter Commit auf `main`: `0d1bc7d` (2026-02-09), PR #11 gemerged.
-- Backend: `25` Testfiles, `475` Tests, gruen (`cd backend && npm test`).
-- Frontend: Build gruen (`cd frontend && npm run build`).
+- Letzter Remote-Commit: `9d78d08` (2026-02-07).
+- Backend-Qualitaet: `25` Testfiles, `475` Tests, alle gruen (`cd backend && npm test`).
+- Frontend-Qualitaet: Build gruen (`cd frontend && npm run build`, Stand 2026-02-09).
 
-### Hinweis zum Workspace
-- Es gibt eine lokale, nicht-committe Aenderung in `backend/package-lock.json`.
-- Diese Aenderung ist nicht Teil des aktuellen Plans und sollte bewusst behandelt werden.
+### Aktuelle harte Blocker fuer Praxistauglichkeit (P0)
+1. Manueller Smoke-Test fuer Kern-Views (Wochenplan, Capacity, Mitarbeiter) noch ausstehend.
 
-## 2. Was abgeschlossen ist
+## 2. Letzte relevante Commits (GitHub/Remote)
 
-- Frontend Build-Blocker wurden behoben.
-- `MultiWeekTrend` ist in `Capacity` wieder sauber eingebaut.
-- Wochenplan-/Mitarbeiter-/Kapazitaets-Kernflows sind lauffaehig.
-- Wochenplan-Phase2 Backend-Endpunkte sind implementiert:
-  - `GET /api/wochenplan/conflicts`
-  - `POST /api/wochenplan/assign`
-  - `POST /api/wochenplan/copy`
-  - `GET /api/wochenplan/unassigned`
-  - `GET /api/wochenplan/phase-matrix`
-  - `GET /api/wochenplan/resources`
-  - `GET /api/wochenplan/resource/:resourceId`
-- CSV-Export Endpoint ist implementiert:
-  - `GET /api/export/wochenplan/csv`
+| Datum | Commit | Inhalt | Bedeutung fuer naechste Phase |
+|---|---|---|---|
+| 2026-02-07 | `9d78d08` | Cleanup, Legacy-Tooling entfernt | Repo-Struktur bereinigt |
+| 2026-02-07 | `2cf8224` | Merge pendenzen UI | Pendenzen UX integriert |
+| 2026-02-07 | `1960b31` | Merge RBAC/DB | Rechte + Datenmodell stabiler |
+| 2026-02-07 | `6d1bb38` | Wochenplan Import-/Spalten-Fixes | Datenqualitaet verbessert |
+| 2026-02-07 | `9cd9f8b` | work_role + skills + Hilfskraft | Ressourcenmodell erweitert |
+| 2026-02-07 | `3e19b34` | Migrations- und Startup-Fixes | Stabilitaet verbessert |
+| 2026-02-07 | `1fb1f6d` | ExcelJS Crash-Fix | Import robuster |
+| 2026-02-07 | `e38c14c` | Review-Fixes (u.a. SQL Parametrisierung) | Sicherheits-/Codequalitaet verbessert |
 
-## 3. Aktuelle Luecken (naechster Fokus)
+## 3. Was bereits abgeschlossen ist
 
-1. Frontend nutzt mehrere bereits vorhandene Wochenplan-Endpoints noch nicht produktiv.
-2. Quick-Assign nutzt aktuell Einzel-Requests statt Batch-Endpoint.
-3. In `frontend/src/services/wochenplanService.ts` und `frontend/src/services/mitarbeiterService.ts` gibt es noch Legacy-Fallbacks/TODOs.
-4. API-Contract sollte in den Services eindeutiger und strikter gemacht werden (weniger implizite Fallback-Pfade).
+- Kernmodule laufen: Auth, Appointments, Projects, Tasks, Wochenplan, Capacity, Mitarbeiter-View, Pendenzen.
+- Wochenplan Phase-2 Backend-Endpunkte sind vorhanden:
+  - Konflikte, Batch-Assign, Copy-Week, Unassigned, Phase-Matrix, Resources-Overview.
+- Datenbank-Migrationsstand bis `041_add_resource_work_role.sql`.
+- CI vorhanden (Backend TypeCheck + Tests, Frontend TypeCheck + Build).
+- Soft-Delete- und RBAC-Basis ist implementiert.
 
-## 4. Naechster Umsetzungsblock (fuer neues Kontextfenster)
+## 4. Roadmap bis "praxistauglich"
 
-## Phase 1A - Wochenplan End-to-End schliessen (Empfohlen als naechster Sprint)
+## Phase 0 - Stabilisieren (sofort, 2-4 Tage)
+**Ziel:** Build gruen, Contract konsistent, keine stillen Fallbacks.
 
-**Ziel:** Alle bereits vorhandenen Wochenplan-Backend-Faehigkeiten sind im Frontend nutzbar.
+**Arbeitspakete:**
+- [x] Frontend Build-Fehler beheben (Capacity/ResourceDetailPanel/assignmentService).
+- [x] Frontend- und Backend-Resource-Typen vereinheitlichen.
+- [x] Veraltete TODO/Fallbacks entfernen oder auf echten Feature-Flags umstellen.
+- [ ] Kurzer Smoke-Test-Run fuer Kern-Views (Wochenplan, Capacity, Mitarbeiter).
 
-### Arbeitspakete
-1. **Service-Layer erweitern (`wochenplanService`)**
-   - Methoden fuer `assignBatch`, `copyWeek`, `getUnassigned`, `getPhaseMatrix` und `exportCsvUrl`.
-   - Einheitliche Request/Response-Typen definieren.
+**Exit-Kriterien:**
+- [x] `cd frontend && npm run build` ist gruen.
+- [x] `cd backend && npm test` bleibt gruen.
+- [x] Keine API-Contract-Mismatch-Workarounds mehr in Kernpfaden.
 
-2. **Quick-Assign auf Batch-API umstellen**
-   - `frontend/src/components/wochenplan/QuickAssignPopover.tsx`
-   - Statt Schleife mit Einzel-POSTs: ein Request auf `POST /api/wochenplan/assign`.
-   - Konflikte aus 409 sauber in UI anzeigen.
+## Phase 1 - Wochenplan End-to-End schliessen (1-2 Wochen)
+**Ziel:** Die bereits gebauten Backend-Features sind voll in der UI nutzbar.
 
-3. **Copy-Week UI in Wochenplan einbauen**
-   - In `frontend/src/pages/Wochenplan.tsx` eine klare Aktion fuer "Woche kopieren".
-   - Fehlerfall (Target hat bereits Daten) klar anzeigen.
+**Arbeitspakete:**
+- [x] Batch-Assign (`POST /api/wochenplan/assign`) in Wochenplan-UI verdrahten.
+- [ ] Copy-Week, Unassigned-View, Phase-Matrix im Frontend aktiv nutzen.
+- [ ] CSV-Export aus UI nutzbar machen.
+- [ ] URL-Sync + "Heute"-Navigation konsistent umsetzen.
 
-4. **CSV-Export in Wochenplan integrieren**
-   - Download-Button mit aktuell gewaehlter KW/Jahr (optional Department).
+**Exit-Kriterien:**
+- Alle relevanten Wochenplan-Endpunkte haben produktive UI-Flows.
+- Ein Werkstattleiter kann eine Woche ohne API-Workaround planen/kopieren/exportieren.
 
-5. **Unassigned + Phase-Matrix sichtbar machen**
-   - Unassigned-Details per Endpoint statt nur heuristischer Badge.
-   - Phase-Matrix als kompakte Overlay/Drawer-Ansicht fuer mehrere KWs.
+## Phase 2 - Datenkorrektheit und Multi-Tenant-Haertung (1 Woche)
+**Ziel:** Keine Datenleaks, konsistente Filterung, belastbare DB-Regeln.
 
-### Exit-Kriterien Phase 1A
-- Quick-Assign nutzt produktiv den Batch-Endpoint.
-- Copy-Week und CSV-Export sind aus der Wochenplan-UI bedienbar.
-- Unassigned- und Phase-Matrix-Daten kommen aus den vorgesehenen Endpoints.
-- Frontend-Build und Backend-Tests bleiben gruen.
+**Arbeitspakete:**
+- Owner-Scoping in allen Wochenplan-Queries verifizieren/haerten.
+- Soft-Delete-Konsistenz in allen planungsrelevanten Tabellen schliessen.
+- Migration-/Backfill-Checks fuer Bestandsdaten dokumentieren.
+- Contract-Tests fuer zentrale Endpunkte erweitern.
 
-## Phase 1A.1 - Bruecke Projekt/Gantt -> Wochenplan (direkter naechster Schritt)
+**Exit-Kriterien:**
+- Tenant-Trennung fuer Wochenplan-Daten nachweisbar.
+- Keine ungefilterten produktiven Queries in kritischen Services.
 
-**Ziel:** Nach `Schedule Tasks` im Projekt sollen die Tasks mit ihren Phasenwochen im Wochenplan sichtbar sein und direkt auf Mitarbeiter/Halbtage zugeordnet werden koennen.
+## Phase 3 - Ressourcenmodell + Kapazitaet realbetriebssicher (1-2 Wochen)
+**Ziel:** Kapazitaet bildet die Werkstattrealitaet korrekt ab.
 
-### Problem (aktueller Stand)
-- `autoSchedule` plant aktuell `tasks.start_date`/`tasks.due_date` und `task_work_slots`, aber publiziert die Planung nicht nach `task_phase_schedules`.
-- Die Wochenplan-Sicht gruppiert Aufgaben primär ueber `task_phase_schedules` pro KW.
-- Ergebnis: Projekt ist geplant, Wochenplan bleibt fuer diese Auftraege leer oder unvollstaendig.
+**Arbeitspakete:**
+- Absenzen (ferien/krank/etc.) als eigenes Modell + UI integrieren.
+- Kapazitaetsberechnung um Absenzen und Rollenregeln erweitern.
+- Skills/WorkRole im Planning-Flow aktiv verwenden (Filter, Vorschlaege).
 
-### Arbeitspakete (konkret)
-1. **Backend: Publish-Schritt von Auto-Schedule in den Wochenplan**
-   - In `backend/src/services/taskService.ts` nach erfolgreichem Auto-Schedule je Task einen `UPSERT` auf `task_phase_schedules` ergaenzen.
-   - Mapping definieren: `Task.phase_code` (`ZUS`, `CNC`, `PROD`, `VORBEH`, `NACHBEH`, `BESCHL`, `TRANS`, `MONT`) -> `production_phase`.
-   - KW/Jahr aus geplantem Task-Zeitraum ableiten (mindestens aus `due_date`, optional konfigurierbar `start_date` vs. `due_date`).
-   - Nur Tasks mit gueltigem `phase_code` publizieren; fehlende Phasen als Warning zurueckgeben.
+**Exit-Kriterien:**
+- Kapazitaetsansicht stimmt bei Testwochen mit manueller Referenz ueberein.
+- Ressourcenplanung ohne Excel-Nebenliste moeglich.
 
-2. **Contract schliessen (Task-Phase transparent im Frontend)**
-   - In `frontend/src/types/index.ts` bei `Task` und `CreateTaskDTO` die Felder `phaseCode`, `plannedWeek`, `plannedYear` ergaenzen.
-   - Sicherstellen, dass Task-Create/Update diese Felder weiterhin unveraendert an Backend-Validatoren durchreichen.
+## Phase 4 - Import als Onboarding-Flow (1 Woche)
+**Ziel:** Excel-Import ist fuer Neukunden stabil und nachvollziehbar.
 
-3. **Wochenplan-Integration wie geplant abschliessen**
-   - `frontend/src/services/wochenplanService.ts`: Methoden fuer `assignBatch`, `copyWeek`, `getUnassigned`, `getPhaseMatrix`, `exportCsvUrl`.
-   - `frontend/src/components/wochenplan/QuickAssignPopover.tsx`: Batch-Assign ueber `POST /api/wochenplan/assign` statt Einzel-POSTs.
-   - `frontend/src/pages/Wochenplan.tsx`: Copy-Week Aktion, CSV-Export, Unassigned/Phase-Matrix Anzeige.
+**Arbeitspakete:**
+- Import-Vorschau + Mapping-Feedback verbessern.
+- Re-Import idempotent und fehlertolerant machen.
+- In-App Anleitung fuer "Excel -> IntelliPlan" bereitstellen.
 
-4. **Feingranulare Zuordnung im Wochenplan**
-   - Beibehalten: Halbtag (`morning`/`afternoon`/`full_day`) als Standard.
-   - Optional direkt danach: `startTime` in `AssignmentDialog` sichtbar machen, damit "genaue Zeiten" (z. B. 09:30) gepflegt werden koennen.
+**Exit-Kriterien:**
+- 2-3 echte Kundenfiles lassen sich reproduzierbar importieren.
+- Importfehler sind klar erklaert und korrigierbar.
 
-### Beschreibungspflicht nach Umsetzung
-- Nach Abschluss von Phase 1A.1 wird eine kurze, klare Beschreibung fuer den Nutzer erstellt.
-- Inhalt der Beschreibung:
-  - Ausgangslage (warum Projekt geplant, aber Wochenplan leer war)
-  - Was implementiert wurde (Bruecke Projekt -> Wochenplan)
-  - Wie der Ablauf in der UI funktioniert (Projekt planen -> Wochenplan zuordnen)
-  - Bekannte Grenzen und naechste Schritte
+## Phase 5 - Pilot-Rollout und Betriebsfaehigkeit (laufend)
+**Ziel:** Sicherer Beta-Betrieb mit schnellem Feedback-Zyklus.
 
-### Exit-Kriterien Phase 1A.1
-- Auto-Scheduled Tasks erscheinen in der korrekten KW/Phase im Wochenplan.
-- Quick-Assign arbeitet produktiv ueber Batch-Endpoint.
-- Unassigned-Endpoint zeigt nur noch echte Restfaelle.
-- Frontend-Build und Backend-Tests bleiben gruen.
+**Arbeitspakete:**
+- Monitoring/Logging-Standards fuer produktive Fehlerfaelle definieren.
+- Backup/Restore-Prozess dokumentieren und testen.
+- API-Dokumentation (OpenAPI) fuer Integrationen bereitstellen.
+- Pilotbetrieb mit einem Realkunden (Bucher-Lead) mit klaren Erfolgskriterien.
 
-## 5. Darauf folgende Phase
+**Exit-Kriterien:**
+- Pilotkunde plant mindestens 2-4 Wochen ohne Rueckfall auf Excel als Primarsystem.
+- Kritische Bugs haben reproduzierbaren Incident-Prozess.
 
-## Phase 1B - Contract Cleanup + Fallback-Haertung
+## 5. Priorisierung (ab jetzt)
 
-**Ziel:** Keine "Endpoint may not exist yet"-Fallbacks mehr in produktiven Pfaden.
+1. **P0:** Frontend Build + Contract Drift sofort beheben.
+2. **P1:** Wochenplan Endpunkte komplett in UI verdrahten.
+3. **P1:** Multi-Tenant/Owner-Scoping absichern.
+4. **P2:** Ressourcen/Absenzen fuer realistische Kapazitaet ausbauen.
+5. **P2:** Import-UX als Onboarding standardisieren.
 
-### Arbeitspakete
-- Legacy-Fallbacks in `frontend/src/services/wochenplanService.ts` und `frontend/src/services/mitarbeiterService.ts` entfernen oder hinter klaren Feature-Flags kapseln.
-- Response-Shapes zwischen Backend und Frontend strikt angleichen.
-- Fehlerbehandlung in UI explizit (statt stilles Leerlaufen).
+## 6. Definition "Praxistauglich" fuer IntelliPlan
 
-## 6. Definition "bereit fuer naechstes Kontextfenster"
+IntelliPlan gilt als praxistauglich, wenn alle Punkte erfuellt sind:
+- Build/Tests in CI stabil gruen.
+- Wochenplanung, Mitarbeiterplanung, Kapazitaet und Export laufen ohne Workaround.
+- Import von realen Kundendateien ist robust.
+- Daten sind tenant-sicher und soft-delete-konsistent.
+- Ein Pilotkunde nutzt IntelliPlan als primaeres Planungstool ueber mehrere Wochen.
 
-Der Start im neuen Kontext sollte direkt mit **Phase 1A** beginnen.
+## 7. Pflegeprozess fuer diese Datei
 
-### Empfohlene erste Task-Reihenfolge (konkret)
-1. `wochenplanService` API-Methoden erweitern.
-2. `QuickAssignPopover` auf Batch-Assign refactoren.
-3. Copy-Week Aktion in `Wochenplan` einbauen.
-4. CSV-Export Button einbauen.
-5. Unassigned/Phase-Matrix Darstellung integrieren.
-
-## 7. Pflegeprozess
-
-- ROADMAP Update bei jedem Merge mit hohem Impact.
-- Jede Phase braucht: Ziel, Arbeitspakete, Exit-Kriterien.
-- Erledigte Punkte aus "Luecken" in "abgeschlossen" uebernehmen.
+- Update-Rhythmus: mindestens 1x pro Woche oder bei jedem Merge in `main` mit hohem Impact.
+- Jede Phase enthaelt: Ziel, Arbeitspakete, Exit-Kriterien.
+- Erledigte Punkte werden nach oben in "abgeschlossen" uebernommen.
