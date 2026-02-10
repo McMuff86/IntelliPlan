@@ -7,11 +7,13 @@ vi.mock('../../config/database', () => ({
   },
 }));
 
-import { getWeekPlan } from '../wochenplanService';
+import { getWeekPlan as getWeekPlanRaw } from '../wochenplanService';
 import type { WeekPlanResponse } from '../wochenplanService';
 import { pool } from '../../config/database';
 
 const mockedPool = vi.mocked(pool);
+const OWNER_ID = 'owner-1';
+const getWeekPlan = (kw: number, year: number) => getWeekPlanRaw(kw, year, OWNER_ID);
 
 // ─── Helpers ───────────────────────────────────────────
 
@@ -889,6 +891,17 @@ describe('wochenplanService', () => {
       expect(params[1]).toBe(6); // kw
       expect(params[2]).toBe('2026-02-02'); // from (Monday)
       expect(params[3]).toBe('2026-02-06'); // to (Friday)
+    });
+
+    it('should enforce owner scope in tasks query', async () => {
+      mockEmptyWeek();
+      await getWeekPlan(6, 2026);
+
+      const query = mockedPool.query.mock.calls[0][0] as string;
+      const params = mockedPool.query.mock.calls[0][1] as any[];
+      expect(query).toContain('t.owner_id = $5');
+      expect(query).toContain('p.owner_id = $5');
+      expect(params[4]).toBe(OWNER_ID);
     });
 
     it('should exclude soft-deleted tasks via SQL', async () => {

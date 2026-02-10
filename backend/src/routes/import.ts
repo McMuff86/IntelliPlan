@@ -32,12 +32,14 @@ const upload = multer({
  * POST /api/import/wochenplan/validate
  * Dry-run: Parse and validate an Excel file without importing.
  */
-router.post('/wochenplan/validate', upload.single('file'), async (req: Request, res: Response) => {
+router.post('/wochenplan/validate', requireUserId, upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       res.status(400).json({ success: false, error: 'Keine Datei hochgeladen' });
       return;
     }
+
+    const userId = req.userId!;
 
     logger.info({ filename: req.file.originalname, size: req.file.size }, 'Validating Wochenplan import');
 
@@ -56,7 +58,7 @@ router.post('/wochenplan/validate', upload.single('file'), async (req: Request, 
     const plan = mapToIntelliPlan(parsed);
 
     // 3. Validate
-    const validation = await validateImport(plan);
+    const validation = await validateImport(plan, userId);
 
     res.json({
       success: true,
@@ -101,7 +103,7 @@ router.post('/wochenplan/execute', requireUserId, upload.single('file'), async (
     const plan = mapToIntelliPlan(parsed);
 
     // 3. Validate first
-    const validation = await validateImport(plan);
+    const validation = await validateImport(plan, userId);
     if (!validation.valid) {
       res.status(400).json({
         success: false,

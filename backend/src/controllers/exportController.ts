@@ -11,7 +11,7 @@ export async function exportCSV(req: Request, res: Response, next: NextFunction)
       return;
     }
 
-    if (!req.user) {
+    if (!req.userId) {
       res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
       return;
     }
@@ -21,7 +21,7 @@ export async function exportCSV(req: Request, res: Response, next: NextFunction)
     const year = req.query.year ? parseInt(req.query.year as string, 10) : getISOWeekYear(now);
     const department = req.query.department as string | undefined;
 
-    const csv = await exportWochenplanCSV(kw, year, department);
+    const csv = await exportWochenplanCSV(kw, year, req.userId, department);
 
     const filename = `wochenplan-kw${String(kw).padStart(2, '0')}-${year}${department ? `-${department}` : ''}.csv`;
 

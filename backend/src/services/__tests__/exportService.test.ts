@@ -10,6 +10,7 @@ import { getWeekPlan } from '../wochenplanService';
 import type { WeekPlanResponse } from '../wochenplanService';
 
 const mockedGetWeekPlan = vi.mocked(getWeekPlan);
+const OWNER_ID = 'owner-1';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -35,7 +36,7 @@ describe('exportWochenplanCSV', () => {
   it('should return CSV header when no data', async () => {
     mockedGetWeekPlan.mockResolvedValueOnce(makeWeekPlan());
 
-    const csv = await exportWochenplanCSV(6, 2026);
+    const csv = await exportWochenplanCSV(6, 2026, OWNER_ID);
 
     expect(csv).toBe('OrderNumber,Customer,Description,Phase,Department,Date,HalfDay,Worker,Status,IsFixed,Notes');
   });
@@ -93,7 +94,7 @@ describe('exportWochenplanCSV', () => {
       }],
     }));
 
-    const csv = await exportWochenplanCSV(6, 2026);
+    const csv = await exportWochenplanCSV(6, 2026, OWNER_ID);
     const lines = csv.split('\n');
 
     expect(lines).toHaveLength(3); // header + 2 slots
@@ -204,7 +205,7 @@ describe('exportWochenplanCSV', () => {
       ],
     }));
 
-    const csv = await exportWochenplanCSV(6, 2026, 'montage');
+    const csv = await exportWochenplanCSV(6, 2026, OWNER_ID, 'montage');
     const lines = csv.split('\n');
 
     expect(lines).toHaveLength(2); // header + 1 montage row (produktion filtered out)
@@ -257,7 +258,7 @@ describe('exportWochenplanCSV', () => {
       }],
     }));
 
-    const csv = await exportWochenplanCSV(6, 2026);
+    const csv = await exportWochenplanCSV(6, 2026, OWNER_ID);
     const lines = csv.split('\n');
 
     // Comma in customer name should be quoted
@@ -303,7 +304,7 @@ describe('exportWochenplanCSV', () => {
       }],
     }));
 
-    const csv = await exportWochenplanCSV(6, 2026);
+    const csv = await exportWochenplanCSV(6, 2026, OWNER_ID);
     const lines = csv.split('\n');
 
     expect(lines).toHaveLength(2); // header + 1 unassigned row
@@ -356,7 +357,7 @@ describe('exportWochenplanCSV', () => {
       }],
     }));
 
-    const csv = await exportWochenplanCSV(6, 2026);
+    const csv = await exportWochenplanCSV(6, 2026, OWNER_ID);
     const lines = csv.split('\n');
 
     expect(lines[1]).toContain('sick');

@@ -21,9 +21,10 @@ export interface ExportRow {
 export async function exportWochenplanCSV(
   kw: number,
   year: number,
+  ownerId: string,
   department?: string,
 ): Promise<string> {
-  const weekPlan = await getWeekPlan(kw, year);
+  const weekPlan = await getWeekPlan(kw, year, ownerId);
 
   const rows: ExportRow[] = [];
 

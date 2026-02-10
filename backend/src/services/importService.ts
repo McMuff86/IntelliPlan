@@ -695,7 +695,7 @@ export function mapToIntelliPlan(parsed: ParsedWeekPlan): ImportPlan {
 
 // ─── Validation ────────────────────────────────────────
 
-export async function validateImport(plan: ImportPlan): Promise<ImportValidation> {
+export async function validateImport(plan: ImportPlan, userId: string): Promise<ImportValidation> {
   const warnings: string[] = [];
   const errors: string[] = [];
 
@@ -708,8 +708,12 @@ export async function validateImport(plan: ImportPlan): Promise<ImportValidation
   if (plan.projects.length > 0) {
     const orderNumbers = plan.projects.map((p) => p.orderNumber);
     const existing = await pool.query<{ order_number: string }>(
-      `SELECT order_number FROM projects WHERE order_number = ANY($1) AND deleted_at IS NULL`,
-      [orderNumbers]
+      `SELECT order_number
+       FROM projects
+       WHERE order_number = ANY($1)
+         AND owner_id = $2
+         AND deleted_at IS NULL`,
+      [orderNumbers, userId]
     );
 
     if (existing.rows.length > 0) {
@@ -724,8 +728,12 @@ export async function validateImport(plan: ImportPlan): Promise<ImportValidation
   if (plan.resources.length > 0) {
     const codes = plan.resources.map((r) => r.shortCode);
     const knownResources = await pool.query<{ short_code: string }>(
-      `SELECT short_code FROM resources WHERE short_code = ANY($1) AND deleted_at IS NULL`,
-      [codes]
+      `SELECT short_code
+       FROM resources
+       WHERE short_code = ANY($1)
+         AND owner_id = $2
+         AND deleted_at IS NULL`,
+      [codes, userId]
     );
     const knownCodes = new Set(knownResources.rows.map((r) => r.short_code));
     const unknownCodes = codes.filter((c) => !knownCodes.has(c));
@@ -820,8 +828,12 @@ export async function executeImport(plan: ImportPlan, userId: string): Promise<I
     for (const res of plan.resources) {
       // Check if resource exists by short_code
       const existing = await client.query<{ id: string }>(
-        `SELECT id FROM resources WHERE short_code = $1 AND deleted_at IS NULL`,
-        [res.shortCode]
+        `SELECT id
+         FROM resources
+         WHERE short_code = $1
+           AND owner_id = $2
+           AND deleted_at IS NULL`,
+        [res.shortCode, userId]
       );
 
       if (existing.rows.length > 0) {
@@ -844,8 +856,12 @@ export async function executeImport(plan: ImportPlan, userId: string): Promise<I
 
     for (const proj of plan.projects) {
       const existing = await client.query<{ id: string }>(
-        `SELECT id FROM projects WHERE order_number = $1 AND deleted_at IS NULL`,
-        [proj.orderNumber]
+        `SELECT id
+         FROM projects
+         WHERE order_number = $1
+           AND owner_id = $2
+           AND deleted_at IS NULL`,
+        [proj.orderNumber, userId]
       );
 
       if (existing.rows.length > 0) {

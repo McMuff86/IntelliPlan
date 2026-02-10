@@ -9,15 +9,29 @@ vi.mock('../../config/database', () => ({
 }));
 
 import {
-  getWeekConflicts,
-  quickAssign,
-  copyWeek,
-  getUnassignedTasks,
-  getPhaseMatrix,
+  getWeekConflicts as getWeekConflictsRaw,
+  quickAssign as quickAssignRaw,
+  copyWeek as copyWeekRaw,
+  getUnassignedTasks as getUnassignedTasksRaw,
+  getPhaseMatrix as getPhaseMatrixRaw,
 } from '../wochenplanService';
 import { pool } from '../../config/database';
 
 const mockedPool = vi.mocked(pool);
+const OWNER_ID = 'owner-1';
+const getWeekConflicts = (kw: number, year: number) => getWeekConflictsRaw(kw, year, OWNER_ID);
+const quickAssign = (assignments: Parameters<typeof quickAssignRaw>[0]) =>
+  quickAssignRaw(assignments, OWNER_ID);
+const copyWeek = (
+  sourceKw: number,
+  sourceYear: number,
+  targetKw: number,
+  targetYear: number,
+  options: Parameters<typeof copyWeekRaw>[4]
+) => copyWeekRaw(sourceKw, sourceYear, targetKw, targetYear, options, OWNER_ID);
+const getUnassignedTasks = (kw: number, year: number) => getUnassignedTasksRaw(kw, year, OWNER_ID);
+const getPhaseMatrix = (fromKw: number, toKw: number, fromYear: number, toYear: number) =>
+  getPhaseMatrixRaw(fromKw, toKw, fromYear, toYear, OWNER_ID);
 
 // ─── Factories ─────────────────────────────────────────
 
@@ -148,6 +162,11 @@ describe('getWeekConflicts', () => {
     const params = mockedPool.query.mock.calls[0][1] as any[];
     expect(params[0]).toBe('2026-02-02'); // from (Monday)
     expect(params[1]).toBe('2026-02-06'); // to (Friday)
+    expect(params[2]).toBe(OWNER_ID); // owner scope
+
+    const sql = mockedPool.query.mock.calls[0][0] as string;
+    expect(sql).toContain('t.owner_id = $3');
+    expect(sql).toContain('rs.owner_id = $3');
   });
 
   it('should include conflict detail fields', async () => {

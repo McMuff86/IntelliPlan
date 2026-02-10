@@ -14,7 +14,8 @@
     "migrate": "ts-node src/config/migrate.ts",
     "seed:user": "ts-node src/scripts/seedUser.ts",
     "seed:dev-auth": "ts-node src/scripts/seedDevAuthUser.ts",
-    "seed:industries": "ts-node src/scripts/seedIndustries.ts"
+    "seed:industries": "ts-node src/scripts/seedIndustries.ts",
+    "reset:wochenplan": "ts-node src/scripts/resetWochenplanData.ts"
   },
   "keywords": [],
   "author": "",
