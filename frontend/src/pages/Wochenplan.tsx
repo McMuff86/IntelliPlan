@@ -69,8 +69,8 @@ function getCurrentISOWeek(): { kw: number; year: number } {
  * A year has 53 weeks if Jan 1 is Thursday, or if it's a leap year and Jan 1 is Wednesday.
  */
 function getWeeksInYear(year: number): number {
-  const jan1 = new Date(year, 0, 1);
-  const jan1Day = jan1.getDay() || 7; // 0=Sun→7, 1=Mon, ..., 6=Sat
+  const jan1 = new Date(Date.UTC(year, 0, 1));
+  const jan1Day = jan1.getUTCDay() || 7; // 0=Sun→7, 1=Mon, ..., 6=Sat → 1=Mon, ..., 7=Sun
   const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
   
   // Year has 53 weeks if:
@@ -467,9 +467,11 @@ export default function Wochenplan() {
         fromYear = year;
       } else {
         // Need to go back to previous year
+        // e.g., if kw=1 and prevYear has 52 weeks: fromKw = 52 + (1-2) = 51
+        // e.g., if kw=1 and prevYear has 53 weeks: fromKw = 53 + (1-2) = 52
         fromYear = year - 1;
         const weeksInPrevYear = getWeeksInYear(fromYear);
-        fromKw = weeksInPrevYear + (kw - 2); // e.g., if kw=1, fromKw = 52/53 - 1 = 51/52
+        fromKw = weeksInPrevYear + (kw - 2);
       }
 
       const weeksInCurrentYear = getWeeksInYear(year);

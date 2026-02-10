@@ -104,7 +104,7 @@ const DAY_NAMES = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag'];
 function getWeekDateRange(kw: number, year: number): { from: string; to: string; dates: string[] } {
   // ISO week date: Jan 4 is always in week 1
   const jan4 = new Date(Date.UTC(year, 0, 4));
-  const dayOfWeek = jan4.getUTCDay() || 7; // 1=Mon … 7=Sun
+  const dayOfWeek = jan4.getUTCDay() || 7; // getUTCDay: 0=Sun, 1=Mon...6=Sat → after || 7: 1=Mon...7=Sun
   const monday = new Date(jan4);
   monday.setUTCDate(jan4.getUTCDate() - (dayOfWeek - 1) + (kw - 1) * 7);
 
