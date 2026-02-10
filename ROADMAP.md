@@ -2,9 +2,9 @@
 
 Stand: 2026-02-09
 
-## 1. Ist-Stand (Snapshot)
+## 1. Ist-Stand (nach Merge PR #11)
 
-### Repo + Build-Status
+### Repo + Qualitaet
 - `main` ist synchron mit `origin/main`.
 - Letzter Remote-Commit: `9d78d08` (2026-02-07).
 - Backend-Qualitaet: `25` Testfiles, `475` Tests, alle gruen (`cd backend && npm test`).
