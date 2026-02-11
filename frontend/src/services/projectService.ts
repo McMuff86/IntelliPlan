@@ -1,9 +1,13 @@
 import type {
   CreateProjectDTO,
+  DefaultReadinessCheckTemplate,
   Project,
   ProjectActivity,
   ProjectPhasePlan,
   ProjectPhasePlanInput,
+  ProjectReadinessCheck,
+  ProjectReadinessCheckInput,
+  ProjectReadinessSummary,
   SyncProjectPhasePlanResult,
 } from '../types';
 import api from './api';
@@ -125,6 +129,32 @@ export const projectService = {
         replaceExistingPhaseTasks: options?.replaceExistingPhaseTasks ?? false,
       }
     );
+    return response.data.data;
+  },
+
+  async getDefaultReadinessChecks(): Promise<DefaultReadinessCheckTemplate[]> {
+    const response = await api.get<ApiResponse<DefaultReadinessCheckTemplate[]>>('/projects/readiness/default');
+    return response.data.data;
+  },
+
+  async getReadiness(projectId: string): Promise<ProjectReadinessCheck[]> {
+    const response = await api.get<ApiResponse<ProjectReadinessCheck[]>>(`/projects/${projectId}/readiness`);
+    return response.data.data;
+  },
+
+  async updateReadiness(
+    projectId: string,
+    checks: ProjectReadinessCheckInput[]
+  ): Promise<{ checks: ProjectReadinessCheck[]; summary: ProjectReadinessSummary }> {
+    const response = await api.put<ApiResponse<{ checks: ProjectReadinessCheck[]; summary: ProjectReadinessSummary }>>(
+      `/projects/${projectId}/readiness`,
+      { checks }
+    );
+    return response.data.data;
+  },
+
+  async getReadinessSummary(projectId: string): Promise<ProjectReadinessSummary> {
+    const response = await api.get<ApiResponse<ProjectReadinessSummary>>(`/projects/${projectId}/readiness/summary`);
     return response.data.data;
   },
 };

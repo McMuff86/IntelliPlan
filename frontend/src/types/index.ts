@@ -110,6 +110,8 @@ export type DependencyType = "finish_start" | "start_start" | "finish_finish";
 export type PhaseCode = "ZUS" | "CNC" | "PROD" | "VORBEH" | "NACHBEH" | "BESCHL" | "TRANS" | "MONT";
 export type ProjectPriority = "low" | "normal" | "high" | "urgent";
 export type ProjectRiskLevel = "low" | "medium" | "high" | "critical";
+export type ReadinessCheckCode = "AVOR_DONE" | "MATERIAL_READY" | "FITTINGS_READY" | "PLANS_READY" | "SITE_READY";
+export type ReadinessStatus = "pending" | "ok" | "blocked" | "n_a";
 
 export interface Project {
   id: string;
@@ -295,6 +297,46 @@ export interface SyncProjectPhasePlanResult {
   updatedTaskIds: string[];
   deletedTaskIds: string[];
   warnings: string[];
+}
+
+export interface ProjectReadinessCheck {
+  id: string;
+  projectId: string;
+  ownerId: string;
+  checkCode: ReadinessCheckCode;
+  checkLabel: string;
+  status: ReadinessStatus;
+  checkedBy: string | null;
+  checkedAt: string | null;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+}
+
+export interface ProjectReadinessCheckInput {
+  checkCode: ReadinessCheckCode;
+  status: ReadinessStatus;
+  comment?: string | null;
+  checkedAt?: string | null;
+}
+
+export interface ProjectReadinessSummary {
+  projectId: string;
+  ownerId: string;
+  totalChecks: number;
+  okCount: number;
+  naCount: number;
+  pendingCount: number;
+  blockedCount: number;
+  isReady: boolean;
+  updatedAt: string | null;
+}
+
+export interface DefaultReadinessCheckTemplate {
+  checkCode: ReadinessCheckCode;
+  checkLabel: string;
+  status: ReadinessStatus;
 }
 
 export type ResourceType = "person" | "machine" | "vehicle";

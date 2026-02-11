@@ -20,12 +20,22 @@ import {
   syncProjectPhasePlanToTasks,
   ProjectPhasePlanValidationError,
 } from '../services/projectPhasePlanService';
+import {
+  getDefaultReadinessTemplate,
+  getProjectReadinessSummary,
+  initializeProjectReadinessChecks,
+  listProjectReadinessChecks,
+  ProjectReadinessValidationError,
+  updateProjectReadinessChecks,
+} from '../services/projectReadinessService';
 import { createProjectActivity, listProjectActivity } from '../services/activityService';
 import { toProjectResponse } from '../models/project';
 import type { Project } from '../models/project';
 import { toProjectActivityResponse } from '../models/activity';
 import { toProjectPhasePlanResponse } from '../models/projectPhasePlan';
 import type { ProjectPhasePlanInput } from '../models/projectPhasePlan';
+import { toProjectReadinessCheckResponse } from '../models/projectReadiness';
+import type { ProjectReadinessCheckInput } from '../models/projectReadiness';
 
 const getUserId = (req: Request): string | null => {
   if (!req.user) {
@@ -206,6 +216,7 @@ export async function create(req: Request, res: Response, next: NextFunction): P
     if (taskTemplateId) {
       await applyTemplateToProject(project.id, taskTemplateId, userId);
     }
+    await initializeProjectReadinessChecks(project.id, userId);
 
     await createProjectActivity({
       project_id: project.id,
@@ -490,6 +501,16 @@ export async function autoSchedule(req: Request, res: Response, next: NextFuncti
       return;
     }
 
+    const readinessSummary = await getProjectReadinessSummary(projectId, userId);
+    if (!readinessSummary.isReady) {
+      res.status(409).json({
+        success: false,
+        error: 'Project readiness gate not approved',
+        data: readinessSummary,
+      });
+      return;
+    }
+
     const { taskIds, endDate } = req.body;
     const result = await autoScheduleProjectTasks(
       projectId,
@@ -545,6 +566,18 @@ export async function getDefaultPhasePlan(
 ): Promise<void> {
   try {
     res.status(200).json({ success: true, data: getDefaultProjectPhasePlan() });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getDefaultReadiness(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    res.status(200).json({ success: true, data: getDefaultReadinessTemplate() });
   } catch (error) {
     next(error);
   }
@@ -669,6 +702,115 @@ export async function syncPhasePlan(
     });
 
     res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getReadiness(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const checks = await listProjectReadinessChecks(projectId, userId);
+    res.status(200).json({ success: true, data: checks.map(toProjectReadinessCheckResponse) });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateReadiness(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const checksInput = (req.body.checks ?? []) as ProjectReadinessCheckInput[];
+    const checks = await updateProjectReadinessChecks(projectId, userId, checksInput, userId);
+    const summary = await getProjectReadinessSummary(projectId, userId);
+
+    await createProjectActivity({
+      project_id: projectId,
+      actor_user_id: userId,
+      entity_type: 'project',
+      action: 'readiness_updated',
+      summary: `Project readiness updated (${summary.okCount + summary.naCount}/${summary.totalChecks} approved)`,
+      metadata: {
+        projectId,
+        readiness: summary,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        checks: checks.map(toProjectReadinessCheckResponse),
+        summary,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ProjectReadinessValidationError) {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+    next(error);
+  }
+}
+
+export async function getReadinessSummary(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const summary = await getProjectReadinessSummary(projectId, userId);
+    res.status(200).json({ success: true, data: summary });
   } catch (error) {
     next(error);
   }
