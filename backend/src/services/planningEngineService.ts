@@ -19,6 +19,7 @@ interface ExistingTaskSlot {
   task_id: string;
   start_time: string;
   end_time: string;
+  is_fixed: boolean;
 }
 
 interface ResourceConflictCandidate {
@@ -187,11 +188,12 @@ const fetchExistingTaskSlots = async (
   taskIds: string[]
 ): Promise<Map<string, ExistingTaskSlot[]>> => {
   const slotResult = await pool.query<ExistingTaskSlot>(
-    `SELECT tws.task_id, tws.start_time, tws.end_time
+    `SELECT tws.task_id, tws.start_time, tws.end_time, tws.is_fixed
      FROM task_work_slots tws
      JOIN tasks t ON t.id = tws.task_id
      WHERE tws.task_id = ANY($1::uuid[])
        AND t.owner_id = $2
+       AND t.deleted_at IS NULL
      ORDER BY tws.task_id ASC, tws.start_time ASC`,
     [taskIds, ownerId]
   );
@@ -337,6 +339,25 @@ export async function buildAutoSchedulePreview(
       continue;
     }
 
+    const existingSlots = existingSlotsByTaskId.get(taskId) ?? [];
+    if (existingSlots.some((slot) => slot.is_fixed)) {
+      warnings.push(`Task "${task.title}" has fixed work slots and was skipped`);
+      taskPlans.push({
+        taskId,
+        title: task.title,
+        phaseCode: task.phase_code,
+        resourceId: task.resource_id,
+        action: 'skipped',
+        reason: 'Has fixed work slots',
+        durationMinutes: task.duration_minutes,
+        startDate: task.start_date,
+        dueDate: task.due_date,
+        slotCount: 0,
+        slots: [],
+      });
+      continue;
+    }
+
     if (!task.duration_minutes || task.duration_minutes <= 0) {
       warnings.push(`Task "${task.title}" has no duration, skipped`);
       taskPlans.push({
@@ -400,7 +421,6 @@ export async function buildAutoSchedulePreview(
       ? toDateKey(new Date(slots[slots.length - 1].endTime))
       : null;
 
-    const existingSlots = existingSlotsByTaskId.get(taskId) ?? [];
     const hasExistingSchedule =
       existingSlots.length > 0 || task.start_date !== null || task.due_date !== null;
 
@@ -504,34 +524,42 @@ export async function applyAutoSchedulePreview(
     .filter((task) => task.action === 'skipped')
     .map((task) => task.taskId);
 
-  await pool.query(
-    `DELETE FROM task_work_slots
-     WHERE task_id = ANY($1::uuid[])
-       AND task_id IN (SELECT id FROM tasks WHERE owner_id = $2)`,
-    [preview.taskIds, ownerId]
-  );
+  const rewrittenTaskIds = preview.tasks
+    .filter((task) => task.action === 'create' || task.action === 'update')
+    .map((task) => task.taskId);
+
+  if (rewrittenTaskIds.length > 0) {
+    await pool.query(
+      `DELETE FROM task_work_slots
+       WHERE task_id = ANY($1::uuid[])
+         AND task_id IN (SELECT id FROM tasks WHERE owner_id = $2)`,
+      [rewrittenTaskIds, ownerId]
+    );
+  }
 
   for (const task of preview.tasks) {
     if (task.action === 'skipped') {
       continue;
     }
 
-    await pool.query(
-      `UPDATE tasks
-       SET start_date = $1,
-           due_date = $2,
-           updated_at = NOW()
-       WHERE id = $3
-         AND owner_id = $4`,
-      [task.startDate, task.dueDate, task.taskId, ownerId]
-    );
-
-    for (const slot of task.slots) {
+    if (task.action === 'create' || task.action === 'update') {
       await pool.query(
-        `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day, reminder_enabled)
-         VALUES ($1, $2, $3, false, false, false)`,
-        [task.taskId, slot.startTime, slot.endTime]
+        `UPDATE tasks
+         SET start_date = $1,
+             due_date = $2,
+             updated_at = NOW()
+         WHERE id = $3
+           AND owner_id = $4`,
+        [task.startDate, task.dueDate, task.taskId, ownerId]
       );
+
+      for (const slot of task.slots) {
+        await pool.query(
+          `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day, reminder_enabled)
+           VALUES ($1, $2, $3, false, false, false)`,
+          [task.taskId, slot.startTime, slot.endTime]
+        );
+      }
     }
 
     if (task.phaseCode && task.dueDate) {
