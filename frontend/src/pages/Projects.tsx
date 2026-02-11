@@ -37,7 +37,7 @@ import {
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
-import type { SelectChangeEvent } from "@mui/material";
+import type { ChipProps, SelectChangeEvent } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
@@ -66,6 +66,7 @@ import type {
   TaskTemplate,
   ProjectPriority,
   ProjectRiskLevel,
+  ProjectReadinessSummary,
 } from "../types";
 import EmptyState from "../components/EmptyState";
 import YearCalendarGrid from "../components/YearCalendarGrid";
@@ -124,11 +125,51 @@ const formatDuration = (minutes?: number | null) => {
   return `${mins}m`;
 };
 
+type ProjectReadinessChipState = {
+  label: string;
+  color: ChipProps["color"];
+  variant: ChipProps["variant"];
+};
+
+const getProjectReadinessChipState = (
+  summary?: ProjectReadinessSummary,
+): ProjectReadinessChipState => {
+  if (!summary) {
+    return {
+      label: "Readiness: loading",
+      color: "default",
+      variant: "outlined",
+    };
+  }
+  if (summary.isReady) {
+    return {
+      label: "Readiness: ready",
+      color: "success",
+      variant: "filled",
+    };
+  }
+  if (summary.blockedCount > 0) {
+    return {
+      label: `Readiness: blocked (${summary.blockedCount})`,
+      color: "error",
+      variant: "filled",
+    };
+  }
+  return {
+    label: `Readiness: pending (${summary.pendingCount})`,
+    color: "warning",
+    variant: "filled",
+  };
+};
+
 export default function Projects() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [readinessSummaries, setReadinessSummaries] = useState<
+    Record<string, ProjectReadinessSummary>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -242,6 +283,48 @@ export default function Projects() {
   useEffect(() => {
     loadProjects();
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (projects.length === 0) {
+      setReadinessSummaries({});
+      return;
+    }
+
+    setReadinessSummaries({});
+    const loadReadinessSummaries = async () => {
+      const summaryEntries = await Promise.all(
+        projects.map(async (project) => {
+          try {
+            const summary = await projectService.getReadinessSummary(project.id);
+            return [project.id, summary] as const;
+          } catch (error) {
+            console.warn(`Failed to load readiness summary for project ${project.id}`, error);
+            return null;
+          }
+        }),
+      );
+
+      if (cancelled) {
+        return;
+      }
+
+      const nextSummaries: Record<string, ProjectReadinessSummary> = {};
+      summaryEntries.forEach((entry) => {
+        if (!entry) {
+          return;
+        }
+        nextSummaries[entry[0]] = entry[1];
+      });
+      setReadinessSummaries(nextSummaries);
+    };
+
+    void loadReadinessSummaries();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projects]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1138,66 +1221,77 @@ export default function Projects() {
           />
         ) : (
           <Grid container spacing={2}>
-            {projects.map((project) => (
-              <Grid key={project.id} size={{ xs: 12, md: 4 }}>
-                <Card
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                  sx={{ cursor: "pointer", height: "100%" }}
-                >
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <CalendarMonthIcon color="primary" fontSize="small" />
-                        <Typography variant="h6">{project.name}</Typography>
-                      </Stack>
-                      {project.description && (
-                        <Typography variant="body2" color="text.secondary">
-                          {project.description}
-                        </Typography>
-                      )}
-                      <Stack direction="row" spacing={1} flexWrap="wrap">
-                        <Chip
-                          size="small"
-                          label={
-                            project.includeWeekends
-                              ? "Weekends included"
-                              : "Weekdays only"
-                          }
-                          variant="outlined"
-                        />
-                        <Chip
-                          size="small"
-                          label={formatTemplateLabel(project.workTemplate)}
-                          variant="outlined"
-                        />
-                        <Chip
-                          size="small"
-                          label={`${project.workdayStart} - ${project.workdayEnd}`}
-                          variant="outlined"
-                        />
-                        {project.targetEndDate && (
+            {projects.map((project) => {
+              const readinessChip = getProjectReadinessChipState(
+                readinessSummaries[project.id],
+              );
+              return (
+                <Grid key={project.id} size={{ xs: 12, md: 4 }}>
+                  <Card
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                    sx={{ cursor: "pointer", height: "100%" }}
+                  >
+                    <CardContent>
+                      <Stack spacing={1.5}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <CalendarMonthIcon color="primary" fontSize="small" />
+                          <Typography variant="h6">{project.name}</Typography>
+                        </Stack>
+                        {project.description && (
+                          <Typography variant="body2" color="text.secondary">
+                            {project.description}
+                          </Typography>
+                        )}
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
                           <Chip
                             size="small"
-                            label={`Ende: ${project.targetEndDate}`}
-                            color="secondary"
+                            label={
+                              project.includeWeekends
+                                ? "Weekends included"
+                                : "Weekdays only"
+                            }
+                            variant="outlined"
                           />
-                        )}
-                        <Chip
-                          size="small"
-                          label={`Prio: ${project.priority}`}
-                          variant="outlined"
-                        />
-                        <Chip
-                          size="small"
-                          label={`Risiko: ${project.riskLevel}`}
-                          variant="outlined"
-                        />
+                          <Chip
+                            size="small"
+                            label={formatTemplateLabel(project.workTemplate)}
+                            variant="outlined"
+                          />
+                          <Chip
+                            size="small"
+                            label={`${project.workdayStart} - ${project.workdayEnd}`}
+                            variant="outlined"
+                          />
+                          {project.targetEndDate && (
+                            <Chip
+                              size="small"
+                              label={`Ende: ${project.targetEndDate}`}
+                              color="secondary"
+                            />
+                          )}
+                          <Chip
+                            size="small"
+                            label={`Prio: ${project.priority}`}
+                            variant="outlined"
+                          />
+                          <Chip
+                            size="small"
+                            label={`Risiko: ${project.riskLevel}`}
+                            variant="outlined"
+                          />
+                          <Chip
+                            size="small"
+                            label={readinessChip.label}
+                            color={readinessChip.color}
+                            variant={readinessChip.variant}
+                          />
+                        </Stack>
                       </Stack>
-                    </Stack>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
+                    </CardContent>
+                  </Card>
+                </Grid>
+              );
+            })}
           </Grid>
         )
       ) : viewMode === "calendar" ? (
