@@ -35,7 +35,21 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formatISO, format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale/de';
-import type { Project, ProjectActivity, Resource, ResourceType, Task, TaskStatus, SchedulingMode, Industry, ProductType, TaskTemplate } from '../types';
+import type {
+  Industry,
+  ProductType,
+  Project,
+  ProjectActivity,
+  ProjectReadinessCheck,
+  ProjectReadinessSummary,
+  ReadinessStatus,
+  Resource,
+  ResourceType,
+  SchedulingMode,
+  Task,
+  TaskStatus,
+  TaskTemplate,
+} from '../types';
 import { projectService } from '../services/projectService';
 import { taskService } from '../services/taskService';
 import { resourceService } from '../services/resourceService';
@@ -75,6 +89,21 @@ const statusColor = (status: TaskStatus) => {
   return 'default';
 };
 
+const readinessStatusLabel = (status: ReadinessStatus) =>
+  ({
+    pending: 'Pending',
+    ok: 'OK',
+    blocked: 'Blocked',
+    n_a: 'N/A',
+  })[status];
+
+const readinessStatusColor = (status: ReadinessStatus) => {
+  if (status === 'ok') return 'success';
+  if (status === 'blocked') return 'error';
+  if (status === 'n_a') return 'info';
+  return 'default';
+};
+
 export default function ProjectDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -82,6 +111,8 @@ export default function ProjectDetail() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activity, setActivity] = useState<ProjectActivity[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [readinessChecks, setReadinessChecks] = useState<ProjectReadinessCheck[]>([]);
+  const [readinessSummary, setReadinessSummary] = useState<ProjectReadinessSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -89,6 +120,7 @@ export default function ProjectDetail() {
   const [savingTaskTitle, setSavingTaskTitle] = useState(false);
   const [creatingResource, setCreatingResource] = useState(false);
   const [updatingResourceId, setUpdatingResourceId] = useState<string | null>(null);
+  const [savingReadiness, setSavingReadiness] = useState(false);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -143,12 +175,16 @@ export default function ProjectDetail() {
     try {
       setLoading(true);
       setError(null);
-      const [projectData, taskData] = await Promise.all([
+      const [projectData, taskData, readinessData, readinessSummaryData] = await Promise.all([
         projectService.getById(id),
         taskService.getByProject(id),
+        projectService.getReadiness(id),
+        projectService.getReadinessSummary(id),
       ]);
       setProject(projectData);
       setTasks(taskData);
+      setReadinessChecks(readinessData);
+      setReadinessSummary(readinessSummaryData);
       void loadActivity(projectData.id);
       void loadResources();
       void loadDependencies(taskData);
@@ -553,7 +589,58 @@ export default function ProjectDetail() {
     if (!project) return;
     await projectService.autoSchedule(project.id, { taskIds, endDate });
     await refreshTasks(project.id);
+    const summary = await projectService.getReadinessSummary(project.id);
+    setReadinessSummary(summary);
     void loadActivity(project.id);
+  };
+
+  const handleReadinessStatusChange = (checkCode: ProjectReadinessCheck['checkCode'], status: ReadinessStatus) => {
+    setReadinessChecks((prev) =>
+      prev.map((check) =>
+        check.checkCode === checkCode
+          ? { ...check, status }
+          : check
+      )
+    );
+  };
+
+  const handleReadinessCommentChange = (checkCode: ProjectReadinessCheck['checkCode'], comment: string) => {
+    setReadinessChecks((prev) =>
+      prev.map((check) =>
+        check.checkCode === checkCode
+          ? { ...check, comment }
+          : check
+      )
+    );
+  };
+
+  const handleSaveReadiness = async () => {
+    if (!project) return;
+    try {
+      setSavingReadiness(true);
+      setError(null);
+      const payload = readinessChecks.map((check) => ({
+        checkCode: check.checkCode,
+        status: check.status,
+        comment: check.comment?.trim() ? check.comment.trim() : null,
+        checkedAt: check.checkedAt ?? null,
+      }));
+      const result = await projectService.updateReadiness(project.id, payload);
+      setReadinessChecks(result.checks);
+      setReadinessSummary(result.summary);
+      void loadActivity(project.id);
+    } catch (err) {
+      console.error(err);
+      if (axios.isAxiosError(err)) {
+        const data = err.response?.data as { error?: string | { message?: string } } | undefined;
+        const message = typeof data?.error === 'string' ? data.error : data?.error?.message;
+        setError(message || 'Failed to update readiness checks');
+      } else {
+        setError('Failed to update readiness checks');
+      }
+    } finally {
+      setSavingReadiness(false);
+    }
   };
 
   const handleDeleteProject = async () => {
@@ -760,14 +847,25 @@ export default function ProjectDetail() {
             />
           </LocalizationProvider>
         )}
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<EventIcon />}
-          onClick={() => setAutoScheduleOpen(true)}
+        <Tooltip
+          title={
+            readinessSummary?.isReady
+              ? 'Project is ready for production planning'
+              : 'Readiness gate must be approved before auto scheduling'
+          }
         >
-          Schedule Tasks
-        </Button>
+          <span>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<EventIcon />}
+              onClick={() => setAutoScheduleOpen(true)}
+              disabled={!readinessSummary?.isReady}
+            >
+              Schedule Tasks
+            </Button>
+          </span>
+        </Tooltip>
         {project?.taskTemplateId && (
           <Tooltip title="Reset tasks to template defaults">
             <Button
@@ -1340,6 +1438,83 @@ export default function ProjectDetail() {
             <Typography variant="body2">{project.riskLevel}</Typography>
           </Box>
         </Box>
+      </Paper>
+
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+          <Box>
+            <Typography variant="h6">Readiness Gate</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Production planning is enabled only when all checks are approved or marked N/A.
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Chip
+              color={readinessSummary?.isReady ? 'success' : 'warning'}
+              label={readinessSummary?.isReady ? 'Ready' : 'Not Ready'}
+            />
+            <Button variant="contained" size="small" onClick={handleSaveReadiness} disabled={savingReadiness}>
+              {savingReadiness ? 'Saving...' : 'Save'}
+            </Button>
+          </Stack>
+        </Box>
+
+        {readinessSummary && (
+          <Stack direction="row" spacing={1} flexWrap="wrap" mb={2}>
+            <Chip size="small" label={`Total: ${readinessSummary.totalChecks}`} variant="outlined" />
+            <Chip size="small" label={`OK: ${readinessSummary.okCount}`} color="success" variant="outlined" />
+            <Chip size="small" label={`Pending: ${readinessSummary.pendingCount}`} variant="outlined" />
+            <Chip size="small" label={`Blocked: ${readinessSummary.blockedCount}`} color="error" variant="outlined" />
+            <Chip size="small" label={`N/A: ${readinessSummary.naCount}`} color="info" variant="outlined" />
+          </Stack>
+        )}
+
+        <Stack spacing={1.5}>
+          {readinessChecks.map((check) => (
+            <Paper key={check.id} variant="outlined" sx={{ p: 1.5 }}>
+              <Stack spacing={1}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" gap={2}>
+                  <Box>
+                    <Typography variant="subtitle2">{check.checkLabel}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {check.checkCode}
+                    </Typography>
+                  </Box>
+                  <Chip
+                    size="small"
+                    label={readinessStatusLabel(check.status)}
+                    color={readinessStatusColor(check.status)}
+                  />
+                </Box>
+
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                  <TextField
+                    select
+                    label="Status"
+                    size="small"
+                    value={check.status}
+                    onChange={(event) =>
+                      handleReadinessStatusChange(check.checkCode, event.target.value as ReadinessStatus)
+                    }
+                    sx={{ minWidth: 180 }}
+                  >
+                    <MenuItem value="pending">Pending</MenuItem>
+                    <MenuItem value="ok">OK</MenuItem>
+                    <MenuItem value="blocked">Blocked</MenuItem>
+                    <MenuItem value="n_a">N/A</MenuItem>
+                  </TextField>
+                  <TextField
+                    label="Comment"
+                    size="small"
+                    fullWidth
+                    value={check.comment ?? ''}
+                    onChange={(event) => handleReadinessCommentChange(check.checkCode, event.target.value)}
+                  />
+                </Stack>
+              </Stack>
+            </Paper>
+          ))}
+        </Stack>
       </Paper>
 
       <Paper sx={{ p: 2, mb: 3 }}>

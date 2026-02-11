@@ -4,6 +4,10 @@ import {
   VALID_PROJECT_RISK_LEVELS,
 } from '../models/project';
 import { VALID_PHASE_CODES } from '../models/task';
+import {
+  VALID_READINESS_CHECK_CODES,
+  VALID_READINESS_STATUSES,
+} from '../models/projectReadiness';
 
 const templateValues = ['weekday_8_17', 'weekday_8_17_with_weekends', 'custom'];
 
@@ -243,4 +247,36 @@ export const syncProjectPhasePlanValidator: ValidationChain[] = [
     .optional()
     .isBoolean()
     .withMessage('replaceExistingPhaseTasks must be boolean'),
+];
+
+export const updateProjectReadinessValidator: ValidationChain[] = [
+  body('checks')
+    .isArray({ min: 1 })
+    .withMessage('checks must be a non-empty array'),
+  body('checks.*.checkCode')
+    .isIn(VALID_READINESS_CHECK_CODES)
+    .withMessage(`checkCode must be one of: ${VALID_READINESS_CHECK_CODES.join(', ')}`),
+  body('checks.*.status')
+    .isIn(VALID_READINESS_STATUSES)
+    .withMessage(`status must be one of: ${VALID_READINESS_STATUSES.join(', ')}`),
+  body('checks.*.comment')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage('comment must be less than 2000 characters'),
+  body('checks.*.checkedAt')
+    .optional({ values: 'null' })
+    .isISO8601()
+    .withMessage('checkedAt must be a valid ISO 8601 date-time'),
+  body('checks')
+    .custom((checks: Array<{ checkCode: string }>) => {
+      const uniqueCodes = new Set<string>();
+      for (const check of checks) {
+        if (uniqueCodes.has(check.checkCode)) {
+          throw new Error(`Duplicate checkCode: ${check.checkCode}`);
+        }
+        uniqueCodes.add(check.checkCode);
+      }
+      return true;
+    }),
 ];
