@@ -299,6 +299,68 @@ export interface SyncProjectPhasePlanResult {
   warnings: string[];
 }
 
+export type AutoScheduleTaskAction = "create" | "update" | "unchanged" | "skipped";
+
+export interface AutoSchedulePreviewTaskSlot {
+  startTime: string;
+  endTime: string;
+}
+
+export interface AutoSchedulePreviewTask {
+  taskId: string;
+  title: string;
+  phaseCode: string | null;
+  resourceId: string | null;
+  action: AutoScheduleTaskAction;
+  reason: string | null;
+  durationMinutes: number | null;
+  startDate: string | null;
+  dueDate: string | null;
+  slotCount: number;
+  slots: AutoSchedulePreviewTaskSlot[];
+}
+
+export interface AutoSchedulePreviewConflict {
+  taskId: string;
+  taskTitle: string;
+  resourceId: string;
+  resourceName: string | null;
+  proposedStartTime: string;
+  proposedEndTime: string;
+  conflictTaskId: string;
+  conflictTaskTitle: string;
+  conflictStartTime: string;
+  conflictEndTime: string;
+}
+
+export interface AutoSchedulePreviewSummary {
+  selectedTaskCount: number;
+  scheduledTaskCount: number;
+  skippedTaskCount: number;
+  createCount: number;
+  updateCount: number;
+  unchangedCount: number;
+  conflictCount: number;
+}
+
+export interface AutoSchedulePreviewResult {
+  projectId: string;
+  ownerId: string;
+  endDate: string;
+  taskIds: string[];
+  summary: AutoSchedulePreviewSummary;
+  tasks: AutoSchedulePreviewTask[];
+  warnings: string[];
+  conflicts: AutoSchedulePreviewConflict[];
+  createdAt: string;
+}
+
+export interface AutoScheduleApplyResult {
+  scheduledTaskIds: string[];
+  skippedTaskIds: string[];
+  warnings: string[];
+}
+
 export interface ProjectReadinessCheck {
   id: string;
   projectId: string;

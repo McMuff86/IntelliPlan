@@ -1,4 +1,6 @@
 import type {
+  AutoScheduleApplyResult,
+  AutoSchedulePreviewResult,
   CreateProjectDTO,
   DefaultReadinessCheckTemplate,
   Project,
@@ -60,10 +62,22 @@ export const projectService = {
   async autoSchedule(
     id: string,
     data: { taskIds: string[]; endDate: string }
-  ): Promise<{ scheduledTaskIds: string[]; skippedTaskIds: string[]; warnings: string[] }> {
-    const response = await api.post<
-      ApiResponse<{ scheduledTaskIds: string[]; skippedTaskIds: string[]; warnings: string[] }>
-    >(`/projects/${id}/auto-schedule`, data);
+  ): Promise<AutoScheduleApplyResult> {
+    const response = await api.post<ApiResponse<AutoScheduleApplyResult>>(
+      `/projects/${id}/auto-schedule`,
+      data
+    );
+    return response.data.data;
+  },
+
+  async previewAutoSchedule(
+    id: string,
+    data: { taskIds: string[]; endDate: string }
+  ): Promise<AutoSchedulePreviewResult> {
+    const response = await api.post<ApiResponse<AutoSchedulePreviewResult>>(
+      `/projects/${id}/auto-schedule/preview`,
+      data
+    );
     return response.data.data;
   },
 

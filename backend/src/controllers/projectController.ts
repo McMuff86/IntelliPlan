@@ -12,6 +12,7 @@ import {
   updateProjectTaskTemplateId,
 } from '../services/projectService';
 import { shiftProjectSchedule, autoScheduleProjectTasks } from '../services/taskService';
+import { buildAutoSchedulePreview } from '../services/planningEngineService';
 import { applyTemplateToProject, resetProjectTasks } from '../services/templateApplicationService';
 import {
   getDefaultProjectPhasePlan,
@@ -532,6 +533,58 @@ export async function autoSchedule(req: Request, res: Response, next: NextFuncti
     });
 
     res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function previewAutoSchedule(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.status(400).json({ success: false, errors: errors.array() });
+      return;
+    }
+
+    const userId = getUserId(req);
+    if (!userId) {
+      res.status(401).json({ success: false, error: 'Unauthorized: User not found' });
+      return;
+    }
+
+    const projectId = req.params.id as string;
+    const project = await getProjectById(projectId, userId);
+    if (!project) {
+      res.status(404).json({ success: false, error: 'Project not found' });
+      return;
+    }
+
+    const readinessSummary = await getProjectReadinessSummary(projectId, userId);
+    if (!readinessSummary.isReady) {
+      res.status(409).json({
+        success: false,
+        error: 'Project readiness gate not approved',
+        data: readinessSummary,
+      });
+      return;
+    }
+
+    const { taskIds, endDate } = req.body;
+    const preview = await buildAutoSchedulePreview({
+      projectId,
+      ownerId: userId,
+      taskIds,
+      endDate,
+      includeWeekends: project.include_weekends,
+      workdayStart: project.workday_start,
+      workdayEnd: project.workday_end,
+    });
+
+    res.status(200).json({ success: true, data: preview });
   } catch (error) {
     next(error);
   }

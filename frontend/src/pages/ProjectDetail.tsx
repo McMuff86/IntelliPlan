@@ -36,6 +36,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { formatISO, format, parseISO } from 'date-fns';
 import { de } from 'date-fns/locale/de';
 import type {
+  AutoSchedulePreviewResult,
   Industry,
   ProductType,
   Project,
@@ -592,6 +593,16 @@ export default function ProjectDetail() {
     const summary = await projectService.getReadinessSummary(project.id);
     setReadinessSummary(summary);
     void loadActivity(project.id);
+  };
+
+  const handleAutoSchedulePreview = async (
+    taskIds: string[],
+    endDate: string
+  ): Promise<AutoSchedulePreviewResult> => {
+    if (!project) {
+      throw new Error('Project not loaded');
+    }
+    return projectService.previewAutoSchedule(project.id, { taskIds, endDate });
   };
 
   const handleReadinessStatusChange = (checkCode: ProjectReadinessCheck['checkCode'], status: ReadinessStatus) => {
@@ -1795,6 +1806,7 @@ export default function ProjectDetail() {
         open={autoScheduleOpen}
         onClose={() => setAutoScheduleOpen(false)}
         tasks={filteredAndSortedTasks}
+        onPreview={handleAutoSchedulePreview}
         onSchedule={handleAutoSchedule}
       />
     </Box>
