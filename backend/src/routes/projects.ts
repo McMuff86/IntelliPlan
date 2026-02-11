@@ -10,6 +10,7 @@ import {
   updateProjectValidator,
   updateProjectPhasePlanValidator,
   syncProjectPhasePlanValidator,
+  updateProjectReadinessValidator,
 } from '../validators/projectValidator';
 import { createTaskValidator } from '../validators/taskValidator';
 import { createPendenzValidator, listPendenzenQueryValidator } from '../validators/pendenzValidator';
@@ -22,10 +23,13 @@ const router = Router();
 router.get('/search', requirePermission('projects:read'), searchProjectsValidator, searchProjectsHandler);
 router.get('/trash', requirePermission('projects:read'), projectController.listTrash);
 router.get('/phase-plan/default', requirePermission('projects:read'), projectController.getDefaultPhasePlan);
+router.get('/readiness/default', requirePermission('projects:read'), projectController.getDefaultReadiness);
 router.get('/', requirePermission('projects:read'), projectController.list);
 router.get('/:id', requirePermission('projects:read'), projectController.getById);
 router.get('/:id/activity', requirePermission('projects:read'), projectController.listActivity);
 router.get('/:id/phase-plan', requirePermission('projects:read'), projectController.getPhasePlan);
+router.get('/:id/readiness', requirePermission('projects:read'), projectController.getReadiness);
+router.get('/:id/readiness/summary', requirePermission('projects:read'), projectController.getReadinessSummary);
 
 // Write routes
 router.post('/', requirePermission('projects:write'), createProjectValidator, projectController.create);
@@ -46,6 +50,12 @@ router.post(
   requirePermission('projects:write'),
   syncProjectPhasePlanValidator,
   projectController.syncPhasePlan
+);
+router.put(
+  '/:id/readiness',
+  requirePermission('projects:write'),
+  updateProjectReadinessValidator,
+  projectController.updateReadiness
 );
 
 // Delete routes
