@@ -218,12 +218,14 @@ describe('taskService', () => {
       };
 
       // 1: SELECT tasks
-      // 2: DELETE work_slots
-      // 3: UPDATE tasks (start/due date)
-      // 4: INSERT work_slot
-      // 5: INSERT task_phase_schedules (publish)
+      // 2: SELECT existing task slots
+      // 3: DELETE work_slots
+      // 4: UPDATE tasks (start/due date)
+      // 5: INSERT work_slot
+      // 6: INSERT task_phase_schedules (publish)
       mockedPool.query
         .mockResolvedValueOnce({ rows: [task], rowCount: 1 } as any) // SELECT
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any) // SELECT existing slots
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any) // DELETE slots
         .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any) // UPDATE task dates
         .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any) // INSERT work_slot
@@ -259,6 +261,7 @@ describe('taskService', () => {
 
       mockedPool.query
         .mockResolvedValueOnce({ rows: [task], rowCount: 1 } as any)
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
         .mockResolvedValueOnce({ rows: [], rowCount: 0 } as any)
         .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any)
         .mockResolvedValueOnce({ rows: [], rowCount: 1 } as any);

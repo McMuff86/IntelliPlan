@@ -38,6 +38,12 @@ router.post('/:id/restore', requirePermission('projects:write'), projectControll
 router.post('/:id/shift', requirePermission('projects:write'), shiftProjectValidator, projectController.shiftSchedule);
 router.post('/:id/apply-template', requirePermission('projects:write'), projectController.applyTemplate);
 router.post('/:id/reset-template', requirePermission('projects:write'), projectController.resetProjectToTemplate);
+router.post(
+  '/:id/auto-schedule/preview',
+  requirePermission('projects:write'),
+  autoScheduleValidator,
+  projectController.previewAutoSchedule
+);
 router.post('/:id/auto-schedule', requirePermission('projects:write'), autoScheduleValidator, projectController.autoSchedule);
 router.put(
   '/:id/phase-plan',

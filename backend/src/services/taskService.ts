@@ -9,26 +9,13 @@ import type {
   ResourceType,
   TaskStatus,
 } from '../models/task';
+import {
+  applyAutoSchedulePreview,
+  buildAutoSchedulePreview,
+  getISOWeek,
+} from './planningEngineService';
 
-const PHASE_CODE_TO_DB_PHASE: Record<string, string> = {
-  ZUS: 'zuschnitt',
-  CNC: 'cnc',
-  PROD: 'produktion',
-  BEH: 'behandlung',
-  VORBEH: 'vorbehandlung',
-  NACHBEH: 'nachbehandlung',
-  BESCHL: 'beschlaege',
-  TRANS: 'transport',
-  MONT: 'montage',
-};
-
-export function getISOWeek(date: Date): { kw: number; year: number } {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const kw = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  return { kw, year: d.getUTCFullYear() };
-}
+export { getISOWeek };
 
 export interface TaskWorkSlotCalendar {
   id: string;
@@ -659,163 +646,17 @@ export async function autoScheduleProjectTasks(
   workdayStart: string,
   workdayEnd: string
 ): Promise<AutoScheduleResult> {
-  const warnings: string[] = [];
-  const scheduledTaskIds: string[] = [];
-  const skippedTaskIds: string[] = [];
+  const preview = await buildAutoSchedulePreview({
+    projectId,
+    ownerId,
+    taskIds,
+    endDate: endDateStr,
+    includeWeekends,
+    workdayStart,
+    workdayEnd,
+  });
 
-  // Parse workday hours
-  const [startH, startM] = workdayStart.split(':').map(Number);
-  const [endH, endM] = workdayEnd.split(':').map(Number);
-  const workdayMinutes = (endH * 60 + endM) - (startH * 60 + startM);
-
-  if (workdayMinutes <= 0) {
-    return { scheduledTaskIds: [], skippedTaskIds: taskIds, warnings: ['Invalid workday configuration'] };
-  }
-
-  // Fetch tasks in the order provided (workflow order)
-  const taskResult = await pool.query<Task>(
-    `SELECT * FROM tasks WHERE id = ANY($1::uuid[]) AND owner_id = $2 AND deleted_at IS NULL`,
-    [taskIds, ownerId]
-  );
-  const taskMap = new Map(taskResult.rows.map((t) => [t.id, t]));
-
-  // Delete existing work slots for the selected tasks
-  await pool.query(
-    `DELETE FROM task_work_slots
-     WHERE task_id = ANY($1::uuid[])
-       AND task_id IN (SELECT id FROM tasks WHERE owner_id = $2)`,
-    [taskIds, ownerId]
-  );
-
-  // Process tasks in reverse workflow order (last task first → backward planning)
-  let cursor = new Date(endDateStr + 'T00:00:00');
-  // Set cursor to end of last workday at the endDate
-  cursor.setHours(endH, endM, 0, 0);
-
-  const isWorkday = (date: Date): boolean => {
-    const day = date.getDay();
-    if (includeWeekends) return true;
-    return day !== 0 && day !== 6; // skip Sunday (0) and Saturday (6)
-  };
-
-  const prevWorkday = (date: Date): Date => {
-    const d = new Date(date);
-    d.setDate(d.getDate() - 1);
-    while (!isWorkday(d)) {
-      d.setDate(d.getDate() - 1);
-    }
-    return d;
-  };
-
-  for (let i = taskIds.length - 1; i >= 0; i--) {
-    const taskId = taskIds[i];
-    const task = taskMap.get(taskId);
-
-    if (!task) {
-      warnings.push(`Task ${taskId} not found`);
-      skippedTaskIds.push(taskId);
-      continue;
-    }
-
-    if (!task.duration_minutes || task.duration_minutes <= 0) {
-      warnings.push(`Task "${task.title}" has no duration, skipped`);
-      skippedTaskIds.push(taskId);
-      continue;
-    }
-
-    let remainingMinutes = task.duration_minutes;
-    const slots: { start: Date; end: Date }[] = [];
-
-    // Make sure cursor is on a workday
-    while (!isWorkday(cursor)) {
-      const prev = prevWorkday(cursor);
-      cursor = new Date(prev);
-      cursor.setHours(endH, endM, 0, 0);
-    }
-
-    // Fill slots backward
-    while (remainingMinutes > 0) {
-      // Available minutes in current day (from workday start to cursor position)
-      const cursorMinutesInDay = cursor.getHours() * 60 + cursor.getMinutes();
-      const workdayStartMinutes = startH * 60 + startM;
-      const availableInDay = cursorMinutesInDay - workdayStartMinutes;
-
-      if (availableInDay <= 0) {
-        // Move to previous workday end
-        const prev = prevWorkday(cursor);
-        cursor = new Date(prev);
-        cursor.setHours(endH, endM, 0, 0);
-        continue;
-      }
-
-      const slotMinutes = Math.min(remainingMinutes, availableInDay);
-      const slotEnd = new Date(cursor);
-      const slotStart = new Date(cursor);
-      slotStart.setMinutes(slotStart.getMinutes() - slotMinutes);
-
-      slots.unshift({ start: slotStart, end: slotEnd });
-      remainingMinutes -= slotMinutes;
-
-      // Move cursor to start of this slot
-      cursor = new Date(slotStart);
-
-      // If we used all available time in this day, move to previous workday
-      if (cursor.getHours() * 60 + cursor.getMinutes() <= workdayStartMinutes) {
-        const prev = prevWorkday(cursor);
-        cursor = new Date(prev);
-        cursor.setHours(endH, endM, 0, 0);
-      }
-    }
-
-    // Set task start_date and due_date
-    const taskStartDate = slots.length > 0 ? slots[0].start : cursor;
-    const taskDueDate = slots.length > 0 ? slots[slots.length - 1].end : cursor;
-
-    const startDateStr = taskStartDate.toISOString().split('T')[0];
-    const dueDateStr = taskDueDate.toISOString().split('T')[0];
-
-    await pool.query(
-      `UPDATE tasks SET start_date = $1, due_date = $2, updated_at = NOW()
-       WHERE id = $3 AND owner_id = $4`,
-      [startDateStr, dueDateStr, taskId, ownerId]
-    );
-
-    // Create work slots
-    for (const slot of slots) {
-      await pool.query(
-        `INSERT INTO task_work_slots (task_id, start_time, end_time, is_fixed, is_all_day, reminder_enabled)
-         VALUES ($1, $2, $3, false, false, false)`,
-        [taskId, slot.start.toISOString(), slot.end.toISOString()]
-      );
-    }
-
-    // Publish to task_phase_schedules for Wochenplan integration
-    const phaseCode = task.phase_code;
-    if (phaseCode) {
-      const dbPhase = PHASE_CODE_TO_DB_PHASE[phaseCode] || phaseCode.toLowerCase();
-      const { kw, year } = getISOWeek(taskDueDate);
-      try {
-        await pool.query(
-          `INSERT INTO task_phase_schedules (task_id, phase, planned_kw, planned_year, status)
-           VALUES ($1, $2::production_phase, $3, $4, 'planned')
-           ON CONFLICT (task_id, phase) DO UPDATE SET
-             planned_kw = EXCLUDED.planned_kw,
-             planned_year = EXCLUDED.planned_year,
-             updated_at = NOW()`,
-          [taskId, dbPhase, kw, year]
-        );
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        warnings.push(`Task "${task.title}": phase schedule publish failed (${errMsg})`);
-      }
-    } else {
-      warnings.push(`Task "${task.title}" hat keinen phase_code, Wochenplan-Eintrag übersprungen`);
-    }
-
-    scheduledTaskIds.push(taskId);
-  }
-
-  return { scheduledTaskIds, skippedTaskIds, warnings };
+  return applyAutoSchedulePreview(ownerId, preview);
 }
 
 export const shiftTaskWithDependents = async (
