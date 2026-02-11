@@ -3,7 +3,14 @@ import * as projectController from '../controllers/projectController';
 import * as taskController from '../controllers/taskController';
 import * as pendenzController from '../controllers/pendenzController';
 import { loadUser, requirePermission } from '../middleware/roleMiddleware';
-import { autoScheduleValidator, createProjectValidator, shiftProjectValidator, updateProjectValidator } from '../validators/projectValidator';
+import {
+  autoScheduleValidator,
+  createProjectValidator,
+  shiftProjectValidator,
+  updateProjectValidator,
+  updateProjectPhasePlanValidator,
+  syncProjectPhasePlanValidator,
+} from '../validators/projectValidator';
 import { createTaskValidator } from '../validators/taskValidator';
 import { createPendenzValidator, listPendenzenQueryValidator } from '../validators/pendenzValidator';
 import { searchProjectsValidator } from '../validators/searchValidator';
@@ -14,9 +21,11 @@ const router = Router();
 // Read routes
 router.get('/search', requirePermission('projects:read'), searchProjectsValidator, searchProjectsHandler);
 router.get('/trash', requirePermission('projects:read'), projectController.listTrash);
+router.get('/phase-plan/default', requirePermission('projects:read'), projectController.getDefaultPhasePlan);
 router.get('/', requirePermission('projects:read'), projectController.list);
 router.get('/:id', requirePermission('projects:read'), projectController.getById);
 router.get('/:id/activity', requirePermission('projects:read'), projectController.listActivity);
+router.get('/:id/phase-plan', requirePermission('projects:read'), projectController.getPhasePlan);
 
 // Write routes
 router.post('/', requirePermission('projects:write'), createProjectValidator, projectController.create);
@@ -26,6 +35,18 @@ router.post('/:id/shift', requirePermission('projects:write'), shiftProjectValid
 router.post('/:id/apply-template', requirePermission('projects:write'), projectController.applyTemplate);
 router.post('/:id/reset-template', requirePermission('projects:write'), projectController.resetProjectToTemplate);
 router.post('/:id/auto-schedule', requirePermission('projects:write'), autoScheduleValidator, projectController.autoSchedule);
+router.put(
+  '/:id/phase-plan',
+  requirePermission('projects:write'),
+  updateProjectPhasePlanValidator,
+  projectController.updatePhasePlan
+);
+router.post(
+  '/:id/phase-plan/sync-tasks',
+  requirePermission('projects:write'),
+  syncProjectPhasePlanValidator,
+  projectController.syncPhasePlan
+);
 
 // Delete routes
 router.delete('/:id', requirePermission('projects:delete'), projectController.remove);

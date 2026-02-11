@@ -1,4 +1,9 @@
 import { body, ValidationChain } from 'express-validator';
+import {
+  VALID_PROJECT_PRIORITIES,
+  VALID_PROJECT_RISK_LEVELS,
+} from '../models/project';
+import { VALID_PHASE_CODES } from '../models/task';
 
 const templateValues = ['weekday_8_17', 'weekday_8_17_with_weekends', 'custom'];
 
@@ -56,6 +61,18 @@ const wochenplanFieldValidators: ValidationChain[] = [
     .trim()
     .isLength({ max: 10000 })
     .withMessage('remarks must be less than 10000 characters'),
+  body('targetEndDate')
+    .optional({ values: 'null' })
+    .isISO8601()
+    .withMessage('targetEndDate must be a valid ISO 8601 date'),
+  body('priority')
+    .optional()
+    .isIn(VALID_PROJECT_PRIORITIES)
+    .withMessage(`priority must be one of: ${VALID_PROJECT_PRIORITIES.join(', ')}`),
+  body('riskLevel')
+    .optional()
+    .isIn(VALID_PROJECT_RISK_LEVELS)
+    .withMessage(`riskLevel must be one of: ${VALID_PROJECT_RISK_LEVELS.join(', ')}`),
 ];
 
 export const createProjectValidator: ValidationChain[] = [
@@ -143,4 +160,87 @@ export const shiftProjectValidator: ValidationChain[] = [
     .withMessage('deltaDays is required')
     .isInt({ min: -3650, max: 3650 })
     .withMessage('deltaDays must be an integer between -3650 and 3650'),
+];
+
+export const updateProjectPhasePlanValidator: ValidationChain[] = [
+  body('phases')
+    .isArray({ min: 1 })
+    .withMessage('phases must be a non-empty array'),
+  body('phases.*.phaseCode')
+    .isIn(VALID_PHASE_CODES)
+    .withMessage(`phaseCode must be one of: ${VALID_PHASE_CODES.join(', ')}`),
+  body('phases.*.phaseLabel')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 255 })
+    .withMessage('phaseLabel must be between 1 and 255 characters'),
+  body('phases.*.sequenceOrder')
+    .isInt({ min: 1, max: 9999 })
+    .withMessage('sequenceOrder must be an integer between 1 and 9999'),
+  body('phases.*.isRequired')
+    .optional()
+    .isBoolean()
+    .withMessage('isRequired must be boolean'),
+  body('phases.*.isEnabled')
+    .optional()
+    .isBoolean()
+    .withMessage('isEnabled must be boolean'),
+  body('phases.*.estimatedHoursMin')
+    .optional({ values: 'null' })
+    .isFloat({ min: 0, max: 999.9 })
+    .withMessage('estimatedHoursMin must be between 0 and 999.9'),
+  body('phases.*.estimatedHoursMax')
+    .optional({ values: 'null' })
+    .isFloat({ min: 0, max: 999.9 })
+    .withMessage('estimatedHoursMax must be between 0 and 999.9'),
+  body('phases.*.dependencyPhaseCodes')
+    .optional()
+    .isArray()
+    .withMessage('dependencyPhaseCodes must be an array'),
+  body('phases.*.dependencyPhaseCodes.*')
+    .optional()
+    .isIn(VALID_PHASE_CODES)
+    .withMessage(`dependencyPhaseCodes must contain valid phase codes: ${VALID_PHASE_CODES.join(', ')}`),
+  body('phases.*.notes')
+    .optional({ values: 'null' })
+    .trim()
+    .isLength({ max: 5000 })
+    .withMessage('notes must be less than 5000 characters'),
+  body('phases')
+    .custom((phases: Array<{ phaseCode: string; estimatedHoursMin?: unknown; estimatedHoursMax?: unknown }>) => {
+      const phaseCodes = new Set<string>();
+      for (const phase of phases) {
+        if (phaseCodes.has(phase.phaseCode)) {
+          throw new Error(`Duplicate phaseCode: ${phase.phaseCode}`);
+        }
+        phaseCodes.add(phase.phaseCode);
+
+        const min =
+          phase.estimatedHoursMin === undefined || phase.estimatedHoursMin === null
+            ? null
+            : Number(phase.estimatedHoursMin);
+        const max =
+          phase.estimatedHoursMax === undefined || phase.estimatedHoursMax === null
+            ? null
+            : Number(phase.estimatedHoursMax);
+
+        if (
+          min !== null &&
+          max !== null &&
+          !Number.isNaN(min) &&
+          !Number.isNaN(max) &&
+          min > max
+        ) {
+          throw new Error(`estimatedHoursMin must be <= estimatedHoursMax for ${phase.phaseCode}`);
+        }
+      }
+      return true;
+    }),
+];
+
+export const syncProjectPhasePlanValidator: ValidationChain[] = [
+  body('replaceExistingPhaseTasks')
+    .optional()
+    .isBoolean()
+    .withMessage('replaceExistingPhaseTasks must be boolean'),
 ];

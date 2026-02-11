@@ -1317,6 +1317,28 @@ export default function ProjectDetail() {
               {format(parseISO(project.updatedAt), 'MMM d, yyyy h:mm a')}
             </Typography>
           </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Target End
+            </Typography>
+            <Typography variant="body2">
+              {project.targetEndDate
+                ? format(parseISO(project.targetEndDate), 'MMM d, yyyy')
+                : 'Not set'}
+            </Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Priority
+            </Typography>
+            <Typography variant="body2">{project.priority}</Typography>
+          </Box>
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              Risk
+            </Typography>
+            <Typography variant="body2">{project.riskLevel}</Typography>
+          </Box>
         </Box>
       </Paper>
 

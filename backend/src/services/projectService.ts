@@ -1,5 +1,5 @@
 import { pool } from '../config/database';
-import { Project } from '../models/project';
+import type { Project, ProjectPriority, ProjectRiskLevel } from '../models/project';
 
 export interface CreateProjectDTO {
   name: string;
@@ -21,6 +21,9 @@ export interface CreateProjectDTO {
   worker_count?: number | null;
   helper_count?: number | null;
   remarks?: string | null;
+  target_end_date?: string | null;
+  priority?: ProjectPriority;
+  risk_level?: ProjectRiskLevel;
 }
 
 export interface UpdateProjectDTO {
@@ -41,6 +44,9 @@ export interface UpdateProjectDTO {
   worker_count?: number | null;
   helper_count?: number | null;
   remarks?: string | null;
+  target_end_date?: string | null;
+  priority?: ProjectPriority;
+  risk_level?: ProjectRiskLevel;
 }
 
 export async function createProject(data: CreateProjectDTO): Promise<Project> {
@@ -49,9 +55,10 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
        name, description, owner_id, include_weekends, workday_start, workday_end,
        work_template, task_template_id, order_number, customer_name,
        installation_location, color, contact_name, contact_phone,
-       needs_callback, sachbearbeiter, worker_count, helper_count, remarks
+       needs_callback, sachbearbeiter, worker_count, helper_count, remarks,
+       target_end_date, priority, risk_level
      )
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
      RETURNING *`,
     [
       data.name,
@@ -73,6 +80,9 @@ export async function createProject(data: CreateProjectDTO): Promise<Project> {
       data.worker_count ?? null,
       data.helper_count ?? null,
       data.remarks ?? null,
+      data.target_end_date ?? null,
+      data.priority ?? 'normal',
+      data.risk_level ?? 'medium',
     ]
   );
 
@@ -198,6 +208,18 @@ export async function updateProject(
   if (data.remarks !== undefined) {
     fields.push(`remarks = $${paramIndex++}`);
     values.push(data.remarks);
+  }
+  if (data.target_end_date !== undefined) {
+    fields.push(`target_end_date = $${paramIndex++}`);
+    values.push(data.target_end_date);
+  }
+  if (data.priority !== undefined) {
+    fields.push(`priority = $${paramIndex++}`);
+    values.push(data.priority);
+  }
+  if (data.risk_level !== undefined) {
+    fields.push(`risk_level = $${paramIndex++}`);
+    values.push(data.risk_level);
   }
 
   if (fields.length === 0) {

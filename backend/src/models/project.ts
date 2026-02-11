@@ -1,3 +1,9 @@
+export type ProjectPriority = 'low' | 'normal' | 'high' | 'urgent';
+export type ProjectRiskLevel = 'low' | 'medium' | 'high' | 'critical';
+
+export const VALID_PROJECT_PRIORITIES: ProjectPriority[] = ['low', 'normal', 'high', 'urgent'];
+export const VALID_PROJECT_RISK_LEVELS: ProjectRiskLevel[] = ['low', 'medium', 'high', 'critical'];
+
 export interface Project {
   id: string;
   name: string;
@@ -19,6 +25,9 @@ export interface Project {
   worker_count: number | null;
   helper_count: number | null;
   remarks: string | null;
+  target_end_date: string | null;
+  priority: ProjectPriority;
+  risk_level: ProjectRiskLevel;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -45,6 +54,9 @@ export interface ProjectResponse {
   workerCount: number | null;
   helperCount: number | null;
   remarks: string | null;
+  targetEndDate: string | null;
+  priority: ProjectPriority;
+  riskLevel: ProjectRiskLevel;
   createdAt: string;
   updatedAt: string;
   deletedAt: string | null;
@@ -71,6 +83,9 @@ export const toProjectResponse = (project: Project): ProjectResponse => ({
   workerCount: project.worker_count ? Number(project.worker_count) : null,
   helperCount: project.helper_count ? Number(project.helper_count) : null,
   remarks: project.remarks,
+  targetEndDate: project.target_end_date,
+  priority: project.priority ?? 'normal',
+  riskLevel: project.risk_level ?? 'medium',
   createdAt: project.created_at,
   updatedAt: project.updated_at,
   deletedAt: project.deleted_at,
